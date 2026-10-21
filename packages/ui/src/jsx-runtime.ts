@@ -1,23 +1,24 @@
+import type { NodeType } from './node-registry.js'
 import type {
     Component,
     JSXElementType,
     JSXNode,
     JSXProps,
     Key,
-    UINodeType,
-} from './types.js'
+} from './types/index.js'
+import { Fragment } from './types/jsx.js'
 
-export const Fragment = Symbol.for('takt.fragment')
+export { Fragment }
 
 export function jsx(
     type: JSXElementType,
     props: object | null,
     key?: Key,
 ): JSXNode {
-    const node: JSXNode = {
+    const node = {
         type,
         props: (props ?? {}) as JSXProps,
-    }
+    } as const
 
     return key === undefined ? node : { ...node, key }
 }
@@ -28,7 +29,7 @@ export const jsxs = jsx
 // eslint-disable-next-line @typescript-eslint/no-namespace -- JSX runtimes expose this exact namespace by TypeScript convention.
 export namespace JSX {
     export type Element = JSXNode
-    export type ElementType = UINodeType | Component<never>
+    export type ElementType = NodeType | Component<never>
 
     export interface ElementChildrenAttribute {
         children: unknown

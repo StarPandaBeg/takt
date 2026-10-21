@@ -10,14 +10,22 @@ export interface ProjectSettings {
 export interface Project<
     TContext = unknown,
     TSettings extends ProjectSettings = ProjectSettings,
+    TScenes extends Record<string, Scene<TContext>> = Record<
+        string,
+        Scene<TContext>
+    >,
 > {
     settings: TSettings
-    scenes: Record<string, Scene<TContext>>
+    scenes: TScenes
 }
 
-export function createProject<TContext>(
-    project: Project<TContext>,
-): Project<TContext> {
+export function createProject<
+    TContext,
+    const TScenes extends Record<string, Scene<TContext>>,
+    TSettings extends ProjectSettings = ProjectSettings,
+>(
+    project: Project<TContext, TSettings, TScenes>,
+): Project<TContext, TSettings, TScenes> {
     return project
 }
 

@@ -1,11 +1,10 @@
 import { jsx } from '../jsx-runtime.js'
-import type { PropsWithRequiredChildren } from '../types.js'
+import type { PropsWithRequiredChildren } from '../types/jsx.js'
 
 export interface TextProps extends PropsWithRequiredChildren {
-    size?: number
+    readonly size?: number
 }
 
 export function Text(props: TextProps) {
-    props.size ??= 14
-    return jsx('text', props)
+    return jsx('text', { ...props, size: props.size ?? 14 })
 }

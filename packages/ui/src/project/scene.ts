@@ -1,4 +1,4 @@
-import type { JSXChild } from '../types.js'
+import type { JSXChild } from '../types/index.js'
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SceneContext {}

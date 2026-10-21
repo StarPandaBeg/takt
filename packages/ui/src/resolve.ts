@@ -1,13 +1,12 @@
 import { Fragment } from './jsx-runtime.js'
-import type { Component, JSXChild, Props, UINode } from './types.js'
-
-type ResolvedChild = UINode | string | number
+import { isNodeType } from './node-registry.js'
+import { type Component, type JSXChild, type UIChild } from './types/index.js'
 
 function isChildArray(input: JSXChild): input is readonly JSXChild[] {
     return Array.isArray(input)
 }
 
-export function resolve(input: JSXChild): ResolvedChild[] {
+export function resolve(input: JSXChild): UIChild[] {
     if (input == null || typeof input === 'boolean') {
         return []
     }
@@ -25,18 +24,17 @@ export function resolve(input: JSXChild): ResolvedChild[] {
         return resolve(props.children)
     }
     if (typeof type === 'function') {
-        const component = type as Component<Props>
-        return resolve(component(props))
+        return resolve((type as Component)(props))
     }
-    if (type !== 'text') {
-        throw new Error('Unsupported JSX element type')
+    if (!isNodeType(type)) {
+        throw new Error(`Unsupported JSX element type: ${String(type)}`)
     }
 
-    const { children, ...rest } = props
+    const { children, ...nodeProps } = props
     return [
         {
             type,
-            props: rest,
+            props: nodeProps,
             children: resolve(children),
         },
     ]

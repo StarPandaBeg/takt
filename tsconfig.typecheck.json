@@ -16,5 +16,5 @@
         "sourceMap": false,
         "incremental": false
     },
-    "include": ["packages/**/*.ts", "packages/**/*.tsx"]
+    "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"]
 }
