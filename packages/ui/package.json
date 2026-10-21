@@ -1,0 +1,12 @@
+{
+    "name": "@takt/ui",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "UI JSX components for screen building",
+    "scripts": {
+        "build": "tsc --build"
+    },
+    "author": "StarPanda",
+    "license": "MIT"
+}
