@@ -1,20 +1,26 @@
 {
     "compilerOptions": {
-        "target": "es2025",
+        "target": "es2024",
+        "lib": ["es2024"],
+        "types": ["node"],
         "module": "nodenext",
-        "sourceMap": true,
-        "strict": true,
         "moduleResolution": "nodenext",
         "moduleDetection": "force",
+        "sourceMap": true,
+        "strict": true,
         "verbatimModuleSyntax": true,
-        "esModuleInterop": true,
+        "isolatedModules": true,
+        "erasableSyntaxOnly": true,
         "forceConsistentCasingInFileNames": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "noImplicitOverride": true,
+        "noFallthroughCasesInSwitch": true,
         // project references
         "composite": true,
         "declaration": true,
         "declarationMap": true,
-        "incremental": true,
-        "skipLibCheck": true,
+        "skipLibCheck": false,
         "noEmitOnError": true
     }
 }

@@ -1,12 +1,36 @@
 {
     "name": "@takt/ui",
+    "description": "UI JSX components for screen building",
     "version": "1.0.0",
     "private": true,
     "type": "module",
-    "description": "UI JSX components for screen building",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "scripts": {
-        "build": "tsc --build"
+        "build": "tsc --build --force",
+        "build:incremental": "tsc --build",
+        "build:clean": "tsc --build --clean",
+        "typecheck": "tsc --build --force",
+        "dev": "tsc --build --watch --preserveWatchOutput"
     },
     "author": "StarPanda",
-    "license": "MIT"
+    "license": "MIT",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./jsx-runtime": {
+            "types": "./dist/jsx-runtime.d.ts",
+            "import": "./dist/jsx-runtime.js"
+        },
+        "./jsx-dev-runtime": {
+            "types": "./dist/jsx-dev-runtime.d.ts",
+            "import": "./dist/jsx-dev-runtime.js"
+        },
+        "./components": {
+            "types": "./dist/components/index.d.ts",
+            "import": "./dist/components/index.js"
+        }
+    }
 }

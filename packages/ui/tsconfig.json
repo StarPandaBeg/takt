@@ -2,6 +2,10 @@
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "outDir": "./dist",
-        "rootDir": "./src"
-    }
+        "rootDir": "./src",
+        "tsBuildInfoFile": "./dist/.tsbuildinfo",
+        "jsx": "react-jsx",
+        "jsxImportSource": "@takt/ui"
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

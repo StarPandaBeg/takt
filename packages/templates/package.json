@@ -1,0 +1,21 @@
+{
+    "name": "@takt/templates",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Templates for screens",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "author": "StarPanda",
+    "license": "MIT",
+    "scripts": {
+        "build": "tsc --build --force",
+        "build:incremental": "tsc --build",
+        "build:clean": "tsc --build --clean",
+        "typecheck": "tsc --build --force",
+        "start": "node ./dist/index.js"
+    },
+    "dependencies": {
+        "@takt/ui": "^1.0.0"
+    }
+}
