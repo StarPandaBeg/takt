@@ -1,15 +1,24 @@
-import { resolve, type JSXNode } from '@takt/ui'
+import { createProject, makeScene } from '@takt/ui'
 import { Text } from '@takt/ui/components'
 
-function Tree(): JSXNode {
+const calendarBlankScreen = makeScene(() => {
     return (
         <>
-            <Text>123</Text>
-            <Text>456</Text>
+            <Text>Hello, World!</Text>
         </>
     )
-}
+})
 
-const treeNode = Tree()
-const tree = resolve(treeNode)
-console.log(JSON.stringify(tree, undefined, 4))
+const project = createProject({
+    settings: {
+        screen: {
+            width: 800,
+            height: 480,
+        },
+    },
+    scenes: {
+        blank: calendarBlankScreen,
+    },
+})
+
+console.log(project)
