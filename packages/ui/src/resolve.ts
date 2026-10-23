@@ -1,9 +1,27 @@
 import { Fragment } from './jsx-runtime.js'
-import { isNodeType } from './node-registry.js'
-import { type Component, type JSXChild, type UINode } from './types/index.js'
+import { isNodeType, type NodeType } from './node-registry.js'
+import {
+    type Component,
+    type JSXChild,
+    type JSXProps,
+    type UINode,
+} from './types/index.js'
 
 function isChildArray(input: JSXChild): input is readonly JSXChild[] {
     return Array.isArray(input)
+}
+
+function resolvePrimitive(type: NodeType, props: JSXProps): UINode {
+    const { children, ...nodeProps } = props
+
+    // The registry guarantees the correlation between a primitive type and
+    // its normalized props, but that correlation is lost after the JSX node
+    // crosses the heterogeneous component boundary.
+    return {
+        type,
+        props: nodeProps,
+        children: resolve(children),
+    } as unknown as UINode
 }
 
 export function resolve(input: JSXChild): UINode[] {
@@ -30,12 +48,5 @@ export function resolve(input: JSXChild): UINode[] {
         throw new Error(`Unsupported JSX element type: ${String(type)}`)
     }
 
-    const { children, ...nodeProps } = props
-    return [
-        {
-            type,
-            props: nodeProps,
-            children: resolve(children),
-        },
-    ]
+    return [resolvePrimitive(type, props)]
 }

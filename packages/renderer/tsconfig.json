@@ -1,9 +1,12 @@
 {
     "extends": "../../tsconfig.base.json",
     "compilerOptions": {
+        "lib": ["es2024", "DOM"],
+        "types": [],
         "outDir": "./dist",
         "rootDir": "./src",
         "tsBuildInfoFile": "./dist/.tsbuildinfo"
     },
-    "include": ["src/**/*.ts"]
+    "include": ["src/**/*.ts"],
+    "references": [{ "path": "../ui" }]
 }

@@ -13,10 +13,7 @@ export const GroupLayout = defineLayout('group', {
 
     arrange(measured, ctx) {
         return measured.children.map((child) => {
-            const props = child.node.props
-            const x = 'x' in props && typeof props.x === 'number' ? props.x : 0
-            const y = 'y' in props && typeof props.y === 'number' ? props.y : 0
-            return ctx.placeChild(child, x, y)
+            return ctx.placeChild(child, child.node.props.x, child.node.props.y)
         })
     },
 })

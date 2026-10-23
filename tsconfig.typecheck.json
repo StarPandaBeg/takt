@@ -1,11 +1,15 @@
 {
     "extends": "./tsconfig.base.json",
     "compilerOptions": {
+        "lib": ["es2024", "DOM"],
+        "types": ["node"],
         "paths": {
             "@takt/ui": ["./packages/ui/src/index.ts"],
             "@takt/ui/components": ["./packages/ui/src/components/index.ts"],
             "@takt/ui/jsx-runtime": ["./packages/ui/src/jsx-runtime.ts"],
-            "@takt/ui/jsx-dev-runtime": ["./packages/ui/src/jsx-dev-runtime.ts"],
+            "@takt/ui/jsx-dev-runtime": [
+                "./packages/ui/src/jsx-dev-runtime.ts"
+            ],
             "@takt/templates": ["./packages/templates/src/index.tsx"],
             "@takt/renderer": ["./packages/renderer/src/index.ts"],
             "@takt/renderer/exporters": [
@@ -25,6 +29,7 @@
         "apps/*/src/**/*.ts",
         "apps/*/src/**/*.tsx",
         "packages/*/src/**/*.ts",
-        "packages/*/src/**/*.tsx"
+        "packages/*/src/**/*.tsx",
+        "tests/**/*.ts"
     ]
 }

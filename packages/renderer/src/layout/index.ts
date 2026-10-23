@@ -1,23 +1,26 @@
-import type { ProjectSettings, UINode } from '@takt/ui'
-import type { LayoutNode, RenderEnvironment } from '../types.js'
+import type { UINode } from '@takt/ui'
+import type { LayoutRoot, RenderEnvironment, Size } from '../types.js'
 import { arrangeNode, measureNode } from './layout.js'
 
-export function computeLayout<T extends ProjectSettings = ProjectSettings>(
-    node: UINode,
-    settings: T,
+export function computeLayout(
+    nodes: readonly UINode[],
+    viewport: Size,
     env: RenderEnvironment,
-): LayoutNode {
-    const measured = measureNode(
-        node,
-        {
-            width: settings.screen.width,
-            height: settings.screen.height,
+): LayoutRoot {
+    const measured = nodes.map((node) => measureNode(node, viewport, env))
+
+    return {
+        bounds: {
+            x: 0,
+            y: 0,
+            ...viewport,
         },
-        env,
-    )
-    return arrangeNode(measured, {
-        x: 0,
-        y: 0,
-        ...measured.size,
-    })
+        children: measured.map((node) =>
+            arrangeNode(node, {
+                x: node.node.props.x,
+                y: node.node.props.y,
+                ...node.size,
+            }),
+        ),
+    }
 }

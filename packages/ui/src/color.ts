@@ -1,5 +1,6 @@
 export const DrawColor = {
-    BLACK: 1,
-    WHITE: 0,
+    BLACK: 'black',
+    WHITE: 'white',
 } as const
+
 export type DrawColor = (typeof DrawColor)[keyof typeof DrawColor]

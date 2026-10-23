@@ -1,3 +1,4 @@
+import { FramePixel } from '../frame-pixel.js'
 import type { RenderedFrame } from '../types.js'
 import type { FrameExporter } from './types.js'
 
@@ -12,11 +13,7 @@ const MAX_PNG_DIMENSION = 0x7fffffff
 function validateFrame(frame: Readonly<RenderedFrame>): void {
     const { width, height, buffer } = frame
 
-    if (
-        !Number.isInteger(width) ||
-        width <= 0 ||
-        width > MAX_PNG_DIMENSION
-    ) {
+    if (!Number.isInteger(width) || width <= 0 || width > MAX_PNG_DIMENSION) {
         throw new RangeError(`Invalid frame width: ${width}`)
     }
     if (
@@ -62,9 +59,9 @@ function createScanlines(frame: Readonly<RenderedFrame>): Uint8Array {
         for (let x = 0; x < frame.width; x += 1) {
             const pixel = frame.buffer[y * frame.width + x]
 
-            // RenderedFrame: 0 = white, non-zero = black.
+            // RenderedFrame: 0 = white, 1 = black.
             // PNG grayscale: 1 = white, 0 = black.
-            if (pixel === 0) {
+            if (pixel === FramePixel.WHITE) {
                 const byteOffset = rowOffset + 1 + (x >> 3)
                 scanlines[byteOffset] =
                     (scanlines[byteOffset] ?? 0) | (1 << (7 - (x & 7)))

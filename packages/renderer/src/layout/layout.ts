@@ -1,5 +1,3 @@
-// layout.ts
-
 import type { NodeType, UINode } from '@takt/ui'
 import type {
     Bounds,
@@ -14,7 +12,7 @@ import { RectLayout } from './layout-rect.js'
 import { TextLayout } from './layout-text.js'
 
 export type LayoutRegistry = {
-    [T in NodeType]?: LayoutHandler<T>
+    [T in NodeType]: LayoutHandler<T>
 }
 
 export const layoutRegistry: LayoutRegistry = {
@@ -25,12 +23,9 @@ export const layoutRegistry: LayoutRegistry = {
 
 function getHandler(node: UINode): LayoutHandler<NodeType> {
     const handler = layoutRegistry[node.type]
-    if (!handler) {
-        throw new Error(`No layout handler for ${node.type}`)
-    }
 
-    // TypeScript теряет корреляцию node.type и обработчика.
-    // Проверка соответствия производится типом LayoutRegistry.
+    // TypeScript loses the node/handler correlation after indexing a mapped
+    // registry. LayoutRegistry verifies it when the registry is declared.
     return handler as LayoutHandler<NodeType>
 }
 

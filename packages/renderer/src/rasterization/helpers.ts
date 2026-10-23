@@ -1,4 +1,4 @@
-import { DrawColor } from '@takt/ui'
+import type { FramePixel } from '../frame-pixel.js'
 import type { Bounds, RenderedFrame, TextBitmap } from '../types.js'
 
 export function pixelBounds(bounds: Bounds): Bounds {
@@ -18,13 +18,11 @@ export function blitTextBitmap(
     bitmap: TextBitmap,
     x: number,
     y: number,
-    color: DrawColor = DrawColor.BLACK,
-    threshold = 128,
+    color: FramePixel,
+    threshold: number,
 ): void {
     const startX = Math.round(x)
     const startY = Math.round(y)
-
-    // Пересечение маски с границами кадра
     const x1 = Math.max(0, startX)
     const y1 = Math.max(0, startY)
     const x2 = Math.min(frame.width, startX + bitmap.width)
@@ -32,14 +30,14 @@ export function blitTextBitmap(
 
     if (x1 >= x2 || y1 >= y2) return
 
-    for (let py = y1; py < y2; py++) {
-        const srcRow = (py - startY) * bitmap.width
-        const dstRow = py * frame.width
+    for (let py = y1; py < y2; py += 1) {
+        const sourceRow = (py - startY) * bitmap.width
+        const targetRow = py * frame.width
 
-        for (let px = x1; px < x2; px++) {
-            const alpha = bitmap.buffer[srcRow + (px - startX)] ?? 0
+        for (let px = x1; px < x2; px += 1) {
+            const alpha = bitmap.buffer[sourceRow + (px - startX)] ?? 0
             if (alpha >= threshold) {
-                frame.buffer[dstRow + px] = color
+                frame.buffer[targetRow + px] = color
             }
         }
     }

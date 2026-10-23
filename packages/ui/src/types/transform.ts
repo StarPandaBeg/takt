@@ -7,5 +7,3 @@ export interface SizeProps {
     readonly width?: number
     readonly height?: number
 }
-
-export interface TransformProps extends PositionProps, SizeProps {}

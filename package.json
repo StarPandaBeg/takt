@@ -1,37 +1,38 @@
 {
-  "name": "takt",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Backend that keeps your tasks, events, and time in sync.",
-  "scripts": {
-    "build": "tsc --build --force",
-    "build:incremental": "tsc --build",
-    "build:clean": "tsc --build --clean",
-    "rebuild": "npm run build:clean && npm run build",
-    "typecheck": "tsc --project tsconfig.typecheck.json",
-    "start": "npm run start --workspace=@takt/backend",
-    "dev": "npm run build && concurrently --kill-others --names build,backend --prefix-colors cyan,green \"npm:dev:build\" \"npm:dev:backend\"",
-    "dev:build": "tsc --build --watch --preserveWatchOutput",
-    "dev:backend": "npm run dev --workspace=@takt/backend",
-    "lint": "eslint ."
-  },
-  "author": "StarPanda",
-  "license": "MIT",
-  "workspaces": [
-    "packages/*",
-    "apps/backend"
-  ],
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/node": "^22.20.5",
-    "concurrently": "^10.0.6",
-    "eslint": "^10.13.0",
-    "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.13.0",
-    "prettier": "^3.9.10",
-    "prettier-plugin-organize-imports": "^4.3.0",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.72.0"
-  }
+    "name": "takt",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Backend that keeps your tasks, events, and time in sync.",
+    "scripts": {
+        "build": "tsc --build --force",
+        "build:incremental": "tsc --build",
+        "build:clean": "tsc --build --clean",
+        "rebuild": "npm run build:clean && npm run build",
+        "typecheck": "tsc --project tsconfig.typecheck.json",
+        "start": "npm run start --workspace=@takt/backend",
+        "dev": "npm run build && concurrently --kill-others --names build,backend --prefix-colors cyan,green \"npm:dev:build\" \"npm:dev:backend\"",
+        "dev:build": "tsc --build --watch --preserveWatchOutput",
+        "dev:backend": "npm run dev --workspace=@takt/backend",
+        "lint": "eslint .",
+        "test": "npm run build && node --test tests/*.test.mjs"
+    },
+    "author": "StarPanda",
+    "license": "MIT",
+    "workspaces": [
+        "packages/*",
+        "apps/backend"
+    ],
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@types/node": "^22.20.5",
+        "concurrently": "^10.0.6",
+        "eslint": "^10.13.0",
+        "eslint-config-prettier": "^10.1.8",
+        "globals": "^17.13.0",
+        "prettier": "^3.9.10",
+        "prettier-plugin-organize-imports": "^4.3.0",
+        "typescript": "^6.0.3",
+        "typescript-eslint": "^8.72.0"
+    }
 }

@@ -9,11 +9,11 @@ export interface DrawHandler<T extends NodeType> {
     draw: (
         layout: LayoutNodeOf<T>,
         frame: RenderedFrame,
-        context: RenderEnvironment,
+        environment: RenderEnvironment,
     ) => void
 }
 
-export function defineRenderer<T extends NodeType>(
+export function defineDrawHandler<T extends NodeType>(
     type: T,
     handler: DrawHandler<T>,
 ): DrawHandler<T> {

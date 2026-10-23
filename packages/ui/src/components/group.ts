@@ -1,7 +1,8 @@
-import { jsx } from '@takt/ui/jsx-runtime'
+import { definePrimitive } from '../primitive.js'
+import type { JSXChild } from '../types/index.js'
 
-export interface GroupProps {}
-
-export function Group(props: GroupProps) {
-    return jsx('group', { ...props })
+export interface GroupProps {
+    readonly children?: JSXChild
 }
+
+export const Group = definePrimitive('group', (props: GroupProps) => props)

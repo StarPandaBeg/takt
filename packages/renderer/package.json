@@ -16,8 +16,6 @@
     "author": "StarPanda",
     "license": "MIT",
     "dependencies": {
-        "@napi-rs/canvas": "^1.0.13",
-        "@takt/renderer": "^1.0.0",
         "@takt/ui": "^1.0.0"
     },
     "exports": {

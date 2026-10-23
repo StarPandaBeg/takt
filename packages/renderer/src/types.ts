@@ -1,73 +1,62 @@
-import type { NodeOf, NodeType, ProjectSettings, Scene, UINode } from '@takt/ui'
-import type { TextFormat } from '@takt/ui/components'
-
-export type RenderFunction = <
-    TContext,
-    TSettings extends ProjectSettings = ProjectSettings,
->(
-    scene: Scene<TContext>,
-    context: TContext,
-    settings: TSettings,
-) => Promise<RenderedFrame>
-
-export type ComputeLayoutFunction = <
-    TSettings extends ProjectSettings = ProjectSettings,
->(
-    node: UINode,
-    settings: TSettings,
-) => LayoutNode
-
-export interface Renderer {
-    render: RenderFunction
-}
+import type { JSXChild, NodeOf, NodeProps, NodeType, UINode } from '@takt/ui'
 
 export interface Position {
-    x: number
-    y: number
+    readonly x: number
+    readonly y: number
 }
 
 export interface Size {
-    width: number
-    height: number
+    readonly width: number
+    readonly height: number
 }
 
 export interface Bounds extends Position, Size {}
 
+export interface RenderInput {
+    readonly content: JSXChild
+    readonly viewport: Size
+}
+
+export type RenderFunction = (input: RenderInput) => RenderedFrame
+
 export interface MeasuredNode {
-    node: UINode
-    size: Size
-    children: MeasuredNode[]
+    readonly node: UINode
+    readonly size: Size
+    readonly children: readonly MeasuredNode[]
 }
 
 export interface LayoutNode {
-    node: UINode
-    bounds: Bounds
-    children: LayoutNode[]
+    readonly node: UINode
+    readonly bounds: Bounds
+    readonly children: readonly LayoutNode[]
 }
 
-export type LayoutNodeOf<T extends NodeType> = LayoutNode & {
-    node: NodeOf<T>
+export type LayoutNodeOf<T extends NodeType> = Omit<LayoutNode, 'node'> & {
+    readonly node: NodeOf<T>
 }
 
-export interface TextMetrics {
-    width: number
-    height: number
-    baseline: number
+export interface LayoutRoot {
+    readonly bounds: Bounds
+    readonly children: readonly LayoutNode[]
 }
 
-export interface TextBitmap {
-    width: number
-    height: number
-    buffer: Uint8Array
+export type TextStyle = Pick<
+    NodeProps<'text'>,
+    'fontSize' | 'fontFamily' | 'fontWeight' | 'italic' | 'underline'
+>
+
+export interface TextBitmap extends Size {
+    readonly buffer: Uint8Array
 }
 
 export interface RenderEnvironment {
-    measureText: (value: string, format: TextFormat) => TextMetrics
-    rasterizeText: (value: string, format: TextFormat) => TextBitmap
+    readonly measureText: (value: string, style: TextStyle) => Size
+    readonly rasterizeText: (value: string, style: TextStyle) => TextBitmap
 }
 
 export interface RenderedFrame {
-    width: number
-    height: number
-    buffer: Uint8Array
+    readonly width: number
+    readonly height: number
+    /** Row-major FramePixel values, stored as one byte per pixel. */
+    readonly buffer: Uint8Array
 }

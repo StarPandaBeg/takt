@@ -1,7 +1,12 @@
-import { createProject, DrawColor, makeScene } from '@takt/ui'
+import { DrawColor } from '@takt/ui'
 import { Rect, Text } from '@takt/ui/components'
+import { defineProject } from './project.js'
+import { defineScene } from './scene.js'
 
-export const calendarBlankScreen = makeScene(() => {
+export { defineProject, type Project, type ProjectSettings } from './project.js'
+export { defineScene, type Scene } from './scene.js'
+
+export const calendarBlankScreen = defineScene(() => {
     return (
         <>
             <Rect x={50} y={30} width={300} height={200} fill />
@@ -20,7 +25,7 @@ export const calendarBlankScreen = makeScene(() => {
     )
 })
 
-export const project = createProject({
+export const project = defineProject({
     settings: {
         screen: {
             width: 800,

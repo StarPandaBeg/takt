@@ -1,11 +1,16 @@
 import type { NodeOf, NodeType } from '@takt/ui'
-import type { TextFormat } from '@takt/ui/components'
-import type { Bounds, LayoutNode, MeasuredNode, Size } from '../types.js'
+import type {
+    Bounds,
+    LayoutNode,
+    MeasuredNode,
+    Size,
+    TextStyle,
+} from '../types.js'
 
 export interface MeasureContext {
     constraints: Size
     measureChild(child: MeasuredNode['node'], constraints: Size): MeasuredNode
-    measureText(value: string, format: TextFormat): Size
+    measureText(value: string, style: TextStyle): Size
 }
 
 export interface ArrangeContext {
