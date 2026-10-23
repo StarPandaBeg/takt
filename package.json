@@ -10,17 +10,22 @@
     "build:clean": "tsc --build --clean",
     "rebuild": "npm run build:clean && npm run build",
     "typecheck": "tsc --project tsconfig.typecheck.json",
-    "dev:ui": "npm run dev --workspace=@takt/ui",
+    "start": "npm run start --workspace=@takt/backend",
+    "dev": "npm run build && concurrently --kill-others --names build,backend --prefix-colors cyan,green \"npm:dev:build\" \"npm:dev:backend\"",
+    "dev:build": "tsc --build --watch --preserveWatchOutput",
+    "dev:backend": "npm run dev --workspace=@takt/backend",
     "lint": "eslint ."
   },
   "author": "StarPanda",
   "license": "MIT",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/backend"
   ],
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.5",
+    "concurrently": "^10.0.6",
     "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.13.0",

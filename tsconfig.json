@@ -2,10 +2,16 @@
     "files": [],
     "references": [
         {
+            "path": "apps/backend"
+        },
+        {
             "path": "packages/ui"
         },
         {
             "path": "packages/templates"
+        },
+        {
+            "path": "packages/renderer"
         }
     ]
 }

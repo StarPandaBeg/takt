@@ -5,6 +5,7 @@ import type {
     JSXNode,
     JSXProps,
     Key,
+    PositionProps,
 } from './types/index.js'
 import { Fragment } from './types/jsx.js'
 
@@ -35,7 +36,7 @@ export namespace JSX {
         children: unknown
     }
 
-    export interface IntrinsicAttributes {
+    export interface IntrinsicAttributes extends PositionProps {
         key?: Key
     }
 

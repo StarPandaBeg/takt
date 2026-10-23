@@ -1,10 +1,18 @@
 import { jsx } from '../jsx-runtime.js'
-import type { PropsWithRequiredChildren } from '../types/jsx.js'
 
-export interface TextProps extends PropsWithRequiredChildren {
-    readonly size?: number
+export type TextValue = string | number
+
+export interface TextProps {
+    readonly children: TextValue | readonly TextValue[]
+    readonly fontSize?: number
+    readonly value?: string
 }
 
-export function Text(props: TextProps) {
-    return jsx('text', { ...props, size: props.size ?? 14 })
+export function Text({ children, ...props }: TextProps) {
+    return jsx('text', {
+        ...props,
+        value: Array.isArray(children)
+            ? children.join('')
+            : String(children),
+    })
 }

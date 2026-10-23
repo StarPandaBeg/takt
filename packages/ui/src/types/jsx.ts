@@ -13,10 +13,6 @@ export type Component<P extends object = JSXProps> = (props: P) => JSXChild
 export type JSXElementType = NodeType | typeof Fragment | Component<never>
 export type Key = string | number
 
-export type PropsWithRequiredChildren<P extends object = object> = P & {
-    readonly children: NonNullable<JSXChild>
-}
-
 export interface JSXNode {
     readonly type: JSXElementType
     readonly props: JSXProps

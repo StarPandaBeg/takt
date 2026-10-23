@@ -1,12 +1,12 @@
 import { Fragment } from './jsx-runtime.js'
 import { isNodeType } from './node-registry.js'
-import { type Component, type JSXChild, type UIChild } from './types/index.js'
+import { type Component, type JSXChild, type UINode } from './types/index.js'
 
 function isChildArray(input: JSXChild): input is readonly JSXChild[] {
     return Array.isArray(input)
 }
 
-export function resolve(input: JSXChild): UIChild[] {
+export function resolve(input: JSXChild): UINode[] {
     if (input == null || typeof input === 'boolean') {
         return []
     }
@@ -15,7 +15,7 @@ export function resolve(input: JSXChild): UIChild[] {
         return input.flatMap(resolve)
     }
     if (typeof input === 'string' || typeof input === 'number') {
-        return [input]
+        throw new TypeError('Text values must be wrapped in the Text component')
     }
 
     const { type, props } = input

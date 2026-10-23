@@ -1,15 +1,16 @@
 import { createProject, makeScene } from '@takt/ui'
-import { Text } from '@takt/ui/components'
+import { Rect, Text } from '@takt/ui/components'
 
-const calendarBlankScreen = makeScene(() => {
+export const calendarBlankScreen = makeScene(() => {
     return (
         <>
-            <Text>Hello, World!</Text>
+            <Rect x={50} y={30} width={300} height={200} />
+            <Text>123</Text>
         </>
     )
 })
 
-const project = createProject({
+export const project = createProject({
     settings: {
         screen: {
             width: 800,
@@ -20,5 +21,3 @@ const project = createProject({
         blank: calendarBlankScreen,
     },
 })
-
-console.log(project)
