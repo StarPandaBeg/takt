@@ -1,4 +1,4 @@
-import { Flex, Group, Rect, Text } from '@takt/ui/components'
+import { Column, Group, Rect, Row, Text } from '@takt/ui/components'
 import { defineProject } from './project.js'
 import { defineScene } from './scene.js'
 
@@ -8,7 +8,7 @@ export { defineScene, type Scene } from './scene.js'
 export const calendarBlankScreen = defineScene(() => {
     return (
         <>
-            <Flex
+            <Row
                 x={0}
                 y={0}
                 align="start"
@@ -23,14 +23,14 @@ export const calendarBlankScreen = defineScene(() => {
                 <Rect x={120} width={50} height={50} fill fillColor="gray_50" />
                 <Rect x={180} width={30} height={30} fill fillColor="gray_25" />
                 {/* <Rect x={240} width={50} height={50} fill fillColor="white" /> */}
-            </Flex>
-            <Flex x={300} y={20} direction="column" align="center" gap={10}>
+            </Row>
+            <Column x={300} y={20} align="center" gap={10}>
                 <Rect width={50} height={50} fill fillColor="black" />
                 <Rect x={60} width={50} height={50} fill fillColor="gray_75" />
                 <Rect x={120} width={30} height={30} fill fillColor="gray_50" />
                 <Rect x={180} width={50} height={50} fill fillColor="gray_25" />
                 {/* <Rect x={240} width={50} height={50} fill fillColor="white" /> */}
-            </Flex>
+            </Column>
             <Group x={30} y={90}>
                 <Text fontFamily="Inter">
                     АБВГДЕËЖЗИËКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ 0123456789!"№;%:?*()-=_+.,

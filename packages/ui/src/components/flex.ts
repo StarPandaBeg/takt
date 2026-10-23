@@ -15,6 +15,9 @@ export interface FlexProps extends SizeProps {
     readonly children?: JSXChild
 }
 
+export type RowProps = Omit<FlexProps, 'direction'>
+export type ColumnProps = Omit<FlexProps, 'direction'>
+
 function calculatePadding(
     value: PaddingValue,
 ): [number, number, number, number] {
@@ -40,3 +43,7 @@ export const Flex = definePrimitive('flex', (props: FlexProps) => {
         height: props.height ?? -1,
     }
 })
+
+export const Row = (props: RowProps) => Flex({ ...props, direction: 'row' })
+export const Column = (props: ColumnProps) =>
+    Flex({ ...props, direction: 'column' })
