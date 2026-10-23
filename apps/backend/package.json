@@ -1,0 +1,25 @@
+{
+    "name": "@takt/backend",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Backend application",
+    "main": "./dist/main.js",
+    "types": "./dist/main.d.ts",
+    "scripts": {
+        "build": "tsc --build --force",
+        "build:incremental": "tsc --build",
+        "build:clean": "tsc --build --clean",
+        "typecheck": "tsc --build --force",
+        "start": "node --enable-source-maps ./dist/main.js",
+        "dev": "node --watch --enable-source-maps ./dist/main.js"
+    },
+    "author": "StarPanda",
+    "license": "MIT",
+    "dependencies": {
+        "@napi-rs/canvas": "^1.0.13",
+        "@takt/renderer": "^1.0.0",
+        "@takt/templates": "^1.0.0",
+        "fastify": "^5.12.7"
+    }
+}
