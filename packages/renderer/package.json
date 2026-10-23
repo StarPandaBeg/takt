@@ -1,0 +1,32 @@
+{
+    "name": "@takt/renderer",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Component renderer",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc --build --force",
+        "build:incremental": "tsc --build",
+        "build:clean": "tsc --build --clean",
+        "typecheck": "tsc --build --force",
+        "dev": "tsc --build --watch --preserveWatchOutput"
+    },
+    "author": "StarPanda",
+    "license": "MIT",
+    "dependencies": {
+        "@takt/renderer": "^1.0.0",
+        "@takt/ui": "^1.0.0"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./exporters": {
+            "types": "./dist/exporters/index.d.ts",
+            "import": "./dist/exporters/index.js"
+        }
+    }
+}

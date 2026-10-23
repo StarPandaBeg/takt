@@ -5,7 +5,9 @@
             "@takt/ui": ["./packages/ui/src/index.ts"],
             "@takt/ui/components": ["./packages/ui/src/components/index.ts"],
             "@takt/ui/jsx-runtime": ["./packages/ui/src/jsx-runtime.ts"],
-            "@takt/ui/jsx-dev-runtime": ["./packages/ui/src/jsx-dev-runtime.ts"]
+            "@takt/ui/jsx-dev-runtime": ["./packages/ui/src/jsx-dev-runtime.ts"],
+            "@takt/templates": ["./packages/templates/src/index.tsx"],
+            "@takt/renderer": ["./packages/renderer/src/index.ts"]
         },
         "jsx": "react-jsx",
         "jsxImportSource": "@takt/ui",
@@ -16,5 +18,10 @@
         "sourceMap": false,
         "incremental": false
     },
-    "include": ["packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"]
+    "include": [
+        "apps/*/src/**/*.ts",
+        "apps/*/src/**/*.tsx",
+        "packages/*/src/**/*.ts",
+        "packages/*/src/**/*.tsx"
+    ]
 }
