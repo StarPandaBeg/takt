@@ -12,6 +12,7 @@ import type {
     MeasureContext,
     StoredLayoutData,
 } from './handler.js'
+import { FlexLayout } from './layout-flex.js'
 import { GroupLayout } from './layout-group.js'
 import { RectLayout } from './layout-rect.js'
 import { TextLayout } from './layout-text.js'
@@ -32,6 +33,7 @@ export const layoutRegistry = {
     rect: RectLayout,
     group: GroupLayout,
     text: TextLayout,
+    flex: FlexLayout,
 } satisfies LayoutRegistry
 
 function getHandler(node: UINode): LayoutHandler<NodeType, unknown> {

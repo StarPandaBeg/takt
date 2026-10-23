@@ -1,4 +1,4 @@
-import { Group, Rect, Text } from '@takt/ui/components'
+import { Flex, Group, Rect, Text } from '@takt/ui/components'
 import { defineProject } from './project.js'
 import { defineScene } from './scene.js'
 
@@ -8,13 +8,29 @@ export { defineScene, type Scene } from './scene.js'
 export const calendarBlankScreen = defineScene(() => {
     return (
         <>
-            <Group x={30} y={20}>
+            <Flex
+                x={0}
+                y={0}
+                align="start"
+                justify="end"
+                width={800}
+                height={480}
+                padding={[10, 5]}
+                gap={5}
+            >
                 <Rect width={50} height={50} fill fillColor="black" />
                 <Rect x={60} width={50} height={50} fill fillColor="gray_75" />
                 <Rect x={120} width={50} height={50} fill fillColor="gray_50" />
+                <Rect x={180} width={30} height={30} fill fillColor="gray_25" />
+                {/* <Rect x={240} width={50} height={50} fill fillColor="white" /> */}
+            </Flex>
+            <Flex x={300} y={20} direction="column" align="center" gap={10}>
+                <Rect width={50} height={50} fill fillColor="black" />
+                <Rect x={60} width={50} height={50} fill fillColor="gray_75" />
+                <Rect x={120} width={30} height={30} fill fillColor="gray_50" />
                 <Rect x={180} width={50} height={50} fill fillColor="gray_25" />
-                <Rect x={240} width={50} height={50} fill fillColor="white" />
-            </Group>
+                {/* <Rect x={240} width={50} height={50} fill fillColor="white" /> */}
+            </Flex>
             <Group x={30} y={90}>
                 <Text fontFamily="Inter">
                     АБВГДЕËЖЗИËКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ 0123456789!"№;%:?*()-=_+.,
