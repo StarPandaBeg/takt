@@ -13,7 +13,9 @@ export const calendarBlankScreen = makeScene(() => {
                 fill
                 fillColor={DrawColor.WHITE}
             />
-            <Text>АБВГ, руду, Привет, мир!</Text>
+            <Text fontFamily="Times New Roman" fontWeight={600}>
+                АБВГ, руду, Привет, мир!
+            </Text>
         </>
     )
 })

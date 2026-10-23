@@ -1,4 +1,5 @@
 import type { NodeOf, NodeType, ProjectSettings, Scene, UINode } from '@takt/ui'
+import type { TextFormat } from '@takt/ui/components'
 
 export type RenderFunction = <
     TContext,
@@ -61,8 +62,8 @@ export interface TextBitmap {
 }
 
 export interface RenderEnvironment {
-    measureText(value: string, fontSize: number): TextMetrics
-    rasterizeText(value: string, fontSize: number): TextBitmap
+    measureText: (value: string, format: TextFormat) => TextMetrics
+    rasterizeText: (value: string, format: TextFormat) => TextBitmap
 }
 
 export interface RenderedFrame {
