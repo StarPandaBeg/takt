@@ -81,6 +81,21 @@ export const FlexLayout = defineLayout('flex', {
                     spacing += freeSpace / (measured.children.length - 1)
                 }
                 break
+
+            case 'space-around':
+                if (measured.children.length > 0) {
+                    const space = freeSpace / measured.children.length
+                    offset = space / 2
+                    spacing += space
+                }
+                break
+
+            case 'space-evenly': {
+                const space = freeSpace / (measured.children.length + 1)
+                offset = space
+                spacing += space
+                break
+            }
         }
 
         let cursor = offset

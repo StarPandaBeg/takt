@@ -8,7 +8,13 @@ export type PaddingValue =
 
 export interface FlexProps extends SizeProps {
     readonly direction?: 'row' | 'column'
-    readonly justify?: 'start' | 'center' | 'end' | 'space-between'
+    readonly justify?:
+        | 'start'
+        | 'center'
+        | 'end'
+        | 'space-between'
+        | 'space-around'
+        | 'space-evenly'
     readonly align?: 'start' | 'center' | 'end'
     readonly padding?: PaddingValue
     readonly gap?: number
