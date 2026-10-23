@@ -14,10 +14,14 @@ export const drawRect = defineDrawHandler('rect', {
 
         if (x1 >= x2 || y1 >= y2) return
 
-        const pixel = resolveDrawColor(layout.node.props.fillColor)
         for (let y = y1; y < y2; y += 1) {
-            const index = y * frame.width + x1
-            frame.buffer.fill(pixel, index, index + (x2 - x1))
+            for (let x = x1; x < x2; x++) {
+                const index = y * frame.width + x
+                frame.buffer[index] = resolveDrawColor(
+                    layout.node.props.fillColor,
+                    { x, y },
+                )
+            }
         }
     },
 })

@@ -1,5 +1,6 @@
-import type { FramePixel } from '../frame-pixel.js'
+import type { DrawColor } from '@takt/ui'
 import type { Bounds, RenderedFrame, TextBitmap } from '../types.js'
+import { resolveDrawColor } from './color.js'
 
 export function pixelBounds(bounds: Bounds): Bounds {
     const x = Math.floor(bounds.x)
@@ -18,7 +19,7 @@ export function blitTextBitmap(
     bitmap: TextBitmap,
     x: number,
     y: number,
-    color: FramePixel,
+    color: DrawColor,
     threshold: number,
 ): void {
     const startX = Math.round(x)
@@ -37,7 +38,10 @@ export function blitTextBitmap(
         for (let px = x1; px < x2; px += 1) {
             const alpha = bitmap.buffer[sourceRow + (px - startX)] ?? 0
             if (alpha >= threshold) {
-                frame.buffer[targetRow + px] = color
+                frame.buffer[targetRow + px] = resolveDrawColor(color, {
+                    x: px,
+                    y: py,
+                })
             }
         }
     }

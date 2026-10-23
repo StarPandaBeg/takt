@@ -1,5 +1,4 @@
 import { getTextStyle } from '../text-style.js'
-import { resolveDrawColor } from './color.js'
 import { defineDrawHandler } from './handler.js'
 import { blitTextBitmap } from './helpers.js'
 
@@ -17,7 +16,7 @@ export const drawText = defineDrawHandler('text', {
             bitmap,
             layout.bounds.x,
             layout.bounds.y,
-            resolveDrawColor(props.color),
+            props.color,
             props.renderThreshold,
         )
     },
