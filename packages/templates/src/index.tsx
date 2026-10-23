@@ -1,11 +1,19 @@
-import { createProject, makeScene } from '@takt/ui'
+import { createProject, DrawColor, makeScene } from '@takt/ui'
 import { Rect, Text } from '@takt/ui/components'
 
 export const calendarBlankScreen = makeScene(() => {
     return (
         <>
-            <Rect x={50} y={30} width={300} height={200} />
-            <Text>123</Text>
+            <Rect x={50} y={30} width={300} height={200} fill />
+            <Rect
+                x={80}
+                y={40}
+                width={100}
+                height={100}
+                fill
+                fillColor={DrawColor.WHITE}
+            />
+            <Text>АБВГ, руду, Привет, мир!</Text>
         </>
     )
 })

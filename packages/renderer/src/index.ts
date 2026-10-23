@@ -42,7 +42,7 @@ export function createRenderer(env: RenderEnvironment): RenderFunction {
         console.log('Layout', JSON.stringify(layout, null, 2))
         console.log('Render List', JSON.stringify(renderList, null, 2))
 
-        const frame = rasterize(renderList, settings)
+        const frame = rasterize(renderList, settings, env)
         return Promise.resolve(frame)
     }
 }

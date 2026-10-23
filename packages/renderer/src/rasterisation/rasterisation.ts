@@ -1,5 +1,5 @@
 import type { NodeType } from '@takt/ui'
-import type { LayoutNode, RenderedFrame } from '../types.js'
+import type { LayoutNode, RenderedFrame, RenderEnvironment } from '../types.js'
 import type { DrawHandler } from './handler.js'
 import { GroupRenderer } from './render-group.js'
 import { RectRenderer } from './render-rect.js'
@@ -24,8 +24,12 @@ function getHandler(layout: LayoutNode): DrawHandler<NodeType> | null {
     return handler as DrawHandler<NodeType>
 }
 
-export function drawNode(layout: LayoutNode, frame: RenderedFrame) {
+export function drawNode(
+    layout: LayoutNode,
+    frame: RenderedFrame,
+    ctx: RenderEnvironment,
+) {
     const handler = getHandler(layout)
     if (!handler) return
-    handler.draw(layout, frame)
+    handler.draw(layout, frame, ctx)
 }

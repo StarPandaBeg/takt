@@ -48,13 +48,25 @@ export type LayoutNodeOf<T extends NodeType> = LayoutNode & {
     node: NodeOf<T>
 }
 
+export interface TextMetrics {
+    width: number
+    height: number
+    baseline: number
+}
+
+export interface TextBitmap {
+    width: number
+    height: number
+    buffer: Uint8Array
+}
+
 export interface RenderEnvironment {
-    measureText: (value: string, fontSize: number) => Size
+    measureText(value: string, fontSize: number): TextMetrics
+    rasterizeText(value: string, fontSize: number): TextBitmap
 }
 
 export interface RenderedFrame {
     width: number
     height: number
-    /** Row-major pixels: 0 is white, every non-zero value is black. */
     buffer: Uint8Array
 }
