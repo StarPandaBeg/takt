@@ -8,5 +8,6 @@ export function getTextStyle(props: NodeProps<'text'>): TextStyle {
         fontWeight: props.fontWeight,
         italic: props.italic,
         underline: props.underline,
+        lineHeight: props.lineHeight,
     }
 }

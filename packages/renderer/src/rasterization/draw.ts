@@ -15,12 +15,12 @@ export const drawRegistry: DrawRegistry = {
     text: drawText,
 }
 
-function getHandler(layout: LayoutNode): DrawHandler<NodeType> {
+function getHandler(layout: LayoutNode): DrawHandler<NodeType, unknown> {
     const handler = drawRegistry[layout.node.type]
 
     // TypeScript loses the node/handler correlation after indexing a mapped
     // registry. DrawRegistry verifies it when the registry is declared.
-    return handler as DrawHandler<NodeType>
+    return handler as DrawHandler<NodeType, unknown>
 }
 
 export function drawNode(

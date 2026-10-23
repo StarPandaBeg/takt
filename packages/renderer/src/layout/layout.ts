@@ -1,4 +1,4 @@
-import type { NodeType, UINode } from '@takt/ui'
+import type { NodeOf, NodeType, UINode } from '@takt/ui'
 import type {
     Bounds,
     LayoutNode,
@@ -6,27 +6,41 @@ import type {
     RenderEnvironment,
     Size,
 } from '../types.js'
-import type { LayoutHandler } from './handler.js'
+import type {
+    ArrangeContext,
+    LayoutHandler,
+    MeasureContext,
+    StoredLayoutData,
+} from './handler.js'
 import { GroupLayout } from './layout-group.js'
 import { RectLayout } from './layout-rect.js'
 import { TextLayout } from './layout-text.js'
 
 export type LayoutRegistry = {
-    [T in NodeType]: LayoutHandler<T>
+    [T in NodeType]: {
+        measure(node: NodeOf<T>, context: MeasureContext): unknown
+        arrange(measured: never, context: ArrangeContext): LayoutNode[]
+    }
 }
 
-export const layoutRegistry: LayoutRegistry = {
+export type LayoutDataOf<T extends NodeType> =
+    (typeof layoutRegistry)[T] extends LayoutHandler<T, infer TLayoutData>
+        ? StoredLayoutData<TLayoutData>
+        : never
+
+export const layoutRegistry = {
     rect: RectLayout,
     group: GroupLayout,
     text: TextLayout,
-}
+} satisfies LayoutRegistry
 
-function getHandler(node: UINode): LayoutHandler<NodeType> {
+function getHandler(node: UINode): LayoutHandler<NodeType, unknown> {
     const handler = layoutRegistry[node.type]
 
-    // TypeScript loses the node/handler correlation after indexing a mapped
-    // registry. LayoutRegistry verifies it when the registry is declared.
-    return handler as LayoutHandler<NodeType>
+    // TypeScript loses the node/handler correlation and the heterogeneous
+    // layout-data type after indexing the registry. Both are restored at the
+    // typed registry boundaries used by layout and draw handlers.
+    return handler as LayoutHandler<NodeType, unknown>
 }
 
 export function measureNode(
@@ -47,6 +61,7 @@ export function measureNode(
         node,
         size: result.size,
         children: result.children,
+        additionalData: result.additionalData,
     }
 }
 
@@ -72,5 +87,6 @@ export function arrangeNode(
         node: measured.node,
         bounds,
         children,
+        additionalData: measured.additionalData,
     }
 }

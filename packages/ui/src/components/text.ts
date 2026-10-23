@@ -10,11 +10,13 @@ export interface TextFormat {
     readonly fontWeight?: FontWeight
     readonly italic?: boolean
     readonly underline?: boolean
+    readonly lineHeight?: number
 }
 
 export interface TextProps extends TextFormat {
     readonly children: TextValue | readonly TextValue[]
     readonly color?: DrawColor
+    readonly maxLineWidth?: number
     readonly renderThreshold?: number
 }
 
@@ -28,6 +30,8 @@ export const Text = definePrimitive(
         italic,
         underline,
         color,
+        lineHeight,
+        maxLineWidth,
         renderThreshold,
     }: TextProps) => ({
         value: Array.isArray(children) ? children.join('') : String(children),
@@ -37,6 +41,8 @@ export const Text = definePrimitive(
         italic: italic ?? false,
         underline: underline ?? false,
         color: color ?? DrawColor.BLACK,
+        maxLineWidth: maxLineWidth ?? -1,
+        lineHeight: lineHeight ?? 1.2,
         renderThreshold: renderThreshold ?? 128,
     }),
 )

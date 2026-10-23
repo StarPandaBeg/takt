@@ -1,4 +1,4 @@
-import type { JSXChild, NodeOf, NodeProps, NodeType, UINode } from '@takt/ui'
+import type { JSXChild, NodeOf, NodeProps, NodeType } from '@takt/ui'
 
 export interface Position {
     readonly x: number
@@ -19,21 +19,39 @@ export interface RenderInput {
 
 export type RenderFunction = (input: RenderInput) => RenderedFrame
 
-export interface MeasuredNode {
-    readonly node: UINode
+export interface MeasuredNode<
+    TType extends NodeType = NodeType,
+    TLayoutData = unknown,
+> {
+    readonly node: NodeOf<TType>
     readonly size: Size
     readonly children: readonly MeasuredNode[]
+    readonly additionalData: TLayoutData
 }
 
-export interface LayoutNode {
-    readonly node: UINode
+export interface LayoutNode<
+    TType extends NodeType = NodeType,
+    TLayoutData = unknown,
+> {
+    readonly node: NodeOf<TType>
     readonly bounds: Bounds
     readonly children: readonly LayoutNode[]
+    readonly additionalData: TLayoutData
 }
 
-export type LayoutNodeOf<T extends NodeType> = Omit<LayoutNode, 'node'> & {
-    readonly node: NodeOf<T>
+export interface TextLayoutData {
+    lines: {
+        text: string
+        x: number
+        y: number
+    }[]
+    lineHeight: number
 }
+
+export type LayoutNodeOf<
+    T extends NodeType,
+    TLayoutData = unknown,
+> = LayoutNode<T, TLayoutData>
 
 export interface LayoutRoot {
     readonly bounds: Bounds
@@ -42,7 +60,12 @@ export interface LayoutRoot {
 
 export type TextStyle = Pick<
     NodeProps<'text'>,
-    'fontSize' | 'fontFamily' | 'fontWeight' | 'italic' | 'underline'
+    | 'fontSize'
+    | 'fontFamily'
+    | 'fontWeight'
+    | 'italic'
+    | 'underline'
+    | 'lineHeight'
 >
 
 export interface TextBitmap extends Size {

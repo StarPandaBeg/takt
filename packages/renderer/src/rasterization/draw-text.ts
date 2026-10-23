@@ -7,17 +7,21 @@ export const drawText = defineDrawHandler('text', {
         const { props } = layout.node
         if (props.value.length === 0) return
 
-        const bitmap = environment.rasterizeText(
-            props.value,
-            getTextStyle(props),
-        )
-        blitTextBitmap(
-            frame,
-            bitmap,
-            layout.bounds.x,
-            layout.bounds.y,
-            props.color,
-            props.renderThreshold,
-        )
+        const textData = layout.additionalData.textData
+        for (const line of textData.lines) {
+            const bitmap = environment.rasterizeText(
+                line.text,
+                getTextStyle(props),
+            )
+
+            blitTextBitmap(
+                frame,
+                bitmap,
+                layout.bounds.x + line.x,
+                layout.bounds.y + line.y,
+                props.color,
+                props.renderThreshold,
+            )
+        }
     },
 })

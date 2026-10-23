@@ -18,26 +18,32 @@ export interface ArrangeContext {
     placeChild(child: MeasuredNode, x: number, y: number): LayoutNode
 }
 
-export interface LayoutHandler<T extends NodeType> {
+export type StoredLayoutData<TLayoutData> = [TLayoutData] extends [void]
+    ? undefined
+    : TLayoutData
+
+export type MeasureResult<TLayoutData> = {
+    readonly size: Size
+    readonly children: readonly MeasuredNode[]
+} & ([TLayoutData] extends [void]
+    ? { readonly additionalData?: undefined }
+    : { readonly additionalData: TLayoutData })
+
+export interface LayoutHandler<TType extends NodeType, TLayoutData = void> {
     measure: (
-        node: NodeOf<T>,
+        node: NodeOf<TType>,
         context: MeasureContext,
-    ) => {
-        size: Size
-        children: MeasuredNode[]
-    }
+    ) => MeasureResult<TLayoutData>
 
     arrange: (
-        measured: MeasuredNode & {
-            node: NodeOf<T>
-        },
+        measured: MeasuredNode<TType, StoredLayoutData<TLayoutData>>,
         context: ArrangeContext,
     ) => LayoutNode[]
 }
 
-export function defineLayout<T extends NodeType>(
+export function defineLayout<T extends NodeType, TLayoutData = void>(
     type: T,
-    handler: LayoutHandler<T>,
-): LayoutHandler<T> {
+    handler: LayoutHandler<T, TLayoutData>,
+): LayoutHandler<T, TLayoutData> {
     return handler
 }
