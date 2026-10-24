@@ -103,7 +103,7 @@ export const TextLayout = defineLayout<'text', { textData: TextLayoutData }>(
                     size,
                     y,
                 })
-                y += size.height * node.props.lineHeight
+                y += Math.max(size.height, style.fontSize * style.lineHeight)
             }
 
             const naturalWidth = measuredLines.reduce(

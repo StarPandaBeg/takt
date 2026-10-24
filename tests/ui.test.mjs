@@ -38,6 +38,7 @@ test('primitive props are normalized exactly once', () => {
             italic: false,
             underline: false,
             lineHeight: 1.2,
+            metrics: 'font',
             color: DrawColor.BLACK,
             maxLineWidth: -1,
             renderThreshold: 128,

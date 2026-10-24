@@ -6,6 +6,7 @@ import type { SizeProps } from '../types/transform.js'
 export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900
 export type TextAlign = 'left' | 'center' | 'right'
 export type TextAlignVertical = 'top' | 'center' | 'bottom'
+export type TextMetricsMode = 'font' | 'tight'
 export type TextValue = string | number
 
 export interface TextFormat {
@@ -15,6 +16,7 @@ export interface TextFormat {
     readonly italic?: boolean
     readonly underline?: boolean
     readonly lineHeight?: number
+    readonly metrics?: TextMetricsMode
 }
 
 export interface TextProps extends TextFormat, SizeProps {
@@ -42,6 +44,7 @@ export const Text = definePrimitive(
         underline,
         color,
         lineHeight,
+        metrics,
         maxLineWidth,
         size,
         renderThreshold,
@@ -63,6 +66,7 @@ export const Text = definePrimitive(
             italic: italic ?? config.italic,
             underline: underline ?? config.underline,
             lineHeight: lineHeight ?? config.lineHeight,
+            metrics: metrics ?? config.metrics,
             color: color ?? DrawColor.BLACK,
             maxLineWidth: maxLineWidth ?? -1,
             renderThreshold: renderThreshold ?? 128,

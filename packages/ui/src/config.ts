@@ -15,6 +15,7 @@ const defaultTypography: Required<TextFormat> = {
     fontWeight: 400,
     italic: false,
     lineHeight: 1.2,
+    metrics: 'font',
     underline: false,
 }
 

@@ -1,6 +1,8 @@
 import { createCanvas } from '@napi-rs/canvas'
 import type { RenderEnvironment, TextStyle } from '@takt/renderer'
 
+const RASTER_EDGE_GUARD = 1
+
 interface TextGeometry {
     readonly width: number
     readonly height: number
@@ -30,14 +32,37 @@ export function createNodeEnvironment(): RenderEnvironment {
         applyTextStyle(style)
 
         const metrics = ctx.measureText(value)
+        const hasInk =
+            metrics.actualBoundingBoxAscent !== 0 ||
+            metrics.actualBoundingBoxDescent !== 0 ||
+            metrics.actualBoundingBoxLeft !== 0 ||
+            metrics.actualBoundingBoxRight !== 0
+        const horizontalGuard = hasInk ? RASTER_EDGE_GUARD : 0
 
-        // Фактические границы символов относительно точки рисования
-        const left = Math.floor(-metrics.actualBoundingBoxLeft)
-        const right = Math.ceil(metrics.actualBoundingBoxRight)
-        const top = Math.floor(-metrics.actualBoundingBoxAscent)
-        const bottom = Math.ceil(metrics.actualBoundingBoxDescent)
+        // Horizontal bounds stay tight in both modes because they are used
+        // for horizontal alignment. Skia can antialias into the adjacent pixel
+        // when an outline lands exactly on a reported boundary.
+        const left =
+            Math.floor(-metrics.actualBoundingBoxLeft) - horizontalGuard
+        const right =
+            Math.ceil(metrics.actualBoundingBoxRight) + horizontalGuard
 
-        // Смещение точки рисования, чтобы символы начинались от (0, 0)
+        // Font bounds provide a stable baseline and are defined to contain
+        // every glyph in the selected font. Tight bounds intentionally follow
+        // the actual glyphs and therefore vary with the text content.
+        const baseTop =
+            style.metrics === 'tight'
+                ? Math.floor(-metrics.actualBoundingBoxAscent)
+                : Math.floor(-metrics.fontBoundingBoxAscent)
+        const baseBottom =
+            style.metrics === 'tight'
+                ? Math.ceil(metrics.actualBoundingBoxDescent)
+                : Math.ceil(metrics.fontBoundingBoxDescent)
+        const verticalGuard =
+            style.metrics === 'font' || hasInk ? RASTER_EDGE_GUARD : 0
+        const top = baseTop - verticalGuard
+        const bottom = baseBottom + verticalGuard
+
         const drawX = -left
         const baseline = -top
 
@@ -49,13 +74,17 @@ export function createNodeEnvironment(): RenderEnvironment {
         const width = Math.max(
             0,
             right - left,
-            style.underline ? Math.ceil(drawX + metrics.width) : 0,
+            style.underline
+                ? Math.ceil(drawX + metrics.width + RASTER_EDGE_GUARD)
+                : 0,
         )
 
         const height = Math.max(
             0,
             bottom - top,
-            style.underline ? Math.ceil(underlineY + underlineThickness) : 0,
+            style.underline
+                ? Math.ceil(underlineY + underlineThickness + RASTER_EDGE_GUARD)
+                : 0,
         )
 
         return {

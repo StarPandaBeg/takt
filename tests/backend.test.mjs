@@ -45,6 +45,8 @@ test('Node Canvas measures and rasterizes the same text geometry', () => {
         fontWeight: 600,
         italic: true,
         underline: true,
+        lineHeight: 1.2,
+        metrics: 'font',
     }
 
     const measured = environment.measureText('Takt ритм', style)
@@ -52,4 +54,103 @@ test('Node Canvas measures and rasterizes the same text geometry', () => {
 
     assert.deepEqual({ width: bitmap.width, height: bitmap.height }, measured)
     assert.equal(bitmap.buffer.length, bitmap.width * bitmap.height)
+})
+
+test('Node Canvas uses stable vertical metrics for equal text styles', () => {
+    const environment = createNodeEnvironment()
+    const style = {
+        fontSize: 32,
+        fontFamily: 'Arial',
+        fontWeight: 400,
+        italic: false,
+        underline: false,
+        lineHeight: 1.2,
+        metrics: 'font',
+    }
+
+    const values = ['Р', 'Д', 'g', 'Текст', 'руду']
+    const measurements = values.map((value) =>
+        environment.measureText(value, style),
+    )
+    const bitmaps = values.map((value) =>
+        environment.rasterizeText(value, style),
+    )
+
+    assert.equal(new Set(measurements.map(({ height }) => height)).size, 1)
+    assert.equal(new Set(bitmaps.map(({ height }) => height)).size, 1)
+    for (let index = 0; index < values.length; index += 1) {
+        assert.deepEqual(
+            {
+                width: bitmaps[index]?.width,
+                height: bitmaps[index]?.height,
+            },
+            measurements[index],
+        )
+    }
+})
+
+test('Node Canvas supports stable font and compact tight metrics', () => {
+    const environment = createNodeEnvironment()
+    const values = ['24', 'суббота', 'руду', 'ÁÉḍ']
+    const baseStyle = {
+        fontSize: 32,
+        fontFamily: 'Arial',
+        fontWeight: 400,
+        italic: false,
+        underline: false,
+        lineHeight: 1.2,
+    }
+
+    const renderMode = (metrics) =>
+        values.map((value) => {
+            const style = { ...baseStyle, metrics }
+            const measured = environment.measureText(value, style)
+            const bitmap = environment.rasterizeText(value, style)
+
+            assert.deepEqual(
+                { width: bitmap.width, height: bitmap.height },
+                measured,
+            )
+            assert.equal(bitmap.buffer.length, bitmap.width * bitmap.height)
+
+            return { measured, bitmap }
+        })
+
+    const font = renderMode('font')
+    const tight = renderMode('tight')
+
+    assert.equal(new Set(font.map(({ measured }) => measured.height)).size, 1)
+    assert.ok(
+        tight.every(
+            ({ measured }, index) =>
+                measured.height <= (font[index]?.measured.height ?? 0),
+        ),
+    )
+    assert.ok(
+        tight.some(
+            ({ measured }, index) =>
+                measured.height < (font[index]?.measured.height ?? 0),
+        ),
+    )
+
+    const alphaSum = (bitmap) =>
+        bitmap.buffer.reduce((sum, alpha) => sum + alpha, 0)
+    for (let index = 0; index < values.length; index += 1) {
+        assert.equal(
+            alphaSum(font[index].bitmap),
+            alphaSum(tight[index].bitmap),
+        )
+    }
+
+    for (const metrics of ['font', 'tight']) {
+        const style = { ...baseStyle, metrics }
+        const measured = environment.measureText('', style)
+        const bitmap = environment.rasterizeText('', style)
+
+        assert.deepEqual(
+            { width: bitmap.width, height: bitmap.height },
+            measured,
+        )
+        assert.equal(bitmap.buffer.length, 0)
+    }
 })

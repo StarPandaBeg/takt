@@ -95,6 +95,7 @@ test('text measurement and rasterization receive the same normalized style', () 
         italic: false,
         underline: false,
         lineHeight: 1.2,
+        metrics: 'font',
     }
     assert.equal(measured.length, 1)
     for (const measurement of measured) {
@@ -121,6 +122,7 @@ test('text dimensions define container bounds and align individual lines', () =>
                 y: 4,
                 width: 10,
                 height: 10,
+                fontSize: 2,
                 lineHeight: 1.5,
                 align: 'center',
                 alignVertical: 'bottom',

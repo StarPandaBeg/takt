@@ -10,6 +10,7 @@ export {
     type TextAlign,
     type TextAlignVertical,
     type TextFormat,
+    type TextMetricsMode,
     type TextProps,
     type TextValue,
 } from './text.js'

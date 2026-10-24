@@ -65,6 +65,7 @@ export type TextStyle = Pick<
     | 'italic'
     | 'underline'
     | 'lineHeight'
+    | 'metrics'
 >
 
 export interface TextBitmap extends Size {
@@ -72,7 +73,9 @@ export interface TextBitmap extends Size {
 }
 
 export interface RenderEnvironment {
+    /** Geometry follows TextStyle.metrics and must match rasterizeText. */
     readonly measureText: (value: string, style: TextStyle) => Size
+    /** Bitmap dimensions must match measureText for the same value and style. */
     readonly rasterizeText: (value: string, style: TextStyle) => TextBitmap
 }
 
