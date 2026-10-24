@@ -1,6 +1,12 @@
 import { getTextStyle } from '../text-style.js'
-import type { TextLayoutData, TextStyle } from '../types.js'
+import type { Size, TextLayoutData, TextStyle } from '../types.js'
 import { defineLayout, type MeasureContext } from './handler.js'
+
+interface MeasuredLine {
+    readonly text: string
+    readonly size: Size
+    readonly y: number
+}
 
 function splitTextOnLines(
     value: string,
@@ -56,6 +62,26 @@ function splitTextOnLines(
     return newLines
 }
 
+function getHorizontalOffset(
+    align: 'left' | 'center' | 'right',
+    containerWidth: number,
+    contentWidth: number,
+): number {
+    if (align === 'center') return (containerWidth - contentWidth) / 2
+    if (align === 'right') return containerWidth - contentWidth
+    return 0
+}
+
+function getVerticalOffset(
+    align: 'top' | 'center' | 'bottom',
+    containerHeight: number,
+    contentHeight: number,
+): number {
+    if (align === 'center') return (containerHeight - contentHeight) / 2
+    if (align === 'bottom') return containerHeight - contentHeight
+    return 0
+}
+
 export const TextLayout = defineLayout<'text', { textData: TextLayoutData }>(
     'text',
     {
@@ -68,28 +94,51 @@ export const TextLayout = defineLayout<'text', { textData: TextLayoutData }>(
                 node.props.maxLineWidth,
             )
 
-            const linesPositioned = []
+            const measuredLines: MeasuredLine[] = []
             let y = 0
             for (const line of lines) {
-                const measure = ctx.measureText(line, style)
-                linesPositioned.push({
+                const size = ctx.measureText(line, style)
+                measuredLines.push({
                     text: line,
-                    x: 0,
+                    size,
                     y,
                 })
-                y += measure.height * node.props.lineHeight
+                y += size.height * node.props.lineHeight
             }
 
+            const naturalWidth = measuredLines.reduce(
+                (width, line) => Math.max(width, line.size.width),
+                0,
+            )
+            const lastLine = measuredLines.at(-1)
+            const naturalHeight = lastLine
+                ? lastLine.y + lastLine.size.height
+                : 0
+
+            const width =
+                node.props.width >= 0 ? node.props.width : naturalWidth
+            const height =
+                node.props.height >= 0 ? node.props.height : naturalHeight
+            const verticalOffset = getVerticalOffset(
+                node.props.alignVertical,
+                height,
+                naturalHeight,
+            )
+
             return {
-                size: ctx.measureText(
-                    node.props.value,
-                    getTextStyle(node.props),
-                ),
+                size: { width, height },
                 children: [],
                 additionalData: {
                     textData: {
-                        lines: linesPositioned,
-                        lineHeight: style.lineHeight,
+                        lines: measuredLines.map((line) => ({
+                            text: line.text,
+                            x: getHorizontalOffset(
+                                node.props.align,
+                                width,
+                                line.size.width,
+                            ),
+                            y: line.y + verticalOffset,
+                        })),
                     },
                 },
             }

@@ -40,12 +40,11 @@ export interface LayoutNode<
 }
 
 export interface TextLayoutData {
-    lines: {
-        text: string
-        x: number
-        y: number
+    readonly lines: readonly {
+        readonly text: string
+        readonly x: number
+        readonly y: number
     }[]
-    lineHeight: number
 }
 
 export type LayoutNodeOf<

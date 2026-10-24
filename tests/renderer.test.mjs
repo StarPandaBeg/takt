@@ -34,8 +34,8 @@ test('layout root and nested groups preserve absolute positions', () => {
     assert.deepEqual(layout.children[0]?.bounds, {
         x: 2,
         y: 1,
-        width: 20,
-        height: 10,
+        width: 7,
+        height: 7,
     })
     assert.deepEqual(layout.children[0]?.children[0]?.bounds, {
         x: 5,
@@ -94,10 +94,91 @@ test('text measurement and rasterization receive the same normalized style', () 
         fontWeight: 400,
         italic: false,
         underline: false,
+        lineHeight: 1.2,
     }
-    assert.deepEqual(measured, [{ value: 'A', style: expectedStyle }])
+    assert.equal(measured.length, 1)
+    for (const measurement of measured) {
+        assert.deepEqual(measurement, { value: 'A', style: expectedStyle })
+    }
     assert.deepEqual(rasterized, [{ value: 'A', style: expectedStyle }])
     assert.deepEqual([...frame.buffer], [0, 1])
+})
+
+test('text dimensions define container bounds and align individual lines', () => {
+    const environment = {
+        measureText(value) {
+            return { width: value.length * 2, height: 2 }
+        },
+        rasterizeText() {
+            return { width: 0, height: 0, buffer: new Uint8Array() }
+        },
+    }
+    const nodes = resolve(
+        Group({
+            children: Text({
+                children: 'A\nBBB',
+                x: 3,
+                y: 4,
+                width: 10,
+                height: 10,
+                lineHeight: 1.5,
+                align: 'center',
+                alignVertical: 'bottom',
+            }),
+        }),
+    )
+    const layout = computeLayout(nodes, { width: 20, height: 20 }, environment)
+    const group = layout.children[0]
+    const text = group?.children[0]
+
+    assert.deepEqual(group?.bounds, {
+        x: 0,
+        y: 0,
+        width: 13,
+        height: 14,
+    })
+    assert.deepEqual(text?.bounds, {
+        x: 3,
+        y: 4,
+        width: 10,
+        height: 10,
+    })
+    assert.deepEqual(text?.additionalData.textData.lines, [
+        { text: 'A', x: 4, y: 5 },
+        { text: 'BBB', x: 2, y: 8 },
+    ])
+})
+
+test('text alignment does not clip pixels outside its explicit bounds', () => {
+    const render = createFrameRenderer({
+        measureText() {
+            return { width: 4, height: 2 }
+        },
+        rasterizeText() {
+            return {
+                width: 4,
+                height: 2,
+                buffer: Uint8Array.from({ length: 8 }, () => 255),
+            }
+        },
+    })
+    const frame = render({
+        viewport: { width: 5, height: 3 },
+        content: Text({
+            children: 'A',
+            x: 2,
+            y: 1,
+            width: 2,
+            height: 1,
+            align: 'right',
+            alignVertical: 'bottom',
+        }),
+    })
+
+    assert.deepEqual(
+        [...frame.buffer],
+        [1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+    )
 })
 
 test('renderer rejects invalid viewport dimensions', () => {

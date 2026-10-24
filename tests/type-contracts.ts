@@ -33,13 +33,21 @@ export const contextualProject = defineProject({
 })
 
 export type TypeContractAssertions = [
-    Expect<Equal<DrawColor, 'black' | 'white'>>,
+    Expect<
+        Equal<DrawColor, 'black' | 'gray_75' | 'gray_50' | 'gray_25' | 'white'>
+    >,
     Expect<Equal<FramePixel, 0 | 1>>,
     Expect<Equal<Extract<DrawColor, FramePixel>, never>>,
-    Expect<Equal<NodeType, 'group' | 'rect' | 'text'>>,
+    Expect<Equal<NodeType, 'group' | 'rect' | 'text' | 'flex' | 'line'>>,
     Expect<Equal<NodeProps<NodeType>['x'], number>>,
     Expect<Equal<NodeProps<NodeType>['y'], number>>,
     Expect<Equal<NodeProps<'text'>['value'], string>>,
+    Expect<Equal<NodeProps<'text'>['width'], number>>,
+    Expect<Equal<NodeProps<'text'>['height'], number>>,
+    Expect<Equal<NodeProps<'text'>['align'], 'left' | 'center' | 'right'>>,
+    Expect<
+        Equal<NodeProps<'text'>['alignVertical'], 'top' | 'center' | 'bottom'>
+    >,
     Expect<Equal<NodeProps<'rect'>['fill'], boolean>>,
     Expect<Equal<Parameters<typeof Text>[0]['x'], PositionProps['x']>>,
     Expect<Equal<NormalizedPropsOf<typeof Badge>['active'], boolean>>,

@@ -7,6 +7,8 @@ export {
     H2,
     H3,
     Text,
+    type TextAlign,
+    type TextAlignVertical,
     type TextFormat,
     type TextProps,
     type TextValue,

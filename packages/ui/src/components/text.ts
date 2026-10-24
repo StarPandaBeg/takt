@@ -1,8 +1,11 @@
 import { defaultConfig } from '../config.js'
 import { DrawColor } from '../helpers.js'
 import { definePrimitive } from '../primitive.js'
+import type { SizeProps } from '../types/transform.js'
 
 export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900
+export type TextAlign = 'left' | 'center' | 'right'
+export type TextAlignVertical = 'top' | 'center' | 'bottom'
 export type TextValue = string | number
 
 export interface TextFormat {
@@ -14,8 +17,10 @@ export interface TextFormat {
     readonly lineHeight?: number
 }
 
-export interface TextProps extends TextFormat {
+export interface TextProps extends TextFormat, SizeProps {
     readonly children: TextValue | readonly TextValue[]
+    readonly align?: TextAlign
+    readonly alignVertical?: TextAlignVertical
     readonly color?: DrawColor
     readonly maxLineWidth?: number
     readonly renderThreshold?: number
@@ -26,6 +31,10 @@ export const Text = definePrimitive(
     'text',
     ({
         children,
+        width,
+        height,
+        align,
+        alignVertical,
         fontSize,
         fontFamily,
         fontWeight,
@@ -44,6 +53,10 @@ export const Text = definePrimitive(
             value: Array.isArray(children)
                 ? children.join('')
                 : String(children),
+            width: width ?? -1,
+            height: height ?? -1,
+            align: align ?? 'left',
+            alignVertical: alignVertical ?? 'top',
             fontSize: fontSize ?? config.fontSize,
             fontFamily: fontFamily ?? config.fontFamily,
             fontWeight: fontWeight ?? config.fontWeight,

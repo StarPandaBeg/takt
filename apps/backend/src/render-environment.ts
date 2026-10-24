@@ -30,33 +30,37 @@ export function createNodeEnvironment(): RenderEnvironment {
         applyTextStyle(style)
 
         const metrics = ctx.measureText(value)
-        const reference = ctx.measureText('HgÅру')
 
-        const ascent = Math.ceil(
-            metrics.fontBoundingBoxAscent ?? reference.actualBoundingBoxAscent,
-        )
+        // Фактические границы символов относительно точки рисования
+        const left = Math.floor(-metrics.actualBoundingBoxLeft)
+        const right = Math.ceil(metrics.actualBoundingBoxRight)
+        const top = Math.floor(-metrics.actualBoundingBoxAscent)
+        const bottom = Math.ceil(metrics.actualBoundingBoxDescent)
 
-        const descent = Math.ceil(
-            metrics.fontBoundingBoxDescent ??
-                reference.actualBoundingBoxDescent,
-        )
+        // Смещение точки рисования, чтобы символы начинались от (0, 0)
+        const drawX = -left
+        const baseline = -top
 
-        const drawX = Math.max(0, Math.ceil(metrics.actualBoundingBoxLeft))
-        const right = Math.max(
-            Math.ceil(metrics.width),
-            Math.ceil(metrics.actualBoundingBoxRight),
-        )
-        const baseline = ascent
-        const underlineY = baseline + Math.max(1, style.fontSize * 0.08)
         const underlineThickness = Math.max(1, style.fontSize * 0.05)
-        const textHeight = ascent + descent
-        const underlineBottom = style.underline
-            ? Math.ceil(underlineY + underlineThickness)
-            : 0
+        const underlineOffset = Math.max(1, style.fontSize * 0.08)
+        const underlineY = baseline + underlineOffset
+
+        // Подчёркивание тоже должно попадать в границы bitmap
+        const width = Math.max(
+            0,
+            right - left,
+            style.underline ? Math.ceil(drawX + metrics.width) : 0,
+        )
+
+        const height = Math.max(
+            0,
+            bottom - top,
+            style.underline ? Math.ceil(underlineY + underlineThickness) : 0,
+        )
 
         return {
-            width: drawX + right,
-            height: Math.max(textHeight, underlineBottom),
+            width,
+            height,
             baseline,
             drawX,
             advanceWidth: metrics.width,
