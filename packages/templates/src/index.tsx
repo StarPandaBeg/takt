@@ -1,4 +1,4 @@
-import { Column, Group, Rect, Row, Text } from '@takt/ui/components'
+import { Column, Group, H1, Rect, Row, Text } from '@takt/ui/components'
 import { defineProject } from './project.js'
 import { defineScene } from './scene.js'
 
@@ -32,9 +32,9 @@ export const calendarBlankScreen = defineScene(() => {
                 {/* <Rect x={240} width={50} height={50} fill fillColor="white" /> */}
             </Column>
             <Group x={30} y={90}>
-                <Text fontFamily="Inter">
+                <H1 fontFamily="Inter">
                     АБВГДЕËЖЗИËКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ 0123456789!"№;%:?*()-=_+.,
-                </Text>
+                </H1>
                 <Text y={30} fontFamily="Inter">
                     абвгдеёжзиклмнопрстуфхцчшщъыьэюя
                 </Text>

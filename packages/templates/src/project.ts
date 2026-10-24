@@ -1,3 +1,4 @@
+import { setConfig, type DefaultsConfig } from '@takt/ui'
 import type { Scene } from './scene.js'
 
 export interface ProjectSettings {
@@ -18,6 +19,10 @@ export interface Project<
 export function defineProject<
     const TSettings extends ProjectSettings,
     const TScenes extends Record<string, Scene<never>>,
->(project: Project<TSettings, TScenes>): Project<TSettings, TScenes> {
+>(
+    project: Project<TSettings, TScenes>,
+    config?: DefaultsConfig,
+): Project<TSettings, TScenes> {
+    if (config) setConfig(config)
     return project
 }

@@ -1,4 +1,5 @@
 import { DrawColor } from '../color.js'
+import { defaultConfig } from '../config.js'
 import { definePrimitive } from '../primitive.js'
 
 export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900
@@ -18,6 +19,7 @@ export interface TextProps extends TextFormat {
     readonly color?: DrawColor
     readonly maxLineWidth?: number
     readonly renderThreshold?: number
+    readonly size?: 'default' | 'h1' | 'h2' | 'h3'
 }
 
 export const Text = definePrimitive(
@@ -32,17 +34,35 @@ export const Text = definePrimitive(
         color,
         lineHeight,
         maxLineWidth,
+        size,
         renderThreshold,
-    }: TextProps) => ({
-        value: Array.isArray(children) ? children.join('') : String(children),
-        fontSize: fontSize ?? 16,
-        fontFamily: fontFamily ?? 'Arial',
-        fontWeight: fontWeight ?? 400,
-        italic: italic ?? false,
-        underline: underline ?? false,
-        color: color ?? DrawColor.BLACK,
-        maxLineWidth: maxLineWidth ?? -1,
-        lineHeight: lineHeight ?? 1.2,
-        renderThreshold: renderThreshold ?? 128,
-    }),
+    }: TextProps) => {
+        const typographySize = size ?? 'default'
+        const config = defaultConfig.typography[typographySize]
+
+        return {
+            value: Array.isArray(children)
+                ? children.join('')
+                : String(children),
+            fontSize: fontSize ?? config.fontSize,
+            fontFamily: fontFamily ?? config.fontFamily,
+            fontWeight: fontWeight ?? config.fontWeight,
+            italic: italic ?? config.italic,
+            underline: underline ?? config.underline,
+            lineHeight: lineHeight ?? config.lineHeight,
+            color: color ?? DrawColor.BLACK,
+            maxLineWidth: maxLineWidth ?? -1,
+            renderThreshold: renderThreshold ?? 128,
+        }
+    },
 )
+
+export const H1 = (props: Omit<TextProps, 'size'>) => {
+    return Text({ ...props, size: 'h1' })
+}
+export const H2 = (props: Omit<TextProps, 'size'>) => {
+    return Text({ ...props, size: 'h2' })
+}
+export const H3 = (props: Omit<TextProps, 'size'>) => {
+    return Text({ ...props, size: 'h3' })
+}
