@@ -1,5 +1,5 @@
 import { Fragment } from './jsx-runtime.js'
-import { isNodeType, type NodeType } from './node-registry.js'
+import { isNodeType, nodeRegistry, type NodeType } from './node-registry.js'
 import {
     type Component,
     type JSXChild,
@@ -33,7 +33,7 @@ export function resolve(input: JSXChild): UINode[] {
         return input.flatMap(resolve)
     }
     if (typeof input === 'string' || typeof input === 'number') {
-        throw new TypeError('Text values must be wrapped in the Text component')
+        return resolve(nodeRegistry.text({ children: input }))
     }
 
     const { type, props } = input

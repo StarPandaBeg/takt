@@ -77,9 +77,9 @@ test('resolve handles components, fragments, arrays and groups', () => {
     assert.doesNotThrow(() => JSON.stringify(group))
 })
 
-test('raw text values are rejected outside Text', () => {
-    assert.throws(
-        () => resolve(['raw text', 42]),
-        /Text values must be wrapped in the Text component/,
-    )
+test('raw strings and numbers resolve as Text nodes with standard props', () => {
+    assert.deepEqual(resolve(['raw text', 42]), [
+        resolve(Text({ children: 'raw text' }))[0],
+        resolve(Text({ children: 42 }))[0],
+    ])
 })
