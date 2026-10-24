@@ -49,6 +49,7 @@ export type TypeContractAssertions = [
         Equal<NodeProps<'text'>['alignVertical'], 'top' | 'center' | 'bottom'>
     >,
     Expect<Equal<NodeProps<'text'>['metrics'], 'font' | 'tight'>>,
+    Expect<Equal<NodeProps<'text'>['overflow'], 'cut' | 'emphasis' | 'line'>>,
     Expect<Equal<NodeProps<'rect'>['fill'], boolean>>,
     Expect<Equal<Parameters<typeof Text>[0]['x'], PositionProps['x']>>,
     Expect<Equal<NormalizedPropsOf<typeof Badge>['active'], boolean>>,

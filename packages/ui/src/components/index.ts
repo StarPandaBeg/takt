@@ -11,6 +11,7 @@ export {
     type TextAlignVertical,
     type TextFormat,
     type TextMetricsMode,
+    type TextOverflow,
     type TextProps,
     type TextValue,
 } from './text.js'

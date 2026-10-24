@@ -151,6 +151,57 @@ test('text dimensions define container bounds and align individual lines', () =>
     ])
 })
 
+test('text overflow supports cut, emphasis and line modes', () => {
+    const segmenter = new Intl.Segmenter(undefined, {
+        granularity: 'grapheme',
+    })
+    const environment = {
+        measureText(value) {
+            return {
+                width: [...segmenter.segment(value)].length,
+                height: 1,
+            }
+        },
+        rasterizeText() {
+            return { width: 0, height: 0, buffer: new Uint8Array() }
+        },
+    }
+    const family = '👨‍👩‍👧‍👦'
+    const nodes = resolve([
+        Text({
+            children: 'abcdef\nxy',
+            maxLineWidth: 4,
+            overflow: 'cut',
+        }),
+        Text({
+            children: 'abcdef',
+            maxLineWidth: 4,
+            overflow: 'emphasis',
+        }),
+        Text({
+            children: 'aa bb',
+            maxLineWidth: 4,
+            overflow: 'line',
+        }),
+        Text({
+            children: `A${family}B`,
+            maxLineWidth: 2,
+            overflow: 'cut',
+        }),
+    ])
+    const layout = computeLayout(nodes, { width: 20, height: 20 }, environment)
+    const lineValues = layout.children.map((node) =>
+        node.additionalData.textData.lines.map(({ text }) => text),
+    )
+
+    assert.deepEqual(lineValues, [
+        ['abcd', 'xy'],
+        ['a...'],
+        ['aa', 'bb'],
+        [`A${family}`],
+    ])
+})
+
 test('text alignment does not clip pixels outside its explicit bounds', () => {
     const render = createFrameRenderer({
         measureText() {

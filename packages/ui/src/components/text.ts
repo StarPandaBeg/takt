@@ -7,6 +7,7 @@ export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900
 export type TextAlign = 'left' | 'center' | 'right'
 export type TextAlignVertical = 'top' | 'center' | 'bottom'
 export type TextMetricsMode = 'font' | 'tight'
+export type TextOverflow = 'cut' | 'emphasis' | 'line'
 export type TextValue = string | number
 
 export interface TextFormat {
@@ -25,6 +26,7 @@ export interface TextProps extends TextFormat, SizeProps {
     readonly alignVertical?: TextAlignVertical
     readonly color?: DrawColor
     readonly maxLineWidth?: number
+    readonly overflow?: TextOverflow
     readonly renderThreshold?: number
     readonly size?: 'default' | 'h1' | 'h2' | 'h3'
 }
@@ -46,6 +48,7 @@ export const Text = definePrimitive(
         lineHeight,
         metrics,
         maxLineWidth,
+        overflow,
         size,
         renderThreshold,
     }: TextProps) => {
@@ -69,6 +72,7 @@ export const Text = definePrimitive(
             metrics: metrics ?? config.metrics,
             color: color ?? DrawColor.BLACK,
             maxLineWidth: maxLineWidth ?? -1,
+            overflow: overflow ?? 'line',
             renderThreshold: renderThreshold ?? 128,
         }
     },

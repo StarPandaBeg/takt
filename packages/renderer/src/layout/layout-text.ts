@@ -8,11 +8,50 @@ interface MeasuredLine {
     readonly y: number
 }
 
-function splitTextOnLines(
+const graphemeSegmenter = new Intl.Segmenter(undefined, {
+    granularity: 'grapheme',
+})
+
+function fitPrefix(
+    value: string,
+    suffix: string,
+    maxWidth: number,
+    style: TextStyle,
+    ctx: MeasureContext,
+): string {
+    let prefix = ''
+
+    for (const { segment } of graphemeSegmenter.segment(value)) {
+        const candidate = prefix + segment + suffix
+        if (ctx.measureText(candidate, style).width > maxWidth) break
+        prefix += segment
+    }
+
+    return prefix + suffix
+}
+
+function truncateLine(
+    line: string,
+    overflow: 'cut' | 'emphasis',
+    maxWidth: number,
+    style: TextStyle,
+    ctx: MeasureContext,
+): string {
+    if (ctx.measureText(line, style).width <= maxWidth) return line
+    if (overflow === 'cut') {
+        return fitPrefix(line, '', maxWidth, style, ctx)
+    }
+
+    const emphasis = fitPrefix('...', '', maxWidth, style, ctx)
+    if (emphasis !== '...') return emphasis
+    return fitPrefix(line, emphasis, maxWidth, style, ctx)
+}
+
+function wrapLines(
     value: string,
     style: TextStyle,
     ctx: MeasureContext,
-    maxWidth: number = -1,
+    maxWidth: number,
 ): string[] {
     const lines = value.split('\n')
     if (maxWidth < 0) return lines
@@ -62,6 +101,24 @@ function splitTextOnLines(
     return newLines
 }
 
+function resolveLines(
+    value: string,
+    overflow: 'cut' | 'emphasis' | 'line',
+    maxWidth: number,
+    style: TextStyle,
+    ctx: MeasureContext,
+): string[] {
+    const lines = value.split('\n')
+    if (maxWidth < 0) return lines
+    if (maxWidth === 0) return []
+    if (overflow === 'line') {
+        return wrapLines(value, style, ctx, maxWidth)
+    }
+    return lines.map((line) =>
+        truncateLine(line, overflow, maxWidth, style, ctx),
+    )
+}
+
 function getHorizontalOffset(
     align: 'left' | 'center' | 'right',
     containerWidth: number,
@@ -87,11 +144,12 @@ export const TextLayout = defineLayout<'text', { textData: TextLayoutData }>(
     {
         measure(node, ctx) {
             const style = getTextStyle(node.props)
-            const lines = splitTextOnLines(
+            const lines = resolveLines(
                 node.props.value,
+                node.props.overflow,
+                node.props.maxLineWidth,
                 style,
                 ctx,
-                node.props.maxLineWidth,
             )
 
             const measuredLines: MeasuredLine[] = []
