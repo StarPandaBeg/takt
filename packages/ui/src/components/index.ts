@@ -7,6 +7,7 @@ export {
     type PaddingValueStrict,
 } from './flex.js'
 export { Group, type GroupProps } from './group.js'
+export { Line, type LineProps } from './line.js'
 export { Rect, type RectProps } from './rect.js'
 export {
     H1,

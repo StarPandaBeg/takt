@@ -1,5 +1,6 @@
 import type { NodeType } from '@takt/ui'
 import type { LayoutNode, RenderedFrame, RenderEnvironment } from '../types.js'
+import { drawLine } from './draw-line.js'
 import { drawRect } from './draw-rect.js'
 import { drawText } from './draw-text.js'
 import type { DrawHandler } from './handler.js'
@@ -11,6 +12,7 @@ export type DrawRegistry = {
 export const drawRegistry: DrawRegistry = {
     rect: drawRect,
     text: drawText,
+    line: drawLine,
 }
 
 function getHandler(

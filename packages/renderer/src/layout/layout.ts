@@ -14,6 +14,7 @@ import type {
 } from './handler.js'
 import { FlexLayout } from './layout-flex.js'
 import { GroupLayout } from './layout-group.js'
+import { LineLayout } from './layout-line.js'
 import { RectLayout } from './layout-rect.js'
 import { TextLayout } from './layout-text.js'
 
@@ -34,6 +35,7 @@ export const layoutRegistry = {
     group: GroupLayout,
     text: TextLayout,
     flex: FlexLayout,
+    line: LineLayout,
 } satisfies LayoutRegistry
 
 function getHandler(node: UINode): LayoutHandler<NodeType, unknown> {

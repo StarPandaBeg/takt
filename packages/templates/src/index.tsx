@@ -1,4 +1,4 @@
-import { Column, Group, H1, Rect, Row, Text } from '@takt/ui/components'
+import { Column, Group, H1, Line, Rect, Row, Text } from '@takt/ui/components'
 import { defineProject } from './project.js'
 import { defineScene } from './scene.js'
 
@@ -8,6 +8,15 @@ export { defineScene, type Scene } from './scene.js'
 export const calendarBlankScreen = defineScene(() => {
     return (
         <>
+            <Line
+                x={500}
+                y={30}
+                dx={-200}
+                dy={100}
+                strokeWidth={3}
+                butt
+                strokeColor="gray_50"
+            />
             <Row
                 x={0}
                 y={0}
