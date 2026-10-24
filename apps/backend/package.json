@@ -17,6 +17,7 @@
     "author": "StarPanda",
     "license": "MIT",
     "dependencies": {
+        "@fastify/cors": "^11.3.1",
         "@napi-rs/canvas": "^1.0.13",
         "@takt/renderer": "^1.0.0",
         "@takt/templates": "^1.0.0",

@@ -1,3 +1,4 @@
+import cors from '@fastify/cors'
 import { createRenderer } from '@takt/renderer'
 import { exportPng } from '@takt/renderer/exporters'
 import { project } from '@takt/templates'
@@ -10,6 +11,10 @@ export interface AppOptions {
 
 export function buildApp(options: AppOptions = {}): FastifyInstance {
     const app = Fastify({ logger: options.logger ?? true })
+    app.register(cors, {
+        origin: '*',
+    })
+
     const render = createRenderer(createNodeEnvironment())
 
     app.get('/', async (_request, reply) => {
