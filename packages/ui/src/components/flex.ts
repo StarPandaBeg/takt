@@ -1,10 +1,7 @@
+import { calculateQuad, type Quad, type QuadValue } from '../helpers.js'
 import { definePrimitive } from '../primitive.js'
 import type { JSXChild } from '../types/jsx.js'
 import type { SizeProps } from '../types/transform.js'
-
-export type PaddingValueStrict = [number, number, number, number]
-export type PaddingValue =
-    number | [number, number] | [number, number, number] | PaddingValueStrict
 
 export interface FlexProps extends SizeProps {
     readonly direction?: 'row' | 'column'
@@ -16,27 +13,13 @@ export interface FlexProps extends SizeProps {
         | 'space-around'
         | 'space-evenly'
     readonly align?: 'start' | 'center' | 'end'
-    readonly padding?: PaddingValue
+    readonly padding?: QuadValue<number>
     readonly gap?: number
     readonly children?: JSXChild
 }
 
-export type RowProps = Omit<FlexProps, 'direction'>
-export type ColumnProps = Omit<FlexProps, 'direction'>
-
-function calculatePadding(
-    value: PaddingValue,
-): [number, number, number, number] {
-    if (typeof value == 'number') return [value, value, value, value]
-    if (value.length == 2) return [value[0], value[1], value[0], value[1]]
-    if (value.length == 3) return [value[0], value[1], value[0], value[2]]
-    return value
-}
-
 export const Flex = definePrimitive('flex', (props: FlexProps) => {
-    const padding: PaddingValueStrict = props.padding
-        ? calculatePadding(props.padding)
-        : [0, 0, 0, 0]
+    const padding: Quad<number> = calculateQuad(props.padding ?? 0)
 
     return {
         ...props,
@@ -50,6 +33,7 @@ export const Flex = definePrimitive('flex', (props: FlexProps) => {
     }
 })
 
-export const Row = (props: RowProps) => Flex({ ...props, direction: 'row' })
-export const Column = (props: ColumnProps) =>
+export const Row = (props: Omit<FlexProps, 'direction'>) =>
+    Flex({ ...props, direction: 'row' })
+export const Column = (props: Omit<FlexProps, 'direction'>) =>
     Flex({ ...props, direction: 'column' })

@@ -1,5 +1,5 @@
-import { DrawColor } from '../color.js'
 import { defaultConfig } from '../config.js'
+import { DrawColor } from '../helpers.js'
 import { definePrimitive } from '../primitive.js'
 
 export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900

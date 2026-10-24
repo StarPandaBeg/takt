@@ -28,7 +28,14 @@ export const calendarBlankScreen = defineScene(() => {
                 gap={5}
             >
                 <Rect width={50} height={50} fill fillColor="black" />
-                <Rect x={60} width={50} height={50} fill fillColor="gray_75" />
+                <Rect
+                    x={60}
+                    width={50}
+                    height={50}
+                    fill
+                    fillColor="black"
+                    borderRadius={10}
+                />
                 <Rect x={120} width={50} height={50} fill fillColor="gray_50" />
                 <Rect x={180} width={30} height={30} fill fillColor="gray_25" />
                 {/* <Rect x={240} width={50} height={50} fill fillColor="white" /> */}

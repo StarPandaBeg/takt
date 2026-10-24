@@ -1,4 +1,4 @@
-import { DrawColor } from '../color.js'
+import { DrawColor } from '../helpers.js'
 import { definePrimitive } from '../primitive.js'
 
 export interface LineProps {

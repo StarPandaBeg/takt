@@ -1,4 +1,4 @@
-export * from './color.js'
+export * from './helpers.js'
 export * from './node-registry.js'
 export * from './primitive.js'
 export * from './resolve.js'

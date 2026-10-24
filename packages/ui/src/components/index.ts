@@ -1,11 +1,4 @@
-export {
-    Column,
-    Flex,
-    Row,
-    type FlexProps,
-    type PaddingValue,
-    type PaddingValueStrict,
-} from './flex.js'
+export { Column, Flex, Row, type FlexProps } from './flex.js'
 export { Group, type GroupProps } from './group.js'
 export { Line, type LineProps } from './line.js'
 export { Rect, type RectProps } from './rect.js'

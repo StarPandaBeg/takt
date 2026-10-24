@@ -1,4 +1,4 @@
-import type { DrawColor } from '@takt/ui'
+import type { DrawColor, Quad } from '@takt/ui'
 import type { Bounds, Position, RenderedFrame, TextBitmap } from '../types.js'
 import { resolveDrawColor } from './color.js'
 
@@ -93,4 +93,67 @@ export function drawLineWithThickness(
             }
         }
     }
+}
+
+export function normalizeRadii(
+    radii: Quad<number>,
+    width: number,
+    height: number,
+): Quad<number> {
+    const [tl, tr, br, bl] = radii.map((r) =>
+        Math.max(0, r),
+    ) as unknown as Quad<number>
+
+    const scale = Math.min(
+        1,
+        width / (tl + tr || 1),
+        width / (bl + br || 1),
+        height / (tl + bl || 1),
+        height / (tr + br || 1),
+    )
+
+    return [tl * scale, tr * scale, br * scale, bl * scale]
+}
+
+export function insideRoundedRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radii: Quad<number>,
+): boolean {
+    if (x < 0 || y < 0 || x >= width || y >= height) {
+        return false
+    }
+
+    const [tl, tr, br, bl] = radii
+
+    let cx: number
+    let cy: number
+    let radius: number
+
+    if (x < tl && y < tl) {
+        cx = tl
+        cy = tl
+        radius = tl
+    } else if (x > width - tr && y < tr) {
+        cx = width - tr
+        cy = tr
+        radius = tr
+    } else if (x > width - br && y > height - br) {
+        cx = width - br
+        cy = height - br
+        radius = br
+    } else if (x < bl && y > height - bl) {
+        cx = bl
+        cy = height - bl
+        radius = bl
+    } else {
+        return true
+    }
+
+    const dx = x - cx
+    const dy = y - cy
+
+    return dx * dx + dy * dy <= radius * radius
 }
