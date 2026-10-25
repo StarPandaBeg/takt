@@ -1,14 +1,12 @@
 import { Column, Image } from '@takt/ui/components'
-import panda from '../assets/panda.js'
-
-import leaves from '../assets/leaves.js'
+import { type ProjectContext } from '../index.js'
 import { defineScene } from '../scene.js'
 
-export const calendarSplashScreen = defineScene(() => {
+export const calendarSplashScreen = defineScene<ProjectContext>(() => {
     return (
         <>
             <Image
-                src={leaves}
+                src={new URL('../../assets/leaves.jpg', import.meta.url).href}
                 width={800}
                 height={480}
                 fit="cover"
@@ -25,7 +23,9 @@ export const calendarSplashScreen = defineScene(() => {
                 align="center"
             >
                 <Image
-                    src={panda}
+                    src={
+                        new URL('../../assets/panda.png', import.meta.url).href
+                    }
                     width={380}
                     height={380}
                     fit="contain"

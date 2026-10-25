@@ -6,20 +6,8 @@ export type ImageDithering = 'threshold' | 'ordered' | 'floyd-steinberg'
 export type ImageBrightness =
     'perceived' | 'average' | 'lightness' | 'red' | 'green' | 'blue'
 
-/** A file reference resolved relative to the module that declares the asset. */
-export interface ImageAsset {
-    readonly path: string
-    readonly moduleUrl: string
-}
-
-export type ImageSource = string | ImageAsset
-
-export function defineImageAsset(path: string, moduleUrl: string): ImageAsset {
-    return { path, moduleUrl }
-}
-
 export interface ImageProps extends SizeProps {
-    readonly src: ImageSource
+    readonly src: string
     readonly fit?: ImageFit
     readonly smoothing?: boolean
     readonly dithering?: ImageDithering

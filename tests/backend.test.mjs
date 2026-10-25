@@ -1,7 +1,7 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { createRenderer } from '@takt/renderer'
 import { exportPng } from '@takt/renderer/exporters'
-import { defineImageAsset, Image } from '@takt/ui/components'
+import { Image } from '@takt/ui/components'
 import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -75,6 +75,7 @@ test('Node Canvas measures and rasterizes the same text geometry', () => {
         fontWeight: 600,
         italic: true,
         underline: true,
+        strikethrough: true,
         lineHeight: 1.2,
         metrics: 'font',
     }
@@ -86,6 +87,33 @@ test('Node Canvas measures and rasterizes the same text geometry', () => {
     assert.equal(bitmap.buffer.length, bitmap.width * bitmap.height)
 })
 
+test('Node Canvas includes strikethrough in measured text bitmap', () => {
+    const environment = createNodeEnvironment()
+    const baseStyle = {
+        fontSize: 32,
+        fontFamily: 'Arial',
+        fontWeight: 400,
+        italic: false,
+        underline: false,
+        lineHeight: 1.2,
+        metrics: 'tight',
+    }
+    const plain = environment.rasterizeText('Takt Takt', {
+        ...baseStyle,
+        strikethrough: false,
+    })
+    const struckStyle = { ...baseStyle, strikethrough: true }
+    const struck = environment.rasterizeText('Takt Takt', struckStyle)
+
+    assert.deepEqual(
+        { width: struck.width, height: struck.height },
+        environment.measureText('Takt Takt', struckStyle),
+    )
+    const alphaSum = (bitmap) =>
+        bitmap.buffer.reduce((sum, alpha) => sum + alpha, 0)
+    assert.ok(alphaSum(struck) > alphaSum(plain))
+})
+
 test('Node Canvas uses stable vertical metrics for equal text styles', () => {
     const environment = createNodeEnvironment()
     const style = {
@@ -94,6 +122,7 @@ test('Node Canvas uses stable vertical metrics for equal text styles', () => {
         fontWeight: 400,
         italic: false,
         underline: false,
+        strikethrough: false,
         lineHeight: 1.2,
         metrics: 'font',
     }
@@ -128,6 +157,7 @@ test('Node Canvas supports stable font and compact tight metrics', () => {
         fontWeight: 400,
         italic: false,
         underline: false,
+        strikethrough: false,
         lineHeight: 1.2,
     }
 
@@ -213,10 +243,10 @@ test('Node environment decodes and caches local raster images', async () => {
         ])
         const first = environment.loadImage('source.png')
         const cached = environment.loadImage('source.png')
-        const importedSource = defineImageAsset(
+        const importedSource = new URL(
             './source.png',
-            pathToFileURL(join(assetRoot, 'image-asset.js')).href,
-        )
+            pathToFileURL(join(assetRoot, 'screen.js')),
+        ).href
 
         assert.strictEqual(cached, first)
         assert.strictEqual(environment.loadImage(importedSource), first)
@@ -285,7 +315,7 @@ test('Node environment decodes and caches local raster images', async () => {
             environment.preloadImages(
                 Image({ src: 'https://example.com/image.png' }),
             ),
-            /only local file paths/,
+            /only supports local images/,
         )
 
         const smallCache = createNodeEnvironment({

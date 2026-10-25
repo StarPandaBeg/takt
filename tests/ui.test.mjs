@@ -1,5 +1,5 @@
 import { DrawColor, Fragment, resolve } from '@takt/ui'
-import { defineImageAsset, Group, Image, Rect, Text } from '@takt/ui/components'
+import { Group, Image, Rect, Text } from '@takt/ui/components'
 import { jsx } from '@takt/ui/jsx-runtime'
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -38,6 +38,7 @@ test('primitive props are normalized exactly once', () => {
             fontWeight: 400,
             italic: false,
             underline: false,
+            strikethrough: false,
             lineHeight: 1.2,
             metrics: 'font',
             color: DrawColor.BLACK,
@@ -104,16 +105,16 @@ test('raw strings and numbers resolve as Text nodes with standard props', () => 
     ])
 })
 
-test('Image preserves a serializable module-relative asset reference', () => {
-    const asset = defineImageAsset(
+test('Image preserves a module-relative URL string', () => {
+    const source = new URL(
         '../assets/panda.png',
-        'file:///app/screen.js',
-    )
-    const [image] = resolve(Image({ src: asset }))
+        'file:///app/screens/screen.js',
+    ).href
+    const [image] = resolve(Image({ src: source }))
 
-    assert.deepEqual(image?.props.src, asset)
+    assert.equal(image?.props.src, 'file:///app/assets/panda.png')
     assert.equal(
         JSON.stringify(image?.props.src),
-        '{"path":"../assets/panda.png","moduleUrl":"file:///app/screen.js"}',
+        '"file:///app/assets/panda.png"',
     )
 })

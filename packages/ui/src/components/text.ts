@@ -16,6 +16,7 @@ export interface TextFormat {
     readonly fontWeight?: FontWeight
     readonly italic?: boolean
     readonly underline?: boolean
+    readonly strikethrough?: boolean
     readonly lineHeight?: number
     readonly metrics?: TextMetricsMode
 }
@@ -44,6 +45,7 @@ export const Text = definePrimitive(
         fontWeight,
         italic,
         underline,
+        strikethrough,
         color,
         lineHeight,
         metrics,
@@ -68,6 +70,7 @@ export const Text = definePrimitive(
             fontWeight: fontWeight ?? config.fontWeight,
             italic: italic ?? config.italic,
             underline: underline ?? config.underline,
+            strikethrough: strikethrough ?? config.strikethrough,
             lineHeight: lineHeight ?? config.lineHeight,
             metrics: metrics ?? config.metrics,
             color: color ?? DrawColor.BLACK,

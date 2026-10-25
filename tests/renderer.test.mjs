@@ -94,6 +94,7 @@ test('text measurement and rasterization receive the same normalized style', () 
         fontWeight: 400,
         italic: false,
         underline: false,
+        strikethrough: false,
         lineHeight: 1.2,
         metrics: 'font',
     }

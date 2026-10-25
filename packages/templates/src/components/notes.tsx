@@ -1,7 +1,12 @@
 import { Column, Rect, Row, Text, type FlexProps } from '@takt/ui/components'
 
+export interface Note {
+    text: string
+    done?: boolean
+}
+
 export interface NotesProps extends FlexProps {
-    notes: string[]
+    notes: Note[]
     notesPerColumn?: number
 }
 
@@ -10,7 +15,7 @@ export default function Notes({
     notesPerColumn = 4,
     ...props
 }: NotesProps) {
-    const columns: string[][] = []
+    const columns: Note[][] = []
     const count = Math.max(1, Math.floor(notesPerColumn))
 
     for (let i = 0; i < notes.length; i += count) {
@@ -34,8 +39,9 @@ export default function Notes({
                                 fontSize={20}
                                 maxLineWidth={columnWidth - 20}
                                 overflow="emphasis"
+                                strikethrough={note.done ?? false}
                             >
-                                {note}
+                                {note.text}
                             </Text>
                         </Row>
                     ))}

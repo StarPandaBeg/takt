@@ -8,7 +8,7 @@ import {
     type NormalizedPropsOf,
     type PositionProps,
 } from '@takt/ui'
-import type { ImageSource, Text } from '@takt/ui/components'
+import type { Text } from '@takt/ui/components'
 
 type Equal<TLeft, TRight> =
     (<T>() => T extends TLeft ? 1 : 2) extends <T>() => T extends TRight ? 1 : 2
@@ -27,7 +27,7 @@ export const Badge = definePrimitive(
 const contextualScene = defineScene((context: { readonly title: string }) =>
     context.title.length > 0 ? null : false,
 )
-export const contextualProject = defineProject({
+export const contextualProject = defineProject<{ readonly title: string }>()({
     settings: { screen: { width: 1, height: 1 }, custom: true },
     scenes: { contextual: contextualScene },
 })
@@ -52,8 +52,9 @@ export type TypeContractAssertions = [
     >,
     Expect<Equal<NodeProps<'text'>['metrics'], 'font' | 'tight'>>,
     Expect<Equal<NodeProps<'text'>['overflow'], 'cut' | 'emphasis' | 'line'>>,
+    Expect<Equal<NodeProps<'text'>['strikethrough'], boolean>>,
     Expect<Equal<NodeProps<'rect'>['fill'], boolean>>,
-    Expect<Equal<NodeProps<'image'>['src'], ImageSource>>,
+    Expect<Equal<NodeProps<'image'>['src'], string>>,
     Expect<Equal<NodeProps<'image'>['fit'], 'contain' | 'cover' | 'fill'>>,
     Expect<
         Equal<

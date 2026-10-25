@@ -1,7 +1,6 @@
 import { createCanvas, Image } from '@napi-rs/canvas'
 import type { DecodedImage, RenderEnvironment, TextStyle } from '@takt/renderer'
 import { resolve as resolveUI, type JSXChild, type UINode } from '@takt/ui'
-import type { ImageSource } from '@takt/ui/components'
 import { readFileSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,6 +15,8 @@ interface TextGeometry {
     readonly advanceWidth: number
     readonly underlineY: number
     readonly underlineThickness: number
+    readonly strikethroughY: number
+    readonly strikethroughThickness: number
 }
 
 export interface NodeEnvironmentOptions {
@@ -57,26 +58,24 @@ export function createNodeEnvironment(
     const canvas = createCanvas(1, 1)
     const ctx = canvas.getContext('2d')
 
-    function resolveImageSource(source: ImageSource): string {
-        if (typeof source === 'string') {
-            if (source.length === 0) {
-                throw new Error('src must not be empty')
-            }
-            if (/^[a-z][a-z\d+.-]*:/i.test(source)) {
-                throw new Error('only local file paths are supported')
-            }
-            return resolve(assetRoot, source)
+    function resolveImageSource(source: string): string {
+        if (source.length === 0) {
+            throw new Error('src must not be empty')
         }
 
-        const url = new URL(source.path, source.moduleUrl)
-        if (url.protocol !== 'file:') {
-            throw new Error('imported images must resolve to a local file')
+        if (/^[a-z][a-z\d+.-]*:/i.test(source)) {
+            const url = new URL(source)
+            if (url.protocol !== 'file:') {
+                throw new Error('Node renderer only supports local images')
+            }
+            return fileURLToPath(url)
         }
-        return fileURLToPath(url)
+
+        return resolve(assetRoot, source)
     }
 
-    function inspectImage(src: ImageSource): ImageResource {
-        const label = typeof src === 'string' ? src : src.path
+    function inspectImage(src: string): ImageResource {
+        const label = src
         let path: string
 
         try {
@@ -172,8 +171,8 @@ export function createNodeEnvironment(
         }
     }
 
-    function collectImageSources(nodes: readonly UINode[]): ImageSource[] {
-        const sources: ImageSource[] = []
+    function collectImageSources(nodes: readonly UINode[]): string[] {
+        const sources: string[] = []
 
         const visit = (node: UINode) => {
             if (node.type === 'image') sources.push(node.props.src)
@@ -200,7 +199,7 @@ export function createNodeEnvironment(
         preparedImages = new Map(entries)
     }
 
-    function loadImage(src: ImageSource): DecodedImage {
+    function loadImage(src: string): DecodedImage {
         const resource = inspectImage(src)
         const cached = getCachedImage(resource)
         if (cached !== undefined) return cached.image
@@ -253,32 +252,48 @@ export function createNodeEnvironment(
                 : Math.ceil(metrics.fontBoundingBoxDescent)
         const verticalGuard =
             style.metrics === 'font' || hasInk ? RASTER_EDGE_GUARD : 0
-        const top = baseTop - verticalGuard
-        const bottom = baseBottom + verticalGuard
+        const decorationThickness = Math.max(1, style.fontSize * 0.05)
+        const underlineOffset = Math.max(1, style.fontSize * 0.08)
+        const strikethroughOffset = style.fontSize * 0.3
+        const strikethroughTop = -strikethroughOffset - decorationThickness / 2
+        const strikethroughBottom =
+            -strikethroughOffset + decorationThickness / 2
+
+        let top = baseTop - verticalGuard
+        let bottom = baseBottom + verticalGuard
+        if (style.strikethrough) {
+            top = Math.min(
+                top,
+                Math.floor(strikethroughTop) - RASTER_EDGE_GUARD,
+            )
+            bottom = Math.max(
+                bottom,
+                Math.ceil(strikethroughBottom) + RASTER_EDGE_GUARD,
+            )
+        }
+        if (style.underline) {
+            bottom = Math.max(
+                bottom,
+                Math.ceil(
+                    underlineOffset + decorationThickness + RASTER_EDGE_GUARD,
+                ),
+            )
+        }
 
         const drawX = -left
         const baseline = -top
-
-        const underlineThickness = Math.max(1, style.fontSize * 0.05)
-        const underlineOffset = Math.max(1, style.fontSize * 0.08)
         const underlineY = baseline + underlineOffset
+        const strikethroughY = baseline + strikethroughTop
 
-        // Подчёркивание тоже должно попадать в границы bitmap
         const width = Math.max(
             0,
             right - left,
-            style.underline
+            style.underline || style.strikethrough
                 ? Math.ceil(drawX + metrics.width + RASTER_EDGE_GUARD)
                 : 0,
         )
 
-        const height = Math.max(
-            0,
-            bottom - top,
-            style.underline
-                ? Math.ceil(underlineY + underlineThickness + RASTER_EDGE_GUARD)
-                : 0,
-        )
+        const height = Math.max(0, bottom - top)
 
         return {
             width,
@@ -287,7 +302,9 @@ export function createNodeEnvironment(
             drawX,
             advanceWidth: metrics.width,
             underlineY,
-            underlineThickness,
+            underlineThickness: decorationThickness,
+            strikethroughY,
+            strikethroughThickness: decorationThickness,
         }
     }
 
@@ -327,6 +344,15 @@ export function createNodeEnvironment(
                     geometry.underlineY,
                     geometry.advanceWidth,
                     geometry.underlineThickness,
+                )
+            }
+
+            if (style.strikethrough) {
+                ctx.fillRect(
+                    geometry.drawX,
+                    geometry.strikethroughY,
+                    geometry.advanceWidth,
+                    geometry.strikethroughThickness,
                 )
             }
 

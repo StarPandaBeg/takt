@@ -12,10 +12,6 @@ export const ImageLayout = defineLayout<
     measure(node, context) {
         const image = context.loadImage(node.props.src)
         const { width: naturalWidth, height: naturalHeight, data } = image
-        const sourceName =
-            typeof node.props.src === 'string'
-                ? node.props.src
-                : node.props.src.path
 
         if (
             !Number.isInteger(naturalWidth) ||
@@ -25,7 +21,7 @@ export const ImageLayout = defineLayout<
             data.length !== naturalWidth * naturalHeight * 4
         ) {
             throw new RangeError(
-                `Invalid decoded image dimensions for "${sourceName}"`,
+                `Invalid decoded image dimensions for "${node.props.src}"`,
             )
         }
 

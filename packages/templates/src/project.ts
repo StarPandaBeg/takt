@@ -1,4 +1,4 @@
-import { setConfig, type DefaultsConfig } from '@takt/ui'
+import { setConfig, type DeepPartial, type DefaultsConfig } from '@takt/ui'
 import type { Scene } from './scene.js'
 
 export interface ProjectSettings {
@@ -9,20 +9,28 @@ export interface ProjectSettings {
 }
 
 export interface Project<
+    TSceneContext,
     TSettings extends ProjectSettings = ProjectSettings,
-    TScenes extends Record<string, Scene<never>> = Record<string, Scene<never>>,
+    TScenes extends Record<string, Scene<TSceneContext>> = Record<
+        string,
+        Scene<TSceneContext>
+    >,
 > {
     readonly settings: TSettings
     readonly scenes: TScenes
 }
 
-export function defineProject<
-    const TSettings extends ProjectSettings,
-    const TScenes extends Record<string, Scene<never>>,
->(
-    project: Project<TSettings, TScenes>,
-    config?: DefaultsConfig,
-): Project<TSettings, TScenes> {
-    if (config) setConfig(config)
-    return project
+export function defineProject<TSceneContext>(
+    config?: DeepPartial<DefaultsConfig>,
+) {
+    return <
+        const TSettings extends ProjectSettings,
+        const TScenes extends Record<string, Scene<TSceneContext>>,
+    >(
+        project: Project<TSceneContext, TSettings, TScenes>,
+    ): Project<TSceneContext, TSettings, TScenes> => {
+        if (config) setConfig(config)
+
+        return project
+    }
 }

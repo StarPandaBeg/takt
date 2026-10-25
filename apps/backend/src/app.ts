@@ -1,9 +1,80 @@
 import cors from '@fastify/cors'
 import { createRenderer } from '@takt/renderer'
 import { exportPng } from '@takt/renderer/exporters'
-import { project, type Scene } from '@takt/templates'
+import {
+    project,
+    type Deadline,
+    type Note,
+    type ProjectContext,
+    type Scene,
+} from '@takt/templates'
 import Fastify, { type FastifyInstance } from 'fastify'
+import { DateTime } from 'luxon'
 import { createNodeEnvironment } from './render-environment.js'
+
+const events = [
+    {
+        start: DateTime.fromISO('2026-10-24T17:00:34.123'),
+        text: 'Событие 1',
+    },
+    {
+        start: DateTime.fromISO('2026-10-24T17:20:34.123'),
+        text: 'Событие 2',
+    },
+    {
+        start: DateTime.fromISO('2026-10-24T17:00:34.123'),
+        end: DateTime.fromISO('2026-10-24T17:30:34.123'),
+        text: 'Событие 3',
+    },
+    {
+        start: DateTime.fromISO('2025-10-24T17:50:34.123'),
+        end: DateTime.fromISO('2027-10-24T17:55:34.123'),
+        text: 'Событие 4',
+    },
+    {
+        start: DateTime.fromISO('2026-10-25T17:50:34.123'),
+        end: DateTime.fromISO('2026-10-25T17:55:34.123'),
+        text: 'Событие 5',
+    },
+    {
+        start: DateTime.fromISO('2026-10-25T17:50:34.123'),
+        end: DateTime.fromISO('2026-10-25T17:55:34.123'),
+        text: 'Событие 6',
+    },
+    {
+        start: DateTime.fromISO('2026-10-25T17:50:34.123'),
+        end: DateTime.fromISO('2026-10-25T17:55:34.123'),
+        text: 'Событие 7',
+    },
+    {
+        start: DateTime.fromISO('2026-10-25T17:50:34.123'),
+        end: DateTime.fromISO('2026-10-25T17:55:34.123'),
+        text: 'Событие 8',
+    },
+]
+
+const deadlines: Deadline[] = [
+    {
+        date: DateTime.fromISO('2026-10-19T15:50:34.123'),
+        text: 'Решить со встречей ВИШ',
+        important: true,
+    },
+    {
+        date: DateTime.fromISO('2026-10-19T15:50:34.123'),
+        text: 'Решить со встречей ВИШ',
+    },
+]
+
+const notes: Note[] = [
+    { text: 'Перенести пароли' },
+    { text: 'Заказать рамку' },
+    { text: 'Обновить сервер', done: true },
+    { text: 'Купить продукты' },
+    { text: 'Закончить календарь' },
+    { text: 'Проверить бэкапы' },
+    { text: 'Позвонить другу' },
+    { text: 'Разобрать задачи' },
+]
 
 export interface AppOptions {
     readonly logger?: boolean
@@ -20,15 +91,21 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
     app.get('/screen/:screen', async (_request, reply) => {
         const { screen } = _request.params as { screen: string }
-        if (!Object.keys(project.scenes).includes(screen)) {
+        const scenes: Record<string, Scene<ProjectContext>> = project.scenes
+        const projectScene = scenes[screen]
+
+        if (!projectScene) {
             return reply.code(404).send('Not Found')
         }
 
-        // @ts-expect-error Expect error
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const projectScene: Scene = project.scenes[screen]
+        const today = DateTime.now()
 
-        const content = projectScene.generate({})
+        const content = projectScene.generate({
+            today,
+            events,
+            deadlines,
+            notes,
+        })
         await environment.preloadImages(content)
 
         const frame = render({

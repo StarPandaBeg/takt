@@ -2,13 +2,10 @@ export { Column, Flex, Row, type FlexProps } from './flex.js'
 export { Group, type GroupProps } from './group.js'
 export {
     Image,
-    defineImageAsset,
-    type ImageAsset,
     type ImageBrightness,
     type ImageDithering,
     type ImageFit,
     type ImageProps,
-    type ImageSource,
 } from './image.js'
 export { Line, type LineProps } from './line.js'
 export { Rect, type RectProps } from './rect.js'
