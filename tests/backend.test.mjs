@@ -1,15 +1,40 @@
+import { createClient } from '@libsql/client'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { createRenderer } from '@takt/renderer'
 import { exportPng } from '@takt/renderer/exporters'
 import { Image } from '@takt/ui/components'
+import { DateTime } from 'luxon'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { pathToFileURL } from 'node:url'
-import { buildApp } from '../apps/backend/dist/app.js'
-import { createNodeEnvironment } from '../apps/backend/dist/render-environment.js'
+
+const databaseRoot = mkdtempSync(join(tmpdir(), 'takt-database-'))
+process.env.DB_FILE_NAME = `file:${join(databaseRoot, 'test.db')}`
+process.env.DEFAULT_TIMEZONE = 'Europe/Moscow'
+
+const databaseClient = createClient({ url: process.env.DB_FILE_NAME })
+for (const migration of [
+    '../apps/backend/drizzle/20261025112603_real_devos/migration.sql',
+    '../apps/backend/drizzle/20261025112701_triggers/migration.sql',
+]) {
+    const sql = readFileSync(new URL(migration, import.meta.url), 'utf8')
+    await databaseClient.executeMultiple(
+        sql.replaceAll('--> statement-breakpoint', ''),
+    )
+}
+databaseClient.close()
+
+const { buildApp } = await import('../apps/backend/dist/app.js')
+const { createNodeEnvironment } =
+    await import('../apps/backend/dist/render-environment.js')
+const { sources } = await import('../apps/backend/dist/services/sources.js')
+
+test.after(() => {
+    rmSync(databaseRoot, { recursive: true, force: true })
+})
 
 test('backend serves the rendered frame as PNG', async () => {
     const app = buildApp({ logger: false })
@@ -17,7 +42,7 @@ test('backend serves the rendered frame as PNG', async () => {
     try {
         const response = await app.inject({
             method: 'GET',
-            url: '/screen/splash',
+            url: '/screens/splash/png',
         })
         const png = response.rawPayload
 
@@ -52,16 +77,129 @@ test('backend serves the rendered frame as PNG', async () => {
 
         const head = await app.inject({
             method: 'HEAD',
-            url: '/screen/splash',
+            url: '/screens/splash/png',
         })
         assert.equal(head.statusCode, 200)
         assert.equal(head.rawPayload.byteLength, 0)
 
         const missing = await app.inject({
             method: 'GET',
-            url: '/screen/missing',
+            url: '/screens/missing/png',
         })
         assert.equal(missing.statusCode, 404)
+    } finally {
+        await app.close()
+    }
+})
+
+test('events and deadlines API feeds bounded screen sources', async () => {
+    const app = buildApp({ logger: false })
+    const post = async (url, body) => {
+        const response = await app.inject({
+            method: 'POST',
+            url,
+            payload: body,
+        })
+        assert.equal(response.statusCode, 201, response.body)
+        return response.json().id
+    }
+
+    try {
+        const eventId = await post('/api/events', {
+            title: 'Initial event',
+            start: '2026-10-25T10:00:00+03:00',
+            end: '2026-10-25T11:00:00+03:00',
+            timezone: 'Europe/Moscow',
+        })
+        let response = await app.inject({
+            method: 'PUT',
+            url: `/api/events/${eventId}`,
+            payload: { title: 'Edited event' },
+        })
+        assert.equal(response.statusCode, 200)
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/events/${eventId}`,
+        })
+        assert.equal(response.json().title, 'Edited event')
+        response = await app.inject({
+            method: 'DELETE',
+            url: `/api/events/${eventId}`,
+        })
+        assert.equal(response.statusCode, 204)
+
+        const deadlineId = await post('/api/deadlines', {
+            title: 'Initial deadline',
+            due: '2026-10-28T12:00:00+03:00',
+        })
+        response = await app.inject({
+            method: 'POST',
+            url: `/api/deadlines/${deadlineId}/markDone`,
+        })
+        assert.equal(response.statusCode, 204)
+        response = await app.inject({ method: 'GET', url: '/api/deadlines' })
+        assert.equal(response.json().length, 0)
+        response = await app.inject({
+            method: 'GET',
+            url: '/api/deadlines?withCompleted=true',
+        })
+        assert.equal(response.json()[0].completed, true)
+        await app.inject({
+            method: 'POST',
+            url: `/api/deadlines/${deadlineId}/markUndone`,
+        })
+        await app.inject({
+            method: 'PUT',
+            url: `/api/deadlines/${deadlineId}`,
+            payload: { title: 'Edited deadline' },
+        })
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/deadlines/${deadlineId}`,
+        })
+        assert.equal(response.json().title, 'Edited deadline')
+        await app.inject({
+            method: 'DELETE',
+            url: `/api/deadlines/${deadlineId}`,
+        })
+
+        const now = DateTime.now().setZone('Europe/Moscow')
+        for (let hour = 0; hour < 10; hour += 1) {
+            await post('/api/events', {
+                title: `today-${hour}`,
+                start: now.startOf('day').plus({ hours: hour }).toISO(),
+                timezone: 'Europe/Moscow',
+            })
+        }
+        await post('/api/events', {
+            title: 'tomorrow',
+            start: now.plus({ days: 1 }).startOf('day').toISO(),
+        })
+        const screenEvents = await sources.events.load()
+        assert.equal(screenEvents.length, 8)
+        assert.ok(screenEvents.every(({ start }) => start.hasSame(now, 'day')))
+
+        for (const days of [-1, 0, 2, 3, 4, 5]) {
+            await post('/api/deadlines', {
+                title: `deadline-${days}`,
+                due: now.plus({ days }).toISO(),
+            })
+        }
+        await post('/api/deadlines', {
+            title: 'completed-deadline',
+            due: now.plus({ days: 1 }).toISO(),
+            completed: true,
+        })
+        const screenDeadlines = await sources.deadlines.load()
+        assert.deepEqual(
+            screenDeadlines.map(({ text, important }) => ({ text, important })),
+            [
+                { text: 'deadline-0', important: true },
+                { text: 'deadline-2', important: true },
+                { text: 'deadline-3', important: true },
+                { text: 'deadline-4', important: false },
+            ],
+        )
     } finally {
         await app.close()
     }

@@ -1,8 +1,12 @@
 import type { Deadline, Event, Note } from '@takt/templates'
 import { hash } from 'crypto'
 import { DateTime } from 'luxon'
+import * as deadlinesRepository from '../repository/deadlines.js'
+import * as eventsRepository from '../repository/events.js'
 import * as notesRepository from '../repository/notes.js'
-import { convert } from './notes.js'
+import { convertDeadline, selectDeadlinesForScreen } from './deadlines.js'
+import { convertEvent, selectEventsForScreen } from './events.js'
+import { convert as convertNote } from './notes.js'
 import * as versions from './version.js'
 
 interface DataSource<T> {
@@ -13,59 +17,6 @@ interface DataSource<T> {
 type SceneContextSources<T> = {
     [K in keyof T]: DataSource<T[K]>
 }
-
-const events: Event[] = [
-    {
-        start: DateTime.fromISO('2026-10-24T17:00:34.123'),
-        text: 'Событие 1',
-    },
-    {
-        start: DateTime.fromISO('2026-10-24T17:20:34.123'),
-        text: 'Событие 2',
-    },
-    {
-        start: DateTime.fromISO('2026-10-24T17:00:34.123'),
-        end: DateTime.fromISO('2026-10-24T17:30:34.123'),
-        text: 'Событие 3',
-    },
-    {
-        start: DateTime.fromISO('2025-10-24T17:50:34.123'),
-        end: DateTime.fromISO('2027-10-24T17:55:34.123'),
-        text: 'Событие 4',
-    },
-    {
-        start: DateTime.fromISO('2026-10-25T17:50:34.123'),
-        end: DateTime.fromISO('2026-10-25T17:55:34.123'),
-        text: 'Событие 5',
-    },
-    {
-        start: DateTime.fromISO('2026-10-25T17:50:34.123'),
-        end: DateTime.fromISO('2026-10-25T17:55:34.123'),
-        text: 'Событие 6',
-    },
-    {
-        start: DateTime.fromISO('2026-10-25T17:50:34.123'),
-        end: DateTime.fromISO('2026-10-25T17:55:34.123'),
-        text: 'Событие 7',
-    },
-    {
-        start: DateTime.fromISO('2026-10-25T17:50:34.123'),
-        end: DateTime.fromISO('2026-10-25T17:55:34.123'),
-        text: 'Событие 8',
-    },
-]
-
-const deadlines: Deadline[] = [
-    {
-        date: DateTime.fromISO('2026-10-19T15:50:34.123'),
-        text: 'Решить со встречей ВИШ',
-        important: true,
-    },
-    {
-        date: DateTime.fromISO('2026-10-19T15:50:34.123'),
-        text: 'Решить со встречей ВИШ',
-    },
-]
 
 interface DataSources {
     notes: DataSource<Note[]>
@@ -78,27 +29,47 @@ export const sources: DataSources = {
     notes: {
         load: async () => {
             const result = await notesRepository.getFiltered({ limit: 8 })
-            return result.map(convert)
+            return result.map(convertNote)
         },
         getVersion: () => versions.get('notes'),
     },
     events: {
-        load: () => Promise.resolve(events),
+        load: async () => {
+            const now = currentTime()
+            const result = await eventsRepository.getOverlapping(
+                now.startOf('day').toJSDate(),
+                now.plus({ days: 1 }).startOf('day').toJSDate(),
+            )
+            return selectEventsForScreen(result.map(convertEvent), now)
+        },
         getVersion: () => versions.get('events'),
     },
     deadlines: {
-        load: () => Promise.resolve(deadlines),
+        load: async () => {
+            const now = currentTime()
+            const result = await deadlinesRepository.getFiltered({
+                from: now.startOf('day').toJSDate(),
+                limit: 4,
+                withCompleted: false,
+            })
+            return selectDeadlinesForScreen(
+                result.map((deadline) => convertDeadline(deadline, now)),
+            )
+        },
         getVersion: () => versions.get('deadlines'),
     },
     today: {
-        load: () =>
-            Promise.resolve(
-                DateTime.local({ zone: process.env.DEFAULT_TIMEZONE }),
-            ),
+        load: () => Promise.resolve(currentTime()),
         getVersion: () => {
             return Promise.resolve(Math.floor(Date.now() / 60_000))
         },
     },
+}
+
+function currentTime(): DateTime {
+    return DateTime.now().setZone(
+        process.env.DEFAULT_TIMEZONE ?? 'Europe/Moscow',
+    )
 }
 
 export function defineSceneContext<T extends object | void>(

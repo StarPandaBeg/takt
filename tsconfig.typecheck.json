@@ -23,7 +23,8 @@
         "declaration": false,
         "declarationMap": false,
         "sourceMap": false,
-        "incremental": false
+        "incremental": false,
+        "skipLibCheck": true
     },
     "include": [
         "apps/*/src/**/*.ts",

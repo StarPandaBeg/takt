@@ -15,7 +15,10 @@ export const screenRoutes: FastifyPluginAsync = async (fastify) => {
     const render = createRenderer(environment)
 
     fastify.get('/:name/png', async (req, res) => {
-        const { name } = nameSchema.parse(req.params)
+        const parsed = nameSchema.safeParse(req.params)
+        if (!parsed.success) return res.code(404).send('Not Found')
+
+        const { name } = parsed.data
         const scene = await generateScene(name)
         await environment.preloadImages(scene)
         const frame = render({
