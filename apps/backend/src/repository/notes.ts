@@ -27,7 +27,11 @@ export const get = async (id: Note['id']) => {
 }
 
 export const create = async (data: NoteInsert) => {
-    await db.insert(notesTable).values(data).returning({ id: notesTable.id })
+    const result = await db
+        .insert(notesTable)
+        .values(data)
+        .returning({ id: notesTable.id })
+    return result[0]!.id
 }
 
 export type UpdateNote = {

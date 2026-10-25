@@ -7,14 +7,14 @@ import Notes, { type Note } from '../components/notes.js'
 import VerticalCalendar from '../components/vertical-calendar.js'
 import { defineScene } from '../scene.js'
 
-export interface CalendarBlankContext {
+export interface CalendarMainContext {
     readonly today: DateTime
     readonly events: Event[]
     readonly deadlines: Deadline[]
     readonly notes: Note[]
 }
 
-export const calendarBlankScreen = defineScene<CalendarBlankContext>(
+export const calendarMainScreen = defineScene<CalendarMainContext>(
     ({ today, notes, deadlines, events }) => {
         return (
             <>

@@ -49,8 +49,16 @@ export const deadlinesTable = sqliteTable('deadlines', {
 export type Deadline = InferSelectModel<typeof deadlinesTable>
 export type DeadlineInsert = InferInsertModel<typeof deadlinesTable>
 
+export const versionsTable = sqliteTable('versions', {
+    key: text().primaryKey(),
+    value: int().notNull().default(0),
+})
+export type Version = InferSelectModel<typeof versionsTable>
+export type VersionInsert = InferInsertModel<typeof versionsTable>
+
 export const relations = defineRelations({
     eventsTable,
     notesTable,
     deadlinesTable,
+    versionsTable,
 })
