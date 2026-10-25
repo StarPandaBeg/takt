@@ -10,7 +10,7 @@
             "@takt/ui/jsx-dev-runtime": [
                 "./packages/ui/src/jsx-dev-runtime.ts"
             ],
-            "@takt/templates": ["./packages/templates/src/index.tsx"],
+            "@takt/templates": ["./packages/templates/src/index.ts"],
             "@takt/renderer": ["./packages/renderer/src/index.ts"],
             "@takt/renderer/exporters": [
                 "./packages/renderer/src/exporters/index.ts"

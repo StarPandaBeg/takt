@@ -16,12 +16,16 @@
         "dev": "tsc --build --watch --preserveWatchOutput"
     },
     "dependencies": {
-        "@takt/ui": "^1.0.0"
+        "@takt/ui": "^1.0.0",
+        "luxon": "^3.7.2"
     },
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
         }
+    },
+    "devDependencies": {
+        "@types/luxon": "^3.7.6"
     }
 }
