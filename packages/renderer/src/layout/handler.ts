@@ -1,6 +1,8 @@
 import type { NodeOf, NodeType } from '@takt/ui'
+import type { ImageSource } from '@takt/ui/components'
 import type {
     Bounds,
+    DecodedImage,
     LayoutNode,
     MeasuredNode,
     Size,
@@ -11,6 +13,7 @@ export interface MeasureContext {
     constraints: Size
     measureChild(child: MeasuredNode['node'], constraints: Size): MeasuredNode
     measureText(value: string, style: TextStyle): Size
+    loadImage(src: ImageSource): DecodedImage
 }
 
 export interface ArrangeContext {

@@ -1,5 +1,10 @@
-import { createCanvas } from '@napi-rs/canvas'
-import type { RenderEnvironment, TextStyle } from '@takt/renderer'
+import { createCanvas, Image } from '@napi-rs/canvas'
+import type { DecodedImage, RenderEnvironment, TextStyle } from '@takt/renderer'
+import { resolve as resolveUI, type JSXChild, type UINode } from '@takt/ui'
+import type { ImageSource } from '@takt/ui/components'
+import { readFileSync, statSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const RASTER_EDGE_GUARD = 1
 
@@ -13,9 +18,197 @@ interface TextGeometry {
     readonly underlineThickness: number
 }
 
-export function createNodeEnvironment(): RenderEnvironment {
+export interface NodeEnvironmentOptions {
+    /** Base directory used for relative image sources. Defaults to repository root. */
+    readonly assetRoot?: string
+    /** Maximum number of decoded images retained by this environment. */
+    readonly imageCacheSize?: number
+}
+
+interface CachedImage {
+    readonly signature: string
+    readonly image: DecodedImage
+}
+
+interface ImageResource {
+    readonly path: string
+    readonly label: string
+    readonly signature: string
+}
+
+export interface NodeRenderEnvironment extends RenderEnvironment {
+    /** Decodes every image needed by content before synchronous rendering. */
+    readonly preloadImages: (content: JSXChild) => Promise<void>
+}
+
+const DEFAULT_ASSET_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
+
+export function createNodeEnvironment(
+    options: NodeEnvironmentOptions = {},
+): NodeRenderEnvironment {
+    const assetRoot = resolve(options.assetRoot ?? DEFAULT_ASSET_ROOT)
+    const imageCacheSize = options.imageCacheSize ?? 32
+    if (!Number.isInteger(imageCacheSize) || imageCacheSize < 0) {
+        throw new RangeError('imageCacheSize must be a non-negative integer')
+    }
+
+    const imageCache = new Map<string, CachedImage>()
+    let preparedImages = new Map<string, CachedImage>()
     const canvas = createCanvas(1, 1)
     const ctx = canvas.getContext('2d')
+
+    function resolveImageSource(source: ImageSource): string {
+        if (typeof source === 'string') {
+            if (source.length === 0) {
+                throw new Error('src must not be empty')
+            }
+            if (/^[a-z][a-z\d+.-]*:/i.test(source)) {
+                throw new Error('only local file paths are supported')
+            }
+            return resolve(assetRoot, source)
+        }
+
+        const url = new URL(source.path, source.moduleUrl)
+        if (url.protocol !== 'file:') {
+            throw new Error('imported images must resolve to a local file')
+        }
+        return fileURLToPath(url)
+    }
+
+    function inspectImage(src: ImageSource): ImageResource {
+        const label = typeof src === 'string' ? src : src.path
+        let path: string
+
+        try {
+            path = resolveImageSource(src)
+        } catch (cause) {
+            const reason = cause instanceof Error ? `: ${cause.message}` : ''
+            throw new Error(`Unable to resolve image "${label}"${reason}`, {
+                cause,
+            })
+        }
+
+        try {
+            const stat = statSync(path, { bigint: true })
+            if (!stat.isFile()) {
+                throw new Error('path does not point to a regular file')
+            }
+
+            const signature = `${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`
+            return { path, label, signature }
+        } catch (cause) {
+            throw new Error(
+                `Unable to load image "${label}" resolved to "${path}"`,
+                { cause },
+            )
+        }
+    }
+
+    function getCachedImage(resource: ImageResource): CachedImage | undefined {
+        const prepared = preparedImages.get(resource.path)
+        if (prepared?.signature === resource.signature) return prepared
+
+        const cached = imageCache.get(resource.path)
+        if (cached?.signature !== resource.signature) return undefined
+
+        // Reinsert the item to maintain least-recently-used order.
+        imageCache.delete(resource.path)
+        imageCache.set(resource.path, cached)
+        return cached
+    }
+
+    function cacheImage(resource: ImageResource, image: DecodedImage): void {
+        if (imageCacheSize === 0) return
+
+        imageCache.delete(resource.path)
+        imageCache.set(resource.path, { signature: resource.signature, image })
+        while (imageCache.size > imageCacheSize) {
+            const oldest = imageCache.keys().next().value
+            if (oldest === undefined) break
+            imageCache.delete(oldest)
+        }
+    }
+
+    async function decodeImage(resource: ImageResource): Promise<DecodedImage> {
+        const encoded = readFileSync(resource.path)
+        const source = new Image()
+        source.src = encoded
+        await source.decode()
+
+        const width = source.naturalWidth
+        const height = source.naturalHeight
+        if (
+            !source.complete ||
+            !Number.isInteger(width) ||
+            width <= 0 ||
+            !Number.isInteger(height) ||
+            height <= 0
+        ) {
+            throw new Error('unsupported or invalid encoded image')
+        }
+
+        const imageCanvas = createCanvas(width, height)
+        const imageContext = imageCanvas.getContext('2d')
+        imageContext.drawImage(source, 0, 0)
+        const rgba = imageContext.getImageData(0, 0, width, height).data
+        const data = new Uint8Array(rgba.length)
+        data.set(rgba)
+        return { width, height, data }
+    }
+
+    async function prepareImage(resource: ImageResource): Promise<CachedImage> {
+        const cached = getCachedImage(resource)
+        if (cached !== undefined) return cached
+
+        try {
+            const image = await decodeImage(resource)
+            cacheImage(resource, image)
+            return { signature: resource.signature, image }
+        } catch (cause) {
+            throw new Error(
+                `Unable to decode image "${resource.label}" resolved to "${resource.path}"`,
+                { cause },
+            )
+        }
+    }
+
+    function collectImageSources(nodes: readonly UINode[]): ImageSource[] {
+        const sources: ImageSource[] = []
+
+        const visit = (node: UINode) => {
+            if (node.type === 'image') sources.push(node.props.src)
+            for (const child of node.children) visit(child)
+        }
+        for (const node of nodes) visit(node)
+
+        return sources
+    }
+
+    async function preloadImages(content: JSXChild): Promise<void> {
+        const resources = new Map<string, ImageResource>()
+        for (const source of collectImageSources(resolveUI(content))) {
+            const resource = inspectImage(source)
+            resources.set(resource.path, resource)
+        }
+
+        const entries = await Promise.all(
+            [...resources.values()].map(
+                async (resource) =>
+                    [resource.path, await prepareImage(resource)] as const,
+            ),
+        )
+        preparedImages = new Map(entries)
+    }
+
+    function loadImage(src: ImageSource): DecodedImage {
+        const resource = inspectImage(src)
+        const cached = getCachedImage(resource)
+        if (cached !== undefined) return cached.image
+
+        throw new Error(
+            `Image "${resource.label}" is not decoded; call preloadImages() before rendering`,
+        )
+    }
 
     function applyTextStyle(style: TextStyle) {
         ctx.font = [
@@ -99,6 +292,9 @@ export function createNodeEnvironment(): RenderEnvironment {
     }
 
     return {
+        loadImage,
+        preloadImages,
+
         measureText(value, style) {
             const { width, height } = getTextGeometry(value, style)
             return { width, height }

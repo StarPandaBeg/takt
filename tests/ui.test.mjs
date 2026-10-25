@@ -1,5 +1,5 @@
 import { DrawColor, Fragment, resolve } from '@takt/ui'
-import { Group, Rect, Text } from '@takt/ui/components'
+import { defineImageAsset, Group, Image, Rect, Text } from '@takt/ui/components'
 import { jsx } from '@takt/ui/jsx-runtime'
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -7,6 +7,7 @@ import test from 'node:test'
 test('primitive props are normalized exactly once', () => {
     const [rect] = resolve(Rect({}))
     const [text] = resolve(Text({ children: ['Takt ', 2], x: 4 }))
+    const [image] = resolve(Image({ src: 'assets/takt.png' }))
 
     assert.deepEqual(rect, {
         type: 'rect',
@@ -48,6 +49,23 @@ test('primitive props are normalized exactly once', () => {
         },
         children: [],
     })
+    assert.deepEqual(image, {
+        type: 'image',
+        props: {
+            src: 'assets/takt.png',
+            width: -1,
+            height: -1,
+            fit: 'contain',
+            smoothing: true,
+            dithering: 'ordered',
+            brightness: 'perceived',
+            threshold: 128,
+            invert: false,
+            x: 0,
+            y: 0,
+        },
+        children: [],
+    })
 })
 
 test('resolve handles components, fragments, arrays and groups', () => {
@@ -84,4 +102,18 @@ test('raw strings and numbers resolve as Text nodes with standard props', () => 
         resolve(Text({ children: 'raw text' }))[0],
         resolve(Text({ children: 42 }))[0],
     ])
+})
+
+test('Image preserves a serializable module-relative asset reference', () => {
+    const asset = defineImageAsset(
+        '../assets/panda.png',
+        'file:///app/screen.js',
+    )
+    const [image] = resolve(Image({ src: asset }))
+
+    assert.deepEqual(image?.props.src, asset)
+    assert.equal(
+        JSON.stringify(image?.props.src),
+        '{"path":"../assets/panda.png","moduleUrl":"file:///app/screen.js"}',
+    )
 })

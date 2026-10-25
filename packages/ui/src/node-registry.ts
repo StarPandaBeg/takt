@@ -1,5 +1,6 @@
 import { Flex } from './components/flex.js'
 import { Group } from './components/group.js'
+import { Image } from './components/image.js'
 import { Line } from './components/line.js'
 import { Rect } from './components/rect.js'
 import { Text } from './components/text.js'
@@ -11,6 +12,7 @@ export const nodeRegistry = defineNodeRegistry([
     Text,
     Flex,
     Line,
+    Image,
 ] as const)
 
 export type NodeType = keyof typeof nodeRegistry

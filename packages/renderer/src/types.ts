@@ -1,4 +1,5 @@
 import type { JSXChild, NodeOf, NodeProps, NodeType } from '@takt/ui'
+import type { ImageSource } from '@takt/ui/components'
 
 export interface Position {
     readonly x: number
@@ -72,11 +73,18 @@ export interface TextBitmap extends Size {
     readonly buffer: Uint8Array
 }
 
+/** Platform-neutral decoded RGBA image, four bytes per row-major pixel. */
+export interface DecodedImage extends Size {
+    readonly data: Uint8Array
+}
+
 export interface RenderEnvironment {
     /** Geometry follows TextStyle.metrics and must match rasterizeText. */
     readonly measureText: (value: string, style: TextStyle) => Size
     /** Bitmap dimensions must match measureText for the same value and style. */
     readonly rasterizeText: (value: string, style: TextStyle) => TextBitmap
+    /** Resolves and decodes a local image resource. */
+    readonly loadImage: (src: ImageSource) => DecodedImage
 }
 
 export interface RenderedFrame {

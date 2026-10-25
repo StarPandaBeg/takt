@@ -8,7 +8,7 @@ import {
     type NormalizedPropsOf,
     type PositionProps,
 } from '@takt/ui'
-import type { Text } from '@takt/ui/components'
+import type { ImageSource, Text } from '@takt/ui/components'
 
 type Equal<TLeft, TRight> =
     (<T>() => T extends TLeft ? 1 : 2) extends <T>() => T extends TRight ? 1 : 2
@@ -38,7 +38,9 @@ export type TypeContractAssertions = [
     >,
     Expect<Equal<FramePixel, 0 | 1>>,
     Expect<Equal<Extract<DrawColor, FramePixel>, never>>,
-    Expect<Equal<NodeType, 'group' | 'rect' | 'text' | 'flex' | 'line'>>,
+    Expect<
+        Equal<NodeType, 'group' | 'rect' | 'text' | 'flex' | 'line' | 'image'>
+    >,
     Expect<Equal<NodeProps<NodeType>['x'], number>>,
     Expect<Equal<NodeProps<NodeType>['y'], number>>,
     Expect<Equal<NodeProps<'text'>['value'], string>>,
@@ -51,6 +53,14 @@ export type TypeContractAssertions = [
     Expect<Equal<NodeProps<'text'>['metrics'], 'font' | 'tight'>>,
     Expect<Equal<NodeProps<'text'>['overflow'], 'cut' | 'emphasis' | 'line'>>,
     Expect<Equal<NodeProps<'rect'>['fill'], boolean>>,
+    Expect<Equal<NodeProps<'image'>['src'], ImageSource>>,
+    Expect<Equal<NodeProps<'image'>['fit'], 'contain' | 'cover' | 'fill'>>,
+    Expect<
+        Equal<
+            NodeProps<'image'>['dithering'],
+            'threshold' | 'ordered' | 'floyd-steinberg'
+        >
+    >,
     Expect<Equal<Parameters<typeof Text>[0]['x'], PositionProps['x']>>,
     Expect<Equal<NormalizedPropsOf<typeof Badge>['active'], boolean>>,
     Expect<Equal<NormalizedPropsOf<typeof Badge>['x'], number>>,
