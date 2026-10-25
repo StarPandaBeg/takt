@@ -92,6 +92,32 @@ test('backend serves the rendered frame as PNG', async () => {
     }
 })
 
+test('screen hash is stable and changes with visible source data', async () => {
+    const app = buildApp({ logger: false })
+
+    try {
+        const first = await app.inject({ method: 'GET', url: '/screens/main' })
+        const second = await app.inject({ method: 'GET', url: '/screens/main' })
+        assert.equal(first.statusCode, 200)
+        assert.equal(first.json().hash, second.json().hash)
+
+        const created = await app.inject({
+            method: 'POST',
+            url: '/api/notes',
+            payload: { text: 'revision-visible-note' },
+        })
+        assert.equal(created.statusCode, 201)
+
+        const changed = await app.inject({
+            method: 'GET',
+            url: '/screens/main',
+        })
+        assert.notEqual(changed.json().hash, first.json().hash)
+    } finally {
+        await app.close()
+    }
+})
+
 test('events and deadlines API feeds bounded screen sources', async () => {
     const app = buildApp({ logger: false })
     const post = async (url, body) => {

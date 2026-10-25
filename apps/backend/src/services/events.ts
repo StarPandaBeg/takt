@@ -38,7 +38,7 @@ export function selectEventsForScreen(
     if (sorted.length <= limit) return sorted
 
     const firstCurrentOrFuture = sorted.findIndex(
-        (event) => getDisplayEnd(event).toMillis() >= now.toMillis(),
+        (event) => getDisplayEnd(event).toMillis() > now.toMillis(),
     )
     // Drop finished entries from the beginning first. If that is not enough
     // to reach the limit, trim the far future from the end.

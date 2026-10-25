@@ -12,9 +12,19 @@ export interface EventListProps extends FlexProps {
     now: DateTime
 }
 
+export type EventState = 'default' | 'active' | 'disabled'
+
 interface EventRowProps {
     event: Event
-    state?: 'default' | 'active' | 'disabled'
+    state?: EventState
+}
+
+export function getEventState(event: Event, now: DateTime): EventState {
+    const periodStart = event.start.minus({ minutes: 15 })
+    const periodEnd = event.end ?? event.start.plus({ minutes: 15 })
+    const isActive = Interval.fromDateTimes(periodStart, periodEnd).contains(now)
+    if (isActive) return 'active'
+    return now.toMillis() >= periodEnd.toMillis() ? 'disabled' : 'default'
 }
 
 function EventRow({ event, state, ...props }: EventRowProps) {
@@ -63,21 +73,13 @@ export default function EventList({ events, now, ...props }: EventListProps) {
     return (
         <Column gap={8} {...props}>
             {events.map((e, i) => {
-                const periodStart = e.start.minus({ minutes: 15 })
-                const periodEnd = e.end ? e.end : e.start.plus({ minutes: 15 })
-                const isActive = Interval.fromDateTimes(
-                    periodStart,
-                    periodEnd,
-                ).contains(now)
-                const isGone = now > periodEnd
-
-                const state = isActive
-                    ? 'active'
-                    : isGone
-                      ? 'disabled'
-                      : 'default'
-
-                return <EventRow event={e} key={i} state={state}></EventRow>
+                return (
+                    <EventRow
+                        event={e}
+                        key={i}
+                        state={getEventState(e, now)}
+                    ></EventRow>
+                )
             })}
         </Column>
     )

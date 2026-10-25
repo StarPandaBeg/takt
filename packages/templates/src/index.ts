@@ -7,7 +7,11 @@ export { defineProject, type Project, type ProjectSettings } from './project.js'
 export { defineScene, type Scene } from './scene.js'
 
 export { type Deadline } from './components/deadline-column.js'
-export { type Event } from './components/event-list.js'
+export {
+    getEventState,
+    type Event,
+    type EventState,
+} from './components/event-list.js'
 export { type Note } from './components/notes.js'
 
 const config: DeepPartial<DefaultsConfig> = {

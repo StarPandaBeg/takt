@@ -4,7 +4,11 @@ import { project } from '@takt/templates'
 import type { FastifyPluginAsync } from 'fastify'
 import * as z from 'zod'
 import { createNodeEnvironment } from '../render-environment.js'
-import { generateScene, getSceneNames } from '../services/scene.js'
+import {
+    generateScene,
+    getSceneHash,
+    getSceneNames,
+} from '../services/scene.js'
 
 const nameSchema = z.object({
     name: z.enum(getSceneNames()),
@@ -31,6 +35,18 @@ export const screenRoutes: FastifyPluginAsync = async (fastify) => {
             .header('Cache-Control', 'no-store')
             .type('image/png')
             .send(png)
+    })
+
+    fastify.get('/:name', async (req, res) => {
+        const parsed = nameSchema.safeParse(req.params)
+        if (!parsed.success) return res.code(404).send('Not Found')
+        const { name } = parsed.data
+        const hash = await getSceneHash(name)
+
+        return res.send({
+            ...project.settings.screen,
+            hash,
+        })
     })
 
     return Promise.resolve()

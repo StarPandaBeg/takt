@@ -1,5 +1,4 @@
 import type { Deadline, Event, Note } from '@takt/templates'
-import { hash } from 'crypto'
 import { DateTime } from 'luxon'
 import * as deadlinesRepository from '../repository/deadlines.js'
 import * as eventsRepository from '../repository/events.js'
@@ -7,11 +6,21 @@ import * as notesRepository from '../repository/notes.js'
 import { convertDeadline, selectDeadlinesForScreen } from './deadlines.js'
 import { convertEvent, selectEventsForScreen } from './events.js'
 import { convert as convertNote } from './notes.js'
-import * as versions from './version.js'
+import {
+    createScreenRevisionHash,
+    getDayRevision,
+    getDeadlinesRevision,
+    getEventsRevision,
+    getNotesRevision,
+} from './screen-revision.js'
 
 interface DataSource<T> {
     load: () => Promise<T>
-    getVersion: () => Promise<number>
+    /**
+     * Returns only the state whose change should make a device refresh.
+     * A volatile source may omit it while still participating in rendering.
+     */
+    revision?: () => Promise<unknown>
 }
 
 type SceneContextSources<T> = {
@@ -25,44 +34,56 @@ interface DataSources {
     today: DataSource<DateTime>
 }
 
+async function loadNotes(): Promise<Note[]> {
+    const result = await notesRepository.getFiltered({ limit: 8 })
+    return result.map(convertNote)
+}
+
+async function loadEvents(now: DateTime): Promise<Event[]> {
+    const result = await eventsRepository.getOverlapping(
+        now.startOf('day').toJSDate(),
+        now.plus({ days: 1 }).startOf('day').toJSDate(),
+    )
+    return result.map(convertEvent)
+}
+
+async function loadDeadlines(now: DateTime): Promise<Deadline[]> {
+    const result = await deadlinesRepository.getFiltered({
+        from: now.startOf('day').toJSDate(),
+        limit: 4,
+        withCompleted: false,
+    })
+    return result.map((deadline) => convertDeadline(deadline, now))
+}
+
 export const sources: DataSources = {
     notes: {
-        load: async () => {
-            const result = await notesRepository.getFiltered({ limit: 8 })
-            return result.map(convertNote)
-        },
-        getVersion: () => versions.get('notes'),
+        load: loadNotes,
+        revision: async () => getNotesRevision(await loadNotes()),
     },
     events: {
         load: async () => {
             const now = currentTime()
-            const result = await eventsRepository.getOverlapping(
-                now.startOf('day').toJSDate(),
-                now.plus({ days: 1 }).startOf('day').toJSDate(),
-            )
-            return selectEventsForScreen(result.map(convertEvent), now)
+            return selectEventsForScreen(await loadEvents(now), now)
         },
-        getVersion: () => versions.get('events'),
+        revision: async () => {
+            const now = currentTime()
+            return getEventsRevision(await loadEvents(now), now)
+        },
     },
     deadlines: {
         load: async () => {
             const now = currentTime()
-            const result = await deadlinesRepository.getFiltered({
-                from: now.startOf('day').toJSDate(),
-                limit: 4,
-                withCompleted: false,
-            })
-            return selectDeadlinesForScreen(
-                result.map((deadline) => convertDeadline(deadline, now)),
-            )
+            return selectDeadlinesForScreen(await loadDeadlines(now))
         },
-        getVersion: () => versions.get('deadlines'),
+        revision: async () => {
+            const now = currentTime()
+            return getDeadlinesRevision(await loadDeadlines(now))
+        },
     },
     today: {
         load: () => Promise.resolve(currentTime()),
-        getVersion: () => {
-            return Promise.resolve(Math.floor(Date.now() / 60_000))
-        },
+        revision: () => Promise.resolve(getDayRevision(currentTime())),
     },
 }
 
@@ -82,13 +103,18 @@ export function defineSceneContext<T extends object | void>(
 
     return {
         async key(): Promise<string> {
-            const versions = await Promise.all(
-                entries.map(async ([name, source]) => [
-                    name,
-                    await source.getVersion(),
-                ]),
+            const revisions = await Promise.all(
+                entries.map(async ([name, source]) =>
+                    source.revision === undefined
+                        ? null
+                        : [name, await source.revision()],
+                ),
             )
-            return hash('md5', JSON.stringify(versions))
+            return createScreenRevisionHash(
+                revisions.filter(
+                    (entry): entry is [string, unknown] => entry !== null,
+                ),
+            )
         },
 
         async context(): Promise<T> {
