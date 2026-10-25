@@ -11,6 +11,7 @@ import {
 import Fastify, { type FastifyInstance } from 'fastify'
 import { DateTime } from 'luxon'
 import { createNodeEnvironment } from './render-environment.js'
+import { notesRoutes } from './routes/notes.js'
 
 const events = [
     {
@@ -85,6 +86,8 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     app.register(cors, {
         origin: '*',
     })
+
+    app.register(notesRoutes, { prefix: '/api/notes' })
 
     const environment = createNodeEnvironment()
     const render = createRenderer(environment)
