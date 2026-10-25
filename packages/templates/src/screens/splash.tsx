@@ -1,8 +1,7 @@
 import { Column, Image } from '@takt/ui/components'
-import { type ProjectContext } from '../index.js'
 import { defineScene } from '../scene.js'
 
-export const calendarSplashScreen = defineScene<ProjectContext>(() => {
+export const calendarSplashScreen = defineScene<void>(() => {
     return (
         <>
             <Image

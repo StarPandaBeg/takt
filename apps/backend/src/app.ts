@@ -1,13 +1,8 @@
 import cors from '@fastify/cors'
 import { createRenderer } from '@takt/renderer'
 import { exportPng } from '@takt/renderer/exporters'
-import {
-    project,
-    type Deadline,
-    type Note,
-    type ProjectContext,
-    type Scene,
-} from '@takt/templates'
+import { project, type Deadline, type Note } from '@takt/templates'
+import type { JSXChild } from '@takt/ui'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { DateTime } from 'luxon'
 import { createNodeEnvironment } from './render-environment.js'
@@ -77,6 +72,23 @@ const notes: Note[] = [
     { text: 'Разобрать задачи' },
 ]
 
+const sceneContentFactories = {
+    blank: () =>
+        project.scenes.blank.generate({
+            today: DateTime.now(),
+            events,
+            deadlines,
+            notes,
+        }),
+    splash: () => project.scenes.splash.generate(),
+} satisfies Record<keyof typeof project.scenes, () => JSXChild>
+
+function isSceneName(
+    value: string,
+): value is keyof typeof sceneContentFactories {
+    return Object.hasOwn(sceneContentFactories, value)
+}
+
 export interface AppOptions {
     readonly logger?: boolean
 }
@@ -94,21 +106,12 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
 
     app.get('/screen/:screen', async (_request, reply) => {
         const { screen } = _request.params as { screen: string }
-        const scenes: Record<string, Scene<ProjectContext>> = project.scenes
-        const projectScene = scenes[screen]
 
-        if (!projectScene) {
+        if (!isSceneName(screen)) {
             return reply.code(404).send('Not Found')
         }
 
-        const today = DateTime.now()
-
-        const content = projectScene.generate({
-            today,
-            events,
-            deadlines,
-            notes,
-        })
+        const content = sceneContentFactories[screen]()
         await environment.preloadImages(content)
 
         const frame = render({

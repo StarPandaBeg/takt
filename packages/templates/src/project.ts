@@ -1,6 +1,8 @@
 import { setConfig, type DeepPartial, type DefaultsConfig } from '@takt/ui'
 import type { Scene } from './scene.js'
 
+type SceneRegistry = Record<string, Scene<never>>
+
 export interface ProjectSettings {
     readonly screen: {
         readonly width: number
@@ -9,26 +11,20 @@ export interface ProjectSettings {
 }
 
 export interface Project<
-    TSceneContext,
     TSettings extends ProjectSettings = ProjectSettings,
-    TScenes extends Record<string, Scene<TSceneContext>> = Record<
-        string,
-        Scene<TSceneContext>
-    >,
+    TScenes extends SceneRegistry = SceneRegistry,
 > {
     readonly settings: TSettings
     readonly scenes: TScenes
 }
 
-export function defineProject<TSceneContext>(
-    config?: DeepPartial<DefaultsConfig>,
-) {
+export function defineProject(config?: DeepPartial<DefaultsConfig>) {
     return <
         const TSettings extends ProjectSettings,
-        const TScenes extends Record<string, Scene<TSceneContext>>,
+        const TScenes extends SceneRegistry,
     >(
-        project: Project<TSceneContext, TSettings, TScenes>,
-    ): Project<TSceneContext, TSettings, TScenes> => {
+        project: Project<TSettings, TScenes>,
+    ): Project<TSettings, TScenes> => {
         if (config) setConfig(config)
 
         return project

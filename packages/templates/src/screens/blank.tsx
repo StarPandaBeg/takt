@@ -1,13 +1,20 @@
 import { Column, H2, Image, Line, Row, Text } from '@takt/ui/components'
+import type { DateTime } from 'luxon'
 import BigDate from '../components/big-date.js'
-import DeadlineColumn from '../components/deadline-column.js'
-import EventList from '../components/event-list.js'
-import Notes from '../components/notes.js'
+import DeadlineColumn, { type Deadline } from '../components/deadline-column.js'
+import EventList, { type Event } from '../components/event-list.js'
+import Notes, { type Note } from '../components/notes.js'
 import VerticalCalendar from '../components/vertical-calendar.js'
-import { type ProjectContext } from '../index.js'
 import { defineScene } from '../scene.js'
 
-export const calendarBlankScreen = defineScene<ProjectContext>(
+export interface CalendarBlankContext {
+    readonly today: DateTime
+    readonly events: Event[]
+    readonly deadlines: Deadline[]
+    readonly notes: Note[]
+}
+
+export const calendarBlankScreen = defineScene<CalendarBlankContext>(
     ({ today, notes, deadlines, events }) => {
         return (
             <>

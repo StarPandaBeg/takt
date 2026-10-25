@@ -27,9 +27,18 @@ export const Badge = definePrimitive(
 const contextualScene = defineScene((context: { readonly title: string }) =>
     context.title.length > 0 ? null : false,
 )
-export const contextualProject = defineProject<{ readonly title: string }>()({
+const numericScene = defineScene((context: { readonly count: number }) =>
+    context.count > 0 ? null : false,
+)
+const contextlessScene = defineScene<void>(() => null)
+
+export const contextualProject = defineProject()({
     settings: { screen: { width: 1, height: 1 }, custom: true },
-    scenes: { contextual: contextualScene },
+    scenes: {
+        contextual: contextualScene,
+        numeric: numericScene,
+        contextless: contextlessScene,
+    },
 })
 
 export type TypeContractAssertions = [
@@ -69,6 +78,12 @@ export type TypeContractAssertions = [
         Equal<
             Parameters<typeof contextualProject.scenes.contextual.generate>[0],
             { readonly title: string }
+        >
+    >,
+    Expect<
+        Equal<
+            Parameters<typeof contextualProject.scenes.numeric.generate>[0],
+            { readonly count: number }
         >
     >,
     Expect<Equal<typeof contextualProject.settings.custom, true>>,
