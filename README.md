@@ -1,5 +1,7 @@
 # Takt
 
+![](.github/pic.jpg)
+
 Takt — self-hosted сервис для создания информационных экранов, ориентированный на монохромные e-paper дисплеи. Интерфейс экрана описывается декларативно на TSX, после чего Takt строит layout, растеризует его в чёрно-белый framebuffer и отдаёт готовое PNG-изображение по HTTP.
 
 Проект находится на ранней стадии разработки. Сейчас репозиторий содержит рабочий rendering pipeline, календарные шаблоны и минимальный backend. Хранение данных, синхронизация календарей, SSE, web-интерфейс и firmware пока не реализованы.
@@ -77,26 +79,26 @@ flowchart LR
     PNG --> Backend[Fastify response]
 ```
 
-| Workspace | Ответственность |
-| --- | --- |
-| `packages/ui` | JSX runtime, UI-примитивы и нормализованное дерево узлов |
-| `packages/renderer` | Layout, растеризация и экспорт PNG |
-| `packages/templates` | Проекты, сцены и календарные шаблоны |
-| `apps/backend` | Node Canvas environment и HTTP API |
+| Workspace            | Ответственность                                          |
+| -------------------- | -------------------------------------------------------- |
+| `packages/ui`        | JSX runtime, UI-примитивы и нормализованное дерево узлов |
+| `packages/renderer`  | Layout, растеризация и экспорт PNG                       |
+| `packages/templates` | Проекты, сцены и календарные шаблоны                     |
+| `apps/backend`       | Node Canvas environment и HTTP API                       |
 
 Подробное описание зависимостей и потока данных находится в [архитектурной документации](docs/architecture.md).
 
 ## Команды
 
-| Команда | Назначение |
-| --- | --- |
-| `npm run build` | Полная сборка TypeScript workspaces |
-| `npm run build:incremental` | Инкрементальная сборка |
-| `npm run dev` | Watch-сборка и backend в development mode |
-| `npm start` | Запуск собранного backend |
-| `npm test` | Сборка и запуск тестов |
-| `npm run typecheck` | Проверка TypeScript contracts |
-| `npm run lint` | Проверка ESLint |
+| Команда                     | Назначение                                |
+| --------------------------- | ----------------------------------------- |
+| `npm run build`             | Полная сборка TypeScript workspaces       |
+| `npm run build:incremental` | Инкрементальная сборка                    |
+| `npm run dev`               | Watch-сборка и backend в development mode |
+| `npm start`                 | Запуск собранного backend                 |
+| `npm test`                  | Сборка и запуск тестов                    |
+| `npm run typecheck`         | Проверка TypeScript contracts             |
+| `npm run lint`              | Проверка ESLint                           |
 
 ## Документация
 
