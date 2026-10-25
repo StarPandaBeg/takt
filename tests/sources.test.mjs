@@ -2,10 +2,12 @@ import { DateTime } from 'luxon'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-    convertDeadline,
     selectDeadlinesForScreen,
+    selectEventsForScreen,
+} from '@takt/templates'
+import {
+    convertDeadline,
 } from '../apps/backend/dist/services/deadlines.js'
-import { selectEventsForScreen } from '../apps/backend/dist/services/events.js'
 import {
     getDayRevision,
     getDeadlinesRevision,
@@ -33,6 +35,7 @@ test('event selection keeps at most eight entries around the current time', () =
             DateTime.fromISO('2026-10-25T00:00', {
                 zone: 'Europe/Moscow',
             }),
+            8,
         ).map(({ text }) => text),
         events.slice(0, 8).map(({ text }) => text),
     )
@@ -42,6 +45,7 @@ test('event selection keeps at most eight entries around the current time', () =
             DateTime.fromISO('2026-10-25T06:30', {
                 zone: 'Europe/Moscow',
             }),
+            8,
         ).map(({ text }) => text),
         events.slice(4).map(({ text }) => text),
     )
@@ -51,6 +55,7 @@ test('event selection keeps at most eight entries around the current time', () =
             DateTime.fromISO('2026-10-25T23:00', {
                 zone: 'Europe/Moscow',
             }),
+            8,
         ).map(({ text }) => text),
         events.slice(4).map(({ text }) => text),
     )
@@ -72,6 +77,7 @@ test('deadline selection keeps four nearest entries and marks three days', () =>
     }))
     const selected = selectDeadlinesForScreen(
         records.map((record) => convertDeadline(record, now)),
+        4,
     )
 
     assert.deepEqual(
@@ -134,7 +140,7 @@ test('event revision changes only at visible event state boundaries', () => {
     )
 })
 
-test('event revision ignores changes outside the visible eight entries', () => {
+test('event revision includes changes outside the visible eight entries', () => {
     const now = DateTime.fromISO('2026-10-25T06:00', {
         zone: 'Europe/Moscow',
     })
@@ -149,7 +155,7 @@ test('event revision ignores changes outside the visible eight entries', () => {
         index === 7 ? { ...item, text: 'changed on screen' } : item,
     )
 
-    assert.deepEqual(
+    assert.notDeepEqual(
         getEventsRevision(events, now),
         getEventsRevision(hiddenChanged, now),
     )

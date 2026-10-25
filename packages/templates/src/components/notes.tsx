@@ -8,18 +8,25 @@ export interface Note {
 export interface NotesProps extends FlexProps {
     notes: Note[]
     notesPerColumn?: number
+    limit?: number
 }
 
 export default function Notes({
     notes,
     notesPerColumn = 4,
+    limit,
     ...props
 }: NotesProps) {
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+        throw new RangeError('Note limit must be a non-negative integer')
+    }
+
+    const visibleNotes = limit === undefined ? notes : notes.slice(0, limit)
     const columns: Note[][] = []
     const count = Math.max(1, Math.floor(notesPerColumn))
 
-    for (let i = 0; i < notes.length; i += count) {
-        columns.push(notes.slice(i, i + count))
+    for (let i = 0; i < visibleNotes.length; i += count) {
+        columns.push(visibleNotes.slice(i, i + count))
     }
 
     const columnWidth =
@@ -47,6 +54,11 @@ export default function Notes({
                     ))}
                 </Column>
             ))}
+            {visibleNotes.length == 0 && (
+                <Text italic fontSize={14}>
+                    &lt;Сейчас тут пусто!&gt;
+                </Text>
+            )}
         </Row>
     )
 }

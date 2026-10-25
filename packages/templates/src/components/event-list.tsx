@@ -10,6 +10,7 @@ export interface Event {
 export interface EventListProps extends FlexProps {
     events: Event[]
     now: DateTime
+    limit?: number
 }
 
 export type EventState = 'default' | 'active' | 'disabled'
@@ -22,9 +23,40 @@ interface EventRowProps {
 export function getEventState(event: Event, now: DateTime): EventState {
     const periodStart = event.start.minus({ minutes: 15 })
     const periodEnd = event.end ?? event.start.plus({ minutes: 15 })
-    const isActive = Interval.fromDateTimes(periodStart, periodEnd).contains(now)
+    const isActive = Interval.fromDateTimes(periodStart, periodEnd).contains(
+        now,
+    )
     if (isActive) return 'active'
     return now.toMillis() >= periodEnd.toMillis() ? 'disabled' : 'default'
+}
+
+function getDisplayEnd(event: Event): DateTime {
+    return event.end ?? event.start.plus({ minutes: 15 })
+}
+
+/** Selects a chronological window that follows the current point in the day. */
+export function selectEventsForScreen(
+    events: readonly Event[],
+    now: DateTime,
+    limit?: number,
+): Event[] {
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+        throw new RangeError('Event limit must be a non-negative integer')
+    }
+
+    const sorted = [...events].sort(
+        (left, right) => left.start.toMillis() - right.start.toMillis(),
+    )
+    if (limit === undefined || sorted.length <= limit) return sorted
+    if (limit === 0) return []
+
+    const firstCurrentOrFuture = sorted.findIndex(
+        (event) => getDisplayEnd(event).toMillis() > now.toMillis(),
+    )
+    const preferredStart =
+        firstCurrentOrFuture === -1 ? sorted.length - limit : firstCurrentOrFuture
+    const start = Math.min(preferredStart, sorted.length - limit)
+    return sorted.slice(start, start + limit)
 }
 
 function EventRow({ event, state, ...props }: EventRowProps) {
@@ -69,10 +101,17 @@ function EventRow({ event, state, ...props }: EventRowProps) {
     )
 }
 
-export default function EventList({ events, now, ...props }: EventListProps) {
+export default function EventList({
+    events,
+    now,
+    limit,
+    ...props
+}: EventListProps) {
+    const visibleEvents = selectEventsForScreen(events, now, limit)
+
     return (
         <Column gap={8} {...props}>
-            {events.map((e, i) => {
+            {visibleEvents.map((e, i) => {
                 return (
                     <EventRow
                         event={e}
@@ -81,6 +120,11 @@ export default function EventList({ events, now, ...props }: EventListProps) {
                     ></EventRow>
                 )
             })}
+            {visibleEvents.length == 0 && (
+                <Text italic fontSize={14}>
+                    &lt;Кажется, планов нет! Отдыхай!&gt;
+                </Text>
+            )}
         </Column>
     )
 }

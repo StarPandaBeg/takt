@@ -3,8 +3,8 @@ import { DateTime } from 'luxon'
 import * as deadlinesRepository from '../repository/deadlines.js'
 import * as eventsRepository from '../repository/events.js'
 import * as notesRepository from '../repository/notes.js'
-import { convertDeadline, selectDeadlinesForScreen } from './deadlines.js'
-import { convertEvent, selectEventsForScreen } from './events.js'
+import { convertDeadline } from './deadlines.js'
+import { convertEvent } from './events.js'
 import { convert as convertNote } from './notes.js'
 import {
     createScreenRevisionHash,
@@ -35,7 +35,7 @@ interface DataSources {
 }
 
 async function loadNotes(): Promise<Note[]> {
-    const result = await notesRepository.getFiltered({ limit: 8 })
+    const result = await notesRepository.getFiltered({ limit: 32 })
     return result.map(convertNote)
 }
 
@@ -50,7 +50,7 @@ async function loadEvents(now: DateTime): Promise<Event[]> {
 async function loadDeadlines(now: DateTime): Promise<Deadline[]> {
     const result = await deadlinesRepository.getFiltered({
         from: now.startOf('day').toJSDate(),
-        limit: 4,
+        limit: 32,
         withCompleted: false,
     })
     return result.map((deadline) => convertDeadline(deadline, now))
@@ -62,20 +62,14 @@ export const sources: DataSources = {
         revision: async () => getNotesRevision(await loadNotes()),
     },
     events: {
-        load: async () => {
-            const now = currentTime()
-            return selectEventsForScreen(await loadEvents(now), now)
-        },
+        load: async () => loadEvents(currentTime()),
         revision: async () => {
             const now = currentTime()
             return getEventsRevision(await loadEvents(now), now)
         },
     },
     deadlines: {
-        load: async () => {
-            const now = currentTime()
-            return selectDeadlinesForScreen(await loadDeadlines(now))
-        },
+        load: async () => loadDeadlines(currentTime()),
         revision: async () => {
             const now = currentTime()
             return getDeadlinesRevision(await loadDeadlines(now))

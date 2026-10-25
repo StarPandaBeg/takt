@@ -6,9 +6,13 @@ import { calendarSplashScreen } from './screens/splash.js'
 export { defineProject, type Project, type ProjectSettings } from './project.js'
 export { defineScene, type Scene } from './scene.js'
 
-export { type Deadline } from './components/deadline-column.js'
+export {
+    selectDeadlinesForScreen,
+    type Deadline,
+} from './components/deadline-column.js'
 export {
     getEventState,
+    selectEventsForScreen,
     type Event,
     type EventState,
 } from './components/event-list.js'

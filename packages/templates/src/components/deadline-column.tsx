@@ -10,18 +10,35 @@ export interface Deadline {
 
 export interface DeadlineColumnProps extends FlexProps {
     deadlines: Deadline[]
+    limit?: number
+}
+
+export function selectDeadlinesForScreen(
+    deadlines: readonly Deadline[],
+    limit?: number,
+): Deadline[] {
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 0)) {
+        throw new RangeError('Deadline limit must be a non-negative integer')
+    }
+
+    const sorted = [...deadlines].sort(
+        (left, right) => left.date.toMillis() - right.date.toMillis(),
+    )
+    return limit === undefined ? sorted : sorted.slice(0, limit)
 }
 
 export default function DeadlineColumn({
     deadlines,
+    limit,
     ...props
 }: DeadlineColumnProps) {
+    const visibleDeadlines = selectDeadlinesForScreen(deadlines, limit)
     const padding = calculateQuad(props.padding ?? 0)
     const maxWidth = props.width ? props.width - padding[1] - padding[3] : -1
 
     return (
         <Column gap={4} {...props}>
-            {deadlines.map((d, i) => {
+            {visibleDeadlines.map((d, i) => {
                 return (
                     <>
                         <Column key={i}>
@@ -34,7 +51,7 @@ export default function DeadlineColumn({
                                 {d.text}
                             </Text>
                         </Column>
-                        {i != deadlines.length - 1 && (
+                        {i != visibleDeadlines.length - 1 && (
                             <Rect
                                 width={maxWidth}
                                 height={1}

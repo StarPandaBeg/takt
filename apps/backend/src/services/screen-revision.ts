@@ -6,8 +6,6 @@ import {
 } from '@takt/templates'
 import { hash } from 'crypto'
 import type { DateTime } from 'luxon'
-import { selectDeadlinesForScreen } from './deadlines.js'
-import { selectEventsForScreen } from './events.js'
 
 export const createScreenRevisionHash = (
     revisions: readonly (readonly [string, unknown])[],
@@ -31,20 +29,24 @@ export const getEventsRevision = (
     events: readonly Event[],
     now: DateTime,
 ) => {
-    return selectEventsForScreen(events, now).map((event) => ({
-        text: event.text,
-        start: event.start.toMillis(),
-        end: event.end?.toMillis() ?? null,
-        state: getEventState(event, now),
-    }))
+    return [...events]
+        .sort((left, right) => left.start.toMillis() - right.start.toMillis())
+        .map((event) => ({
+            text: event.text,
+            start: event.start.toMillis(),
+            end: event.end?.toMillis() ?? null,
+            state: getEventState(event, now),
+        }))
 }
 
 export const getDeadlinesRevision = (
     deadlines: readonly Deadline[],
 ) => {
-    return selectDeadlinesForScreen(deadlines).map((deadline) => ({
-        text: deadline.text,
-        date: deadline.date.toMillis(),
-        important: deadline.important === true,
-    }))
+    return [...deadlines]
+        .sort((left, right) => left.date.toMillis() - right.date.toMillis())
+        .map((deadline) => ({
+            text: deadline.text,
+            date: deadline.date.toMillis(),
+            important: deadline.important === true,
+        }))
 }

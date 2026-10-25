@@ -118,7 +118,7 @@ test('screen hash is stable and changes with visible source data', async () => {
     }
 })
 
-test('events and deadlines API feeds bounded screen sources', async () => {
+test('events and deadlines API feeds complete template inputs', async () => {
     const app = buildApp({ logger: false })
     const post = async (url, body) => {
         const response = await app.inject({
@@ -202,7 +202,7 @@ test('events and deadlines API feeds bounded screen sources', async () => {
             start: now.plus({ days: 1 }).startOf('day').toISO(),
         })
         const screenEvents = await sources.events.load()
-        assert.equal(screenEvents.length, 8)
+        assert.equal(screenEvents.length, 10)
         assert.ok(screenEvents.every(({ start }) => start.hasSame(now, 'day')))
 
         for (const days of [-1, 0, 2, 3, 4, 5]) {
@@ -224,6 +224,7 @@ test('events and deadlines API feeds bounded screen sources', async () => {
                 { text: 'deadline-2', important: true },
                 { text: 'deadline-3', important: true },
                 { text: 'deadline-4', important: false },
+                { text: 'deadline-5', important: false },
             ],
         )
     } finally {
