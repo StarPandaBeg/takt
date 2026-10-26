@@ -30,6 +30,8 @@ databaseClient.close()
 const { buildApp } = await import('../apps/backend/dist/app.js')
 const { createNodeEnvironment } =
     await import('../apps/backend/dist/render-environment.js')
+const { ScreenChangeService } =
+    await import('../apps/backend/dist/services/screen-changes.js')
 const { sources } = await import('../apps/backend/dist/services/sources.js')
 
 test.after(() => {
@@ -116,6 +118,39 @@ test('screen hash is stable and changes with visible source data', async () => {
     } finally {
         await app.close()
     }
+})
+
+test('screen change service emits initial and changed revisions only', async () => {
+    const hashes = new Map([
+        ['main', 'main-1'],
+        ['splash', 'splash-1'],
+    ])
+    const changes = []
+    const service = new ScreenChangeService({
+        names: ['main', 'splash'],
+        getHash: async (name) => hashes.get(name),
+        pollInterval: 60_000,
+    })
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+    const unsubscribe = service.subscribe((change) => changes.push(change))
+    await settle()
+    assert.deepEqual(changes, [
+        { name: 'main', hash: 'main-1' },
+        { name: 'splash', hash: 'splash-1' },
+    ])
+
+    service.checkNow()
+    await settle()
+    assert.equal(changes.length, 2)
+
+    hashes.set('main', 'main-2')
+    service.checkNow()
+    await settle()
+    assert.deepEqual(changes.at(-1), { name: 'main', hash: 'main-2' })
+
+    unsubscribe()
+    service.close()
 })
 
 test('events and deadlines API feeds complete template inputs', async () => {
