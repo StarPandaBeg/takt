@@ -8,7 +8,7 @@
 
 - `defineScene`, `Scene`;
 - `defineProject`, `Project`, `ProjectSettings`;
-- `ProjectContext`, `Event`, `Deadline`, `Note`;
+- `Event`, `EventState`, `Deadline`, `Note` и helpers выбора элементов;
 - готовый `project`.
 
 Внутренние screen/component modules не объявлены как package subpath exports.
@@ -45,10 +45,10 @@ const project = defineProject<Context>()({
 
 `project.settings.screen` равен `800 × 480`. UI typography presets переключаются с Arial на Inter по имени family; файл шрифта пакет не регистрирует и не поставляет.
 
-`ProjectContext` содержит:
+Контекст сцены `main` содержит:
 
 ```ts
-interface ProjectContext {
+interface CalendarMainContext {
     today: DateTime
     events: Event[]
     deadlines: Deadline[]
@@ -60,7 +60,7 @@ interface ProjectContext {
 
 | Имя | Содержимое |
 | --- | --- |
-| `blank` | дата, время обновления, deadlines, события, notes и вертикальная неделя |
+| `main` | дата, время обновления, deadlines, события, notes и вертикальная неделя |
 | `splash` | полноэкранный dithered background и изображение panda |
 
 Обе сцены детерминированы относительно context и локальных asset files. Они не обращаются к сети или базе.

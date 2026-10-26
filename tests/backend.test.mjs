@@ -19,6 +19,9 @@ const databaseClient = createClient({ url: process.env.DB_FILE_NAME })
 for (const migration of [
     '../apps/backend/drizzle/20261025112603_real_devos/migration.sql',
     '../apps/backend/drizzle/20261025112701_triggers/migration.sql',
+    '../apps/backend/drizzle/20261026072025_breezy_franklin_storm/migration.sql',
+    '../apps/backend/drizzle/20261026072829_windy_romulus/migration.sql',
+    '../apps/backend/drizzle/20261026073345_wakeful_maximus/migration.sql',
 ]) {
     const sql = readFileSync(new URL(migration, import.meta.url), 'utf8')
     await databaseClient.executeMultiple(
@@ -151,6 +154,184 @@ test('screen change service emits initial and changed revisions only', async () 
 
     unsubscribe()
     service.close()
+})
+
+test('deadline API stores an iCalendar-compatible recurrence rule', async () => {
+    const app = buildApp({ logger: false })
+
+    try {
+        const created = await app.inject({
+            method: 'POST',
+            url: '/api/deadlines',
+            payload: {
+                title: 'Recurring deadline',
+                due: '2026-10-20T09:00:00+03:00',
+                timezone: 'Europe/Moscow',
+                recurrence: {
+                    frequency: 'weekly',
+                    weekdays: ['MO', 'WE', 'FR'],
+                    interval: 2,
+                    count: 12,
+                },
+            },
+        })
+        assert.equal(created.statusCode, 201, created.body)
+        const id = created.json().id
+
+        const list = await app.inject({
+            method: 'GET',
+            url: '/api/deadlines?from=2026-10-26T00:00:00%2B03:00',
+        })
+        assert.ok(list.json().some((deadline) => deadline.id === id))
+
+        let response = await app.inject({
+            method: 'GET',
+            url: `/api/deadlines/${id}`,
+        })
+        assert.deepEqual(response.json().recurrence, {
+            frequency: 'weekly',
+            weekdays: ['MO', 'WE', 'FR'],
+            interval: 2,
+            count: 12,
+        })
+
+        const recurrenceId = '2026-10-21T06:00:00.000Z'
+        const occurrenceUrl = `/api/deadlines/${id}/occurrences/${encodeURIComponent(recurrenceId)}`
+        response = await app.inject({
+            method: 'PUT',
+            url: occurrenceUrl,
+            payload: { status: 'cancelled' },
+        })
+        assert.equal(response.statusCode, 204, response.body)
+
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/deadlines/${id}`,
+        })
+        assert.deepEqual(response.json().exceptions, [
+            { recurrenceId, status: 'cancelled' },
+        ])
+
+        response = await app.inject({
+            method: 'PUT',
+            url: occurrenceUrl,
+            payload: {
+                status: 'rescheduled',
+                due: '2026-10-22T11:30:00+03:00',
+            },
+        })
+        assert.equal(response.statusCode, 204, response.body)
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/deadlines/${id}`,
+        })
+        assert.deepEqual(response.json().exceptions, [
+            {
+                recurrenceId,
+                status: 'rescheduled',
+                due: '2026-10-22T08:30:00.000Z',
+            },
+        ])
+
+        response = await app.inject({
+            method: 'DELETE',
+            url: occurrenceUrl,
+        })
+        assert.equal(response.statusCode, 204)
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/deadlines/${id}`,
+        })
+        assert.deepEqual(response.json().exceptions, [])
+
+        response = await app.inject({
+            method: 'PUT',
+            url: occurrenceUrl,
+            payload: { status: 'cancelled' },
+        })
+        assert.equal(response.statusCode, 204)
+
+        response = await app.inject({
+            method: 'PUT',
+            url: `/api/deadlines/${id}`,
+            payload: { recurrence: null },
+        })
+        assert.equal(response.statusCode, 200)
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/deadlines/${id}`,
+        })
+        assert.equal(response.json().recurrence, null)
+        assert.deepEqual(response.json().exceptions, [])
+
+        await app.inject({ method: 'DELETE', url: `/api/deadlines/${id}` })
+    } finally {
+        await app.close()
+    }
+})
+
+test('event API cancels and reschedules one recurring occurrence', async () => {
+    const app = buildApp({ logger: false })
+
+    try {
+        const created = await app.inject({
+            method: 'POST',
+            url: '/api/events',
+            payload: {
+                title: 'Recurring event',
+                start: '2026-10-26T10:00:00+03:00',
+                end: '2026-10-26T11:00:00+03:00',
+                timezone: 'Europe/Moscow',
+                recurrence: { frequency: 'daily', count: 3 },
+            },
+        })
+        assert.equal(created.statusCode, 201, created.body)
+        const id = created.json().id
+        const recurrenceId = '2026-10-27T07:00:00.000Z'
+        const occurrenceUrl = `/api/events/${id}/occurrences/${encodeURIComponent(recurrenceId)}`
+
+        let response = await app.inject({
+            method: 'PUT',
+            url: occurrenceUrl,
+            payload: { status: 'cancelled' },
+        })
+        assert.equal(response.statusCode, 204, response.body)
+        response = await app.inject({ method: 'GET', url: `/api/events/${id}` })
+        assert.deepEqual(response.json().exceptions, [
+            { recurrenceId, status: 'cancelled' },
+        ])
+
+        response = await app.inject({
+            method: 'PUT',
+            url: occurrenceUrl,
+            payload: {
+                status: 'rescheduled',
+                start: '2026-10-27T12:00:00+03:00',
+            },
+        })
+        assert.equal(response.statusCode, 204, response.body)
+        response = await app.inject({ method: 'GET', url: `/api/events/${id}` })
+        assert.deepEqual(response.json().exceptions, [
+            {
+                recurrenceId,
+                status: 'rescheduled',
+                start: '2026-10-27T09:00:00.000Z',
+                end: '2026-10-27T10:00:00.000Z',
+            },
+        ])
+
+        response = await app.inject({
+            method: 'DELETE',
+            url: occurrenceUrl,
+        })
+        assert.equal(response.statusCode, 204)
+        response = await app.inject({ method: 'GET', url: `/api/events/${id}` })
+        assert.deepEqual(response.json().exceptions, [])
+
+        await app.inject({ method: 'DELETE', url: `/api/events/${id}` })
+    } finally {
+        await app.close()
+    }
 })
 
 test('events and deadlines API feeds complete template inputs', async () => {

@@ -50,9 +50,13 @@ Context передаётся явно. Context API, provider или mutable requ
 - `Deadline`: `date: DateTime`, `text`, optional `important`.
 - `Note`: `text`, optional `done`.
 
-`blank` scene помечает событие active в интервале от 15 минут до начала до его конца; если end отсутствует, временное окно заканчивается через 15 минут после start. Прошедшие события рисуются gray. Этот calculation находится в template component, не в backend/domain service.
+`main` scene помечает событие active в интервале от 15 минут до начала до его
+конца; если end отсутствует, временное окно заканчивается через 15 минут после
+start. Прошедшие события рисуются gray. Этот calculation находится в template
+component, не в backend/domain service.
 
-Название `blank` историческое: сцена не пустая, а содержит основной календарный экран. `today` одновременно используется как current time для event state и как timestamp последнего формирования ответа.
+`today` одновременно используется как current time для event state и как
+timestamp последнего формирования ответа.
 
 ## Config side effect
 

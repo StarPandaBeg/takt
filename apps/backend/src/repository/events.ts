@@ -1,6 +1,7 @@
-import { and, asc, eq, gt, gte, isNull, lt, or } from 'drizzle-orm'
+import { and, asc, eq, gt, gte, isNotNull, isNull, lt, or } from 'drizzle-orm'
 import { db } from '../database/index.js'
 import {
+    eventRecurrenceExceptionsTable,
     eventsTable,
     type Event,
     type EventInsert,
@@ -15,10 +16,20 @@ export interface EventFilters {
 export const getFiltered = async (filters: EventFilters): Promise<Event[]> => {
     const conditions = []
     if (filters.from !== undefined) {
-        conditions.push(gte(eventsTable.start, filters.from))
+        conditions.push(
+            or(
+                gte(eventsTable.start, filters.from),
+                isNotNull(eventsTable.recurrenceRule),
+            )!,
+        )
     }
     if (filters.to !== undefined) {
-        conditions.push(lt(eventsTable.start, filters.to))
+        conditions.push(
+            or(
+                lt(eventsTable.start, filters.to),
+                isNotNull(eventsTable.recurrenceRule),
+            )!,
+        )
     }
 
     let query = db
@@ -41,11 +52,17 @@ export const getOverlapping = async (
         .select()
         .from(eventsTable)
         .where(
-            and(
-                lt(eventsTable.start, to),
-                or(
-                    gt(eventsTable.end, from),
-                    and(isNull(eventsTable.end), gte(eventsTable.start, from)),
+            or(
+                isNotNull(eventsTable.recurrenceRule),
+                and(
+                    lt(eventsTable.start, to),
+                    or(
+                        gt(eventsTable.end, from),
+                        and(
+                            isNull(eventsTable.end),
+                            gte(eventsTable.start, from),
+                        ),
+                    ),
                 ),
             ),
         )
@@ -68,7 +85,13 @@ export type UpdateEvent = {
     [
         K in keyof Pick<
             Event,
-            'title' | 'description' | 'start' | 'end' | 'timezone' | 'allDay'
+            | 'title'
+            | 'description'
+            | 'start'
+            | 'end'
+            | 'timezone'
+            | 'allDay'
+            | 'recurrenceRule'
         >
     ]?: Event[K] | undefined
 }
@@ -77,7 +100,19 @@ export const edit = async (
     id: Event['id'],
     data: UpdateEvent,
 ): Promise<void> => {
-    await db.update(eventsTable).set(data).where(eq(eventsTable.id, id))
+    await db.transaction(async (tx) => {
+        await tx.update(eventsTable).set(data).where(eq(eventsTable.id, id))
+        if (
+            data.start !== undefined ||
+            data.end !== undefined ||
+            data.timezone !== undefined ||
+            data.recurrenceRule !== undefined
+        ) {
+            await tx
+                .delete(eventRecurrenceExceptionsTable)
+                .where(eq(eventRecurrenceExceptionsTable.eventId, id))
+        }
+    })
 }
 
 export const remove = async (id: Event['id']): Promise<void> => {

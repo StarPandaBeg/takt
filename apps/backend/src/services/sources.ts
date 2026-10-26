@@ -1,10 +1,15 @@
 import type { Deadline, Event, Note } from '@takt/templates'
 import { DateTime } from 'luxon'
+import * as deadlineExceptionsRepository from '../repository/deadline-recurrence-exceptions.js'
 import * as deadlinesRepository from '../repository/deadlines.js'
+import * as eventExceptionsRepository from '../repository/event-recurrence-exceptions.js'
 import * as eventsRepository from '../repository/events.js'
 import * as notesRepository from '../repository/notes.js'
-import { convertDeadline } from './deadlines.js'
-import { convertEvent } from './events.js'
+import {
+    convertDeadline,
+    getUpcomingDeadlineOccurrences,
+} from './deadlines.js'
+import { convertEvent, getEventOccurrences } from './events.js'
 import { convert as convertNote } from './notes.js'
 import {
     createScreenRevisionHash,
@@ -40,20 +45,29 @@ async function loadNotes(): Promise<Note[]> {
 }
 
 async function loadEvents(now: DateTime): Promise<Event[]> {
-    const result = await eventsRepository.getOverlapping(
-        now.startOf('day').toJSDate(),
-        now.plus({ days: 1 }).startOf('day').toJSDate(),
+    const from = now.startOf('day')
+    const to = now.plus({ days: 1 }).startOf('day')
+    const masters = await eventsRepository.getOverlapping(
+        from.toJSDate(),
+        to.toJSDate(),
     )
-    return result.map(convertEvent)
+    const exceptions = await eventExceptionsRepository.getForEventIds(
+        masters.map(({ id }) => id),
+    )
+    return getEventOccurrences(masters, exceptions, from, to).map(convertEvent)
 }
 
 async function loadDeadlines(now: DateTime): Promise<Deadline[]> {
-    const result = await deadlinesRepository.getFiltered({
-        from: now.startOf('day').toJSDate(),
-        limit: 32,
-        withCompleted: false,
-    })
-    return result.map((deadline) => convertDeadline(deadline, now))
+    const from = now.startOf('day')
+    const masters = await deadlinesRepository.getScheduleCandidates(
+        from.toJSDate(),
+    )
+    const exceptions = await deadlineExceptionsRepository.getForDeadlineIds(
+        masters.map(({ id }) => id),
+    )
+    return getUpcomingDeadlineOccurrences(masters, exceptions, from, 32).map(
+        (deadline) => convertDeadline(deadline, now),
+    )
 }
 
 export const sources: DataSources = {

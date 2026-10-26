@@ -48,14 +48,21 @@ npm start
 HOST=127.0.0.1 PORT=3001 npm start
 ```
 
-После запуска доступны две сцены:
+После запуска доступны две сцены и metadata endpoint:
 
 ```text
-GET /screen/blank
-GET /screen/splash
+GET /screens/main
+GET /screens/main/png
+GET /screens/main/esp
+GET /screens/splash
+GET /screens/splash/png
+GET /screens/splash/esp
+GET /screens/events
 ```
 
-Ответ имеет `Content-Type: image/png` и `Cache-Control: no-store`. Неизвестное имя возвращает `404 Not Found`.
+PNG и ESP endpoints возвращают `Cache-Control: no-store`. `/screens/events`
+открывает SSE-поток изменений. Неизвестное имя сцены возвращает
+`404 Not Found`. Полный контракт приведён в [HTTP API](api.md).
 
 Режим разработки сначала собирает проект, затем параллельно запускает TypeScript watch и backend с `node --watch`:
 

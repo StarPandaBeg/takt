@@ -43,7 +43,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Request["GET /screen/:screen"] --> Select[Выбор Scene]
+    Request["GET /screens/:name/png"] --> Select[Выбор Scene]
     Select --> Context["ProjectContext с DateTime и demo-данными"]
     Context --> Generate["Scene.generate(context)"]
     Generate --> JSX["JSXChild"]
@@ -86,5 +86,8 @@ Backend сначала вызывает `preloadImages`, потому что о�
 
 ## Пока не реализовано
 
-Продуктовое направление включает локальное SQLite-хранилище, CalDAV, revision tracking, SSE, web UI и firmware. В текущем коде этих слоёв и контрактов нет. Единственный transport contract — `GET /screen/:screen`, возвращающий PNG; его не следует интерпретировать как окончательный device protocol.
+Локальное SQLite-хранилище, mutation API, semantic revision hashes, SSE и
+выдача PNG/ESP framebuffer уже реализованы. Пока отсутствуют CalDAV sync,
+device registration/authentication, web UI и firmware. Актуальный transport
+contract описан в [HTTP API](api.md).
 

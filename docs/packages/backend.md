@@ -4,15 +4,14 @@ Backend — Fastify composition root. Он связывает bundled templates,
 
 ## HTTP API
 
-### `GET /screen/:screen`
+Backend использует SQLite/libSQL и предоставляет CRUD/command endpoints для
+заметок, событий и дедлайнов. Повторение хранится в формате iCalendar RRULE;
+отмены и переносы отдельных экземпляров моделируются через RECURRENCE-ID
+overrides. Экраны доступны как PNG, ESP framebuffer и metadata с семантическим
+hash. Изменения hash доставляются через долгоживущее SSE-соединение.
 
-`screen` ищется в `project.scenes`. Реализованы `blank` и `splash`.
-
-- успех: `200`, `Content-Type: image/png`, `Cache-Control: no-store`;
-- неизвестная сцена: `404` с телом `Not Found`;
-- Fastify также обслуживает `HEAD` для route.
-
-На каждый запрос backend получает `DateTime.now()`, добавляет hard-coded arrays `events`, `deadlines` и `notes`, генерирует сцену и заново рендерит PNG. Persistence, mutation endpoints, auth, caching/revisions и SSE отсутствуют. CORS настроен как `origin: '*'`.
+Полный актуальный контракт, включая все поля и примеры payload, описан в
+[HTTP API](../api.md).
 
 ## `buildApp`
 

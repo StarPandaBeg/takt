@@ -58,5 +58,7 @@ Rasterization обрезает writes по frame bounds. Paint order совпа�
 - `constraints` передаются handlers, но встроенные handlers пока не clamp-ят размеры к ним.
 - У `Line` size равен `abs(dx) × abs(dy)` и не учитывает stroke width или отрицательное направление как полноценный visual bounding box; исходный код рекомендует использовать линии на root scene level.
 - Текст с explicit bounds не клиппится по этим bounds; clipping действует только по frame.
-- У renderer один render target — `RenderedFrame`; PNG является отдельным exporter. Browser Canvas или packed device framebuffer exporter отсутствуют.
+- У renderer один render target — `RenderedFrame`; PNG и packed ESP
+  framebuffer являются отдельными exporters. Browser Canvas target пока
+  отсутствует.
 

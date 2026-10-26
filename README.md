@@ -4,7 +4,10 @@
 
 Takt — self-hosted сервис для создания информационных экранов, ориентированный на монохромные e-paper дисплеи. Интерфейс экрана описывается декларативно на TSX, после чего Takt строит layout, растеризует его в чёрно-белый framebuffer и отдаёт готовое PNG-изображение по HTTP.
 
-Проект находится на ранней стадии разработки. Сейчас репозиторий содержит рабочий rendering pipeline, календарные шаблоны и минимальный backend. Хранение данных, синхронизация календарей, SSE, web-интерфейс и firmware пока не реализованы.
+Проект находится на ранней стадии разработки. Сейчас репозиторий содержит
+рабочий rendering pipeline, календарные шаблоны и Fastify backend с локальным
+SQLite/libSQL-хранилищем, API редактирования и SSE. CalDAV-синхронизация,
+web-интерфейс и firmware пока не реализованы.
 
 ## Что уже работает
 
@@ -16,6 +19,9 @@ Takt — self-hosted сервис для создания информацион
 - монохромный framebuffer и экспорт в 1-bit PNG;
 - календарный экран 800 × 480 и splash screen;
 - Fastify endpoint для генерации экранов;
+- API заметок, событий и дедлайнов с повторением и exceptions;
+- семантические hashes экранов и SSE-уведомления;
+- PNG и packed 1-bpp framebuffer для ESP;
 - unit-, integration- и compile-time tests.
 
 ## Быстрый старт
@@ -31,11 +37,14 @@ npm start
 После запуска backend слушает `http://localhost:3000`:
 
 ```text
-GET http://localhost:3000/screen/blank
-GET http://localhost:3000/screen/splash
+GET http://localhost:3000/screens/main
+GET http://localhost:3000/screens/main/png
+GET http://localhost:3000/screens/main/esp
+GET http://localhost:3000/screens/events
 ```
 
-Оба endpoint возвращают `image/png`. Для режима разработки с автоматической пересборкой:
+Полный HTTP-контракт описан в [документации API](docs/api.md). Для режима
+разработки с автоматической пересборкой:
 
 ```bash
 npm run dev
@@ -103,6 +112,7 @@ flowchart LR
 ## Документация
 
 - [Обзор документации](docs/README.md)
+- [HTTP API](docs/api.md)
 - [Архитектура](docs/architecture.md)
 - [JSX и UI tree](docs/concepts/jsx-ui-tree.md)
 - [Layout и rendering](docs/concepts/layout-rendering.md)
@@ -111,15 +121,11 @@ flowchart LR
 
 ## Статус и планы
 
-Ближайшее направление развития — превратить rendering prototype в локальный календарный сервис для настольного e-paper устройства. Планируются:
+Следующие крупные части пока остаются планами:
 
-- локальное SQLite-хранилище событий и заметок;
 - двусторонняя CalDAV-синхронизация;
-- revision tracking и доставка обновлений через HTTP + SSE;
 - web-интерфейс управления и preview;
 - firmware для ESP32-S3 и дисплея 800 × 480.
-
-Эти возможности являются планами и пока отсутствуют в текущей реализации.
 
 ## Лицензия
 

@@ -1,6 +1,7 @@
-import { and, asc, eq, gte } from 'drizzle-orm'
+import { and, asc, eq, gte, isNotNull, or } from 'drizzle-orm'
 import { db } from '../database/index.js'
 import {
+    deadlineRecurrenceExceptionsTable,
     deadlinesTable,
     type Deadline,
     type DeadlineInsert,
@@ -17,7 +18,12 @@ export const getFiltered = async (
 ): Promise<Deadline[]> => {
     const conditions = []
     if (filters.from !== undefined) {
-        conditions.push(gte(deadlinesTable.due, filters.from))
+        conditions.push(
+            or(
+                gte(deadlinesTable.due, filters.from),
+                isNotNull(deadlinesTable.recurrenceRule),
+            )!,
+        )
     }
     if (!filters.withCompleted) {
         conditions.push(eq(deadlinesTable.completed, false))
@@ -32,6 +38,23 @@ export const getFiltered = async (
 
     if (filters.limit !== undefined) query = query.limit(filters.limit)
     return await query.execute()
+}
+
+/** Masters that can produce an occurrence at or after the requested date. */
+export const getScheduleCandidates = async (from: Date): Promise<Deadline[]> => {
+    return await db
+        .select()
+        .from(deadlinesTable)
+        .where(
+            and(
+                eq(deadlinesTable.completed, false),
+                or(
+                    gte(deadlinesTable.due, from),
+                    isNotNull(deadlinesTable.recurrenceRule),
+                ),
+            ),
+        )
+        .orderBy(asc(deadlinesTable.due))
 }
 
 export const get = async (
@@ -52,7 +75,13 @@ export type UpdateDeadline = {
     [
         K in keyof Pick<
             Deadline,
-            'title' | 'description' | 'due' | 'dueIsDate' | 'completed'
+            | 'title'
+            | 'description'
+            | 'due'
+            | 'dueIsDate'
+            | 'timezone'
+            | 'recurrenceRule'
+            | 'completed'
         >
     ]?: Deadline[K] | undefined
 }
@@ -61,7 +90,24 @@ export const edit = async (
     id: Deadline['id'],
     data: UpdateDeadline,
 ): Promise<void> => {
-    await db.update(deadlinesTable).set(data).where(eq(deadlinesTable.id, id))
+    await db.transaction(async (tx) => {
+        await tx
+            .update(deadlinesTable)
+            .set(data)
+            .where(eq(deadlinesTable.id, id))
+
+        if (
+            data.due !== undefined ||
+            data.timezone !== undefined ||
+            data.recurrenceRule !== undefined
+        ) {
+            await tx
+                .delete(deadlineRecurrenceExceptionsTable)
+                .where(
+                    eq(deadlineRecurrenceExceptionsTable.deadlineId, id),
+                )
+        }
+    })
 }
 
 export const markCompleted = async (

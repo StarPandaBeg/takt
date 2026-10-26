@@ -79,8 +79,8 @@ npm test
 - Registries renderer internal и статичны; стабильного extension API нет.
 - Typography config global и mutable.
 - Constraints пока informational и не ограничивают layout.
-- Backend context hard-coded; storage/sync boundary ещё не появился.
-- Device framebuffer format, revisions и SSE отсутствуют.
+- CalDAV sync boundary, UID/ETag и conflict handling ещё не реализованы.
+- Device registration и authentication для HTTP/SSE отсутствуют.
 - Browser renderer/web preview отсутствуют, поэтому pixel parity между browser и Node пока не определена.
 
 Эти ограничения следует учитывать, но не обходить speculative abstractions до появления конкретной задачи.
