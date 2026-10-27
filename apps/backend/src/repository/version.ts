@@ -1,5 +1,5 @@
-import { db } from '#/database/index.js'
-import { versionsTable, type Version } from '#/database/schema.js'
+import { db } from '#src/database/index.js'
+import { versionsTable, type Version } from '#src/database/schema.js'
 import { eq, sql } from 'drizzle-orm'
 
 export const get = async (

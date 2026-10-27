@@ -3,7 +3,7 @@ import {
     eventsTable,
     type Event,
     type EventInsert,
-} from '#/database/schema.js'
+} from '#src/database/schema.js'
 import {
     and,
     asc,

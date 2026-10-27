@@ -1,16 +1,16 @@
-import * as eventExceptions from '#/repository/event-recurrence-exceptions.js'
-import * as events from '#/repository/events.js'
+import * as eventExceptions from '#src/repository/event-recurrence-exceptions.js'
+import * as events from '#src/repository/events.js'
 import {
     getEventEntities,
     getEventEntity,
     getResolvedEvents,
     serializeEventRecurrence,
-} from '#/services/events.js'
+} from '#src/services/events.js'
 import {
     isRecurrenceOccurrence,
     parseRecurrence,
     recurrenceSchema,
-} from '#/services/recurrence.js'
+} from '#src/services/recurrence.js'
 import type { FastifyPluginAsync } from 'fastify'
 import { DateTime } from 'luxon'
 import * as z from 'zod'

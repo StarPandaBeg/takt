@@ -1,10 +1,10 @@
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
-import { toToolResponse } from '#/mcp/util/helpers.js'
-import { recurrenceSchema } from '#/mcp/util/objects.js'
-import * as events from '#/repository/events.js'
-import { serializeEventRecurrence } from '#/services/events.js'
+import { toToolResponse } from '#src/mcp/util/helpers.js'
+import { recurrenceSchema } from '#src/mcp/util/objects.js'
+import * as events from '#src/repository/events.js'
+import { serializeEventRecurrence } from '#src/services/events.js'
 
 // MCP принимает ISO-строки, а не JS Date
 export const createEventInputSchema = z

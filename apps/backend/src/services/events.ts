@@ -1,7 +1,7 @@
-import type { Event, EventRecurrenceException } from '#/database/schema.js'
-import * as eventExceptionsRepository from '#/repository/event-recurrence-exceptions.js'
-import type { EventFilters } from '#/repository/events.js'
-import * as eventsRepository from '#/repository/events.js'
+import type { Event, EventRecurrenceException } from '#src/database/schema.js'
+import * as eventExceptionsRepository from '#src/repository/event-recurrence-exceptions.js'
+import type { EventFilters } from '#src/repository/events.js'
+import * as eventsRepository from '#src/repository/events.js'
 import { DateTime } from 'luxon'
 import { getEventOccurrences, type ResolvedEvent } from './event-occurrences.js'
 import {

@@ -1,10 +1,10 @@
-import { db } from '#/database/index.js'
+import { db } from '#src/database/index.js'
 import {
     deadlineRecurrenceExceptionsTable,
     deadlinesTable,
     type Deadline,
     type DeadlineInsert,
-} from '#/database/schema.js'
+} from '#src/database/schema.js'
 import { and, asc, eq, gte, isNotNull, or } from 'drizzle-orm'
 
 export interface DeadlineFilters {

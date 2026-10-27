@@ -1,10 +1,10 @@
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
-import { toToolResponse } from '#/mcp/util/helpers.js'
-import { recurrenceSchema } from '#/mcp/util/objects.js'
-import { updateEvent } from '#/services/events.js'
-import { recurrenceSchema as domainRecurrenceSchema } from '#/services/recurrence.js'
+import { toToolResponse } from '#src/mcp/util/helpers.js'
+import { recurrenceSchema } from '#src/mcp/util/objects.js'
+import { updateEvent } from '#src/services/events.js'
+import { recurrenceSchema as domainRecurrenceSchema } from '#src/services/recurrence.js'
 
 const changesSchema = z
     .object({

@@ -1,7 +1,7 @@
 import type {
     Deadline,
     DeadlineRecurrenceException,
-} from '#/database/schema.js'
+} from '#src/database/schema.js'
 import type { Deadline as TemplateDeadline } from '@takt/templates'
 import { DateTime } from 'luxon'
 import { getRecurrenceOccurrences, parseRecurrence } from './recurrence.js'

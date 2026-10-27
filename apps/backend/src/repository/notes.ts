@@ -1,5 +1,5 @@
-import { db } from '#/database/index.js'
-import { notesTable, type Note, type NoteInsert } from '#/database/schema.js'
+import { db } from '#src/database/index.js'
+import { notesTable, type Note, type NoteInsert } from '#src/database/schema.js'
 import { eq, isNull } from 'drizzle-orm'
 
 export const getAll = async (): Promise<Note[]> => {

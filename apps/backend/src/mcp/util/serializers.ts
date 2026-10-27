@@ -1,5 +1,5 @@
-import type { Note } from '#/database/schema.js'
-import type { EventEntity, ResolvedEvent } from '#/services/events.js'
+import type { Note } from '#src/database/schema.js'
+import type { EventEntity, ResolvedEvent } from '#src/services/events.js'
 
 function serializeRecurrence(recurrence: EventEntity['recurrence']) {
     if (recurrence === null || recurrence.until === undefined) {

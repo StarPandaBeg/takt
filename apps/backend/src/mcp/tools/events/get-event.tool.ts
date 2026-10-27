@@ -1,7 +1,7 @@
-import { toToolResponse } from '#/mcp/util/helpers.js'
-import { eventEntitySchema } from '#/mcp/util/objects.js'
-import { serializeEventEntity } from '#/mcp/util/serializers.js'
-import { getEventEntity } from '#/services/events.js'
+import { toToolResponse } from '#src/mcp/util/helpers.js'
+import { eventEntitySchema } from '#src/mcp/util/objects.js'
+import { serializeEventEntity } from '#src/mcp/util/serializers.js'
+import { getEventEntity } from '#src/services/events.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 

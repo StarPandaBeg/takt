@@ -1,9 +1,13 @@
-import { createNodeEnvironment } from '#/render-environment.js'
-import { generateScene, getSceneHash, getSceneNames } from '#/services/scene.js'
+import { createNodeEnvironment } from '#src/render-environment.js'
+import {
+    generateScene,
+    getSceneHash,
+    getSceneNames,
+} from '#src/services/scene.js'
 import type {
     ScreenChange,
     ScreenChangeService,
-} from '#/services/screen-changes.js'
+} from '#src/services/screen-changes.js'
 import { createRenderer } from '@takt/renderer'
 import { exportEsp, exportPng } from '@takt/renderer/exporters'
 import { project } from '@takt/templates'

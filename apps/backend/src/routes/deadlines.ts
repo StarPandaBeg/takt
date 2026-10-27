@@ -1,13 +1,13 @@
-import type { Deadline } from '#/database/schema.js'
-import * as deadlineExceptions from '#/repository/deadline-recurrence-exceptions.js'
-import * as deadlines from '#/repository/deadlines.js'
+import type { Deadline } from '#src/database/schema.js'
+import * as deadlineExceptions from '#src/repository/deadline-recurrence-exceptions.js'
+import * as deadlines from '#src/repository/deadlines.js'
 import {
     isRecurrenceOccurrence,
     parseRecurrence,
     recurrenceSchema,
     serializeRecurrence,
     type Recurrence,
-} from '#/services/recurrence.js'
+} from '#src/services/recurrence.js'
 import type { FastifyPluginAsync } from 'fastify'
 import { DateTime } from 'luxon'
 import * as z from 'zod'

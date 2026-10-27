@@ -1,4 +1,4 @@
-import * as notes from '#/repository/notes.js'
+import * as notes from '#src/repository/notes.js'
 import type { FastifyPluginAsync } from 'fastify'
 import * as z from 'zod'
 

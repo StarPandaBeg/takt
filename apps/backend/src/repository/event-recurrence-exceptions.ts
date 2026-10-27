@@ -1,8 +1,8 @@
-import { db } from '#/database/index.js'
+import { db } from '#src/database/index.js'
 import {
     eventRecurrenceExceptionsTable,
     type EventRecurrenceException,
-} from '#/database/schema.js'
+} from '#src/database/schema.js'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
 export async function getForEventIds(
