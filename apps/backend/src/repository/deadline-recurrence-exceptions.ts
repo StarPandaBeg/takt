@@ -25,17 +25,41 @@ export async function set(
     deadlineId: number,
     recurrenceId: Date,
     replacementDue: Date | null,
+    replacement?: {
+        readonly title: string
+        readonly description: string | null
+        readonly dueIsDate: boolean
+        readonly timezone: string
+        readonly completed: boolean
+    },
 ): Promise<void> {
     const now = new Date()
     await db
         .insert(deadlineRecurrenceExceptionsTable)
-        .values({ deadlineId, recurrenceId, replacementDue })
+        .values({
+            deadlineId,
+            recurrenceId,
+            replacementDue,
+            replacementTitle: replacement?.title,
+            replacementDescription: replacement?.description,
+            replacementDueIsDate: replacement?.dueIsDate,
+            replacementTimezone: replacement?.timezone,
+            replacementCompleted: replacement?.completed,
+        })
         .onConflictDoUpdate({
             target: [
                 deadlineRecurrenceExceptionsTable.deadlineId,
                 deadlineRecurrenceExceptionsTable.recurrenceId,
             ],
-            set: { replacementDue, updatedAt: now },
+            set: {
+                replacementDue,
+                replacementTitle: replacement?.title ?? null,
+                replacementDescription: replacement?.description ?? null,
+                replacementDueIsDate: replacement?.dueIsDate ?? null,
+                replacementTimezone: replacement?.timezone ?? null,
+                replacementCompleted: replacement?.completed ?? null,
+                updatedAt: now,
+            },
         })
 }
 

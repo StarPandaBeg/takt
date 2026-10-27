@@ -214,6 +214,182 @@ export const resolvedEventSchema = z.object({
         ),
 })
 
+export const deadlineOccurrenceExceptionSchema = z.discriminatedUnion(
+    'status',
+    [
+        z.object({
+            status: z
+                .literal('cancelled')
+                .describe('The occurrence is cancelled and will not appear'),
+            recurrenceId: z.iso
+                .datetime({ offset: true })
+                .describe(
+                    'Original scheduled due time identifying the cancelled occurrence',
+                ),
+        }),
+        z.object({
+            status: z
+                .literal('rescheduled')
+                .describe('Legacy time-only override for an occurrence'),
+            recurrenceId: z.iso
+                .datetime({ offset: true })
+                .describe(
+                    'Original scheduled due time, unchanged after rescheduling',
+                ),
+            due: z.iso
+                .datetime({ offset: true })
+                .describe('Effective replacement due time'),
+        }),
+        z.object({
+            status: z
+                .literal('updated')
+                .describe(
+                    'Full occurrence-specific override of the master fields',
+                ),
+            recurrenceId: z.iso
+                .datetime({ offset: true })
+                .describe(
+                    'Original scheduled due time identifying this occurrence',
+                ),
+            title: z.string().describe('Occurrence-specific deadline name'),
+            description: z
+                .string()
+                .nullable()
+                .describe('Occurrence-specific description, or null'),
+            due: z.iso
+                .datetime({ offset: true })
+                .describe('Effective occurrence due time'),
+            dueIsDate: z
+                .boolean()
+                .describe('Whether this occurrence is date-only'),
+            timezone: z
+                .string()
+                .describe('IANA timezone of this occurrence'),
+        }),
+    ],
+).describe('Override applied to one occurrence of a recurring deadline')
+
+export const deadlineVisibilitySchema = z
+    .object({
+        show: z.discriminatedUnion('type', [
+            z.object({
+                type: z
+                    .literal('always')
+                    .describe('Show as soon as the deadline exists'),
+            }),
+            z.object({
+                type: z
+                    .literal('before')
+                    .describe('Show a fixed number of calendar days before due'),
+                days: z
+                    .int()
+                    .min(0)
+                    .max(3650)
+                    .describe(
+                        'Number of calendar days before the due date. Zero means the due date only',
+                    ),
+            }),
+        ]),
+        hide: z
+            .enum(['on_due', 'on_complete'])
+            .describe(
+                'on_due hides after the local due day ends; on_complete keeps overdue occurrences visible until explicitly completed',
+            ),
+    })
+    .describe('Policy controlling when the deadline appears and disappears')
+
+export const deadlineCompletionSchema = z.object({
+    recurrenceId: z.iso
+        .datetime({ offset: true })
+        .nullable()
+        .describe(
+            'Original occurrence due time, or null for a one-time deadline',
+        ),
+    completedAt: z.iso
+        .datetime({ offset: true })
+        .describe('Time when this deadline occurrence was completed'),
+})
+
+export const deadlineEntitySchema = z.object({
+    id: z.int().positive().describe('Stable ID of the deadline master'),
+    title: z.string().describe('User-visible deadline name'),
+    description: z
+        .string()
+        .nullable()
+        .describe('Deadline details, or null when absent'),
+    due: z.iso
+        .datetime({ offset: true })
+        .describe(
+            'Stored due time of the master and recurrence anchor, not necessarily the due time of every occurrence',
+        ),
+    dueIsDate: z
+        .boolean()
+        .describe('Whether the master represents a calendar date only'),
+    timezone: z
+        .string()
+        .describe('IANA timezone used to expand the recurrence rule'),
+    completedAt: z.iso
+        .datetime({ offset: true })
+        .nullable()
+        .describe(
+            'Completion time for a one-time deadline or legacy whole-master completion, otherwise null',
+        ),
+    cancelledAt: z.iso
+        .datetime({ offset: true })
+        .nullable()
+        .describe(
+            'Time when the entire master was softly cancelled, or null when active',
+        ),
+    createdAt: z.iso
+        .datetime({ offset: true })
+        .describe('Time when this master was created'),
+    updatedAt: z.iso
+        .datetime({ offset: true })
+        .describe('Time when this master was last modified'),
+    recurrence: recurrenceSchema
+        .nullable()
+        .describe('Recurrence rule, or null for a one-time deadline'),
+    exceptions: z
+        .array(deadlineOccurrenceExceptionSchema)
+        .describe('Occurrence-specific cancellations, moves, and updates'),
+    completions: z
+        .array(deadlineCompletionSchema)
+        .describe(
+            'Independent completion records keyed by original recurrenceId',
+        ),
+    visibility: deadlineVisibilitySchema,
+})
+
+export const resolvedDeadlineSchema = z.object({
+    id: z.int().positive().describe('ID of the deadline master'),
+    title: z.string().describe('Effective name of this occurrence'),
+    description: z
+        .string()
+        .nullable()
+        .describe('Effective description of this occurrence, or null'),
+    due: z.iso.datetime({ offset: true }).describe('Effective due time'),
+    dueIsDate: z
+        .boolean()
+        .describe('Whether this occurrence represents a calendar date only'),
+    timezone: z
+        .string()
+        .describe('Effective IANA timezone of this occurrence'),
+    completed: z
+        .boolean()
+        .describe('Whether this occurrence is completed'),
+    completedAt: z.iso
+        .datetime({ offset: true })
+        .nullable()
+        .describe('Completion time for this occurrence, or null'),
+    visibility: deadlineVisibilitySchema,
+    recurrenceId: z.iso
+        .datetime({ offset: true })
+        .nullable()
+        .describe(
+            'Original scheduled due time identifying this occurrence, or null for a non-recurring deadline',
+        ),
+})
+
 export const noteSchema = z.object({
     id: z.int().describe('ID of the note'),
     text: z.string(),

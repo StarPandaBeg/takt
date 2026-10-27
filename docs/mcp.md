@@ -145,3 +145,85 @@ interface CancelEventInput {
 
 Если `this_and_future` указывает на первый экземпляр, отменяется вся серия.
 Результат для всех scope — `{ id }` исходного master-события.
+
+## Инструменты дедлайнов
+
+### `get_deadline`
+
+Возвращает deadline master по ID вместе с `recurrence`, полным массивом
+`exceptions` и `cancelledAt`. Мягко отменённая запись остаётся доступна по ID.
+
+### `get_deadlines`
+
+Возвращает фактические экземпляры дедлайнов начиная с inclusive-границы
+`from`. Повторения и occurrence overrides уже применены.
+
+```ts
+interface GetDeadlinesInput {
+    from: string
+    limit?: number // 1..8192, default 128
+    withCompleted?: boolean // default false
+}
+```
+
+Каждый результат содержит ID master, эффективные `title`, `description`,
+`due`, `dueIsDate`, `timezone`, `completed` и исходный `recurrenceId` либо
+`null` для одиночного дедлайна.
+
+### `search_deadlines`
+
+Ищет активные master-записи без раскрытия повторений. Поддерживает optional
+`from`, `to`, `query`, `limit` и `withCompleted`. Временные границы относятся к
+исходному `due` master, `query` ищет подстроку в title и description.
+
+### `create_deadline`
+
+Создаёт одиночный или повторяющийся дедлайн. Принимает `title`, `description`,
+`due`, `dueIsDate`, IANA `timezone`, `completed` и `recurrence`. Возвращает
+`{ id }`.
+
+### `update_deadline`
+
+Использует тот же `scope`, что `update_event`:
+
+```ts
+interface UpdateDeadlineInput {
+    id: number
+    scope: 'series' | 'occurrence' | 'this_and_future'
+    recurrenceId?: string
+    changes: {
+        title?: string
+        description?: string | null
+        due?: string
+        dueIsDate?: boolean
+        timezone?: string
+        recurrence?: Recurrence | null
+        completed?: boolean
+    }
+}
+```
+
+Один occurrence хранится как полный override и не может менять recurrence.
+`this_and_future` разделяет серию и возвращает ID нового будущего master.
+
+### `cancel_deadline`
+
+Поддерживает `series`, `occurrence` и `this_and_future`. Вся серия отменяется
+мягко через `cancelledAt`; один экземпляр получает cancellation exception;
+текущий и будущие обрезают RRULE перед выбранным `recurrenceId`.
+
+### `set_deadline_completion`
+
+Отмечает дедлайн выполненным или возвращает его в работу:
+
+```ts
+interface SetDeadlineCompletionInput {
+    id: number
+    scope: 'series' | 'occurrence' | 'this_and_future'
+    recurrenceId?: string
+    completed: boolean
+}
+```
+
+Для одного occurrence состояние сохраняется в override. Для
+`this_and_future` создаётся новая серия и возвращается её ID.

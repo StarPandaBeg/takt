@@ -7,7 +7,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
     convertDeadline,
+    getNearestDeadlineOccurrencesForScreen,
     getUpcomingDeadlineOccurrences,
+    getVisibleDeadlineOccurrencesForScreen,
 } from '../apps/backend/dist/services/deadlines.js'
 import { getEventOccurrences } from '../apps/backend/dist/services/event-occurrences.js'
 import {
@@ -365,6 +367,162 @@ test('deadline occurrences apply cancellation and rescheduling exceptions', () =
             DateTime.fromJSDate(due).setZone(zone).toFormat('yyyy-MM-dd HH:mm'),
         ),
         ['2026-10-26 12:00', '2026-10-28 09:00', '2026-10-29 09:00'],
+    )
+})
+
+test('calendar screen keeps only the nearest resolved occurrence per deadline series', () => {
+    const zone = 'Europe/Moscow'
+    const from = DateTime.fromISO('2026-10-26T00:00', { zone })
+    const createdAt = from.toJSDate()
+    const recurring = {
+        id: 1,
+        title: 'Top up internet',
+        description: null,
+        due: DateTime.fromISO('2026-10-01T09:00', { zone }).toJSDate(),
+        dueIsDate: false,
+        timezone: zone,
+        recurrenceRule: 'FREQ=MONTHLY;BYMONTHDAY=1;COUNT=6',
+        completed: false,
+        createdAt,
+        updatedAt: createdAt,
+    }
+    const oneTime = {
+        ...recurring,
+        id: 2,
+        title: 'Submit documents',
+        due: DateTime.fromISO('2026-11-15T12:00', { zone }).toJSDate(),
+        recurrenceRule: null,
+    }
+    const exceptions = [
+        {
+            id: 1,
+            deadlineId: recurring.id,
+            recurrenceId: DateTime.fromISO('2026-11-01T09:00', {
+                zone,
+            }).toJSDate(),
+            replacementDue: null,
+            createdAt,
+            updatedAt: createdAt,
+        },
+    ]
+
+    const selected = getNearestDeadlineOccurrencesForScreen(
+        [recurring, oneTime],
+        exceptions,
+        from,
+        4,
+    )
+
+    assert.deepEqual(
+        selected.map(({ id, due }) => ({
+            id,
+            due: DateTime.fromJSDate(due)
+                .setZone(zone)
+                .toFormat('yyyy-MM-dd HH:mm'),
+        })),
+        [
+            { id: 2, due: '2026-11-15 12:00' },
+            { id: 1, due: '2026-12-01 09:00' },
+        ],
+    )
+})
+
+test('deadline visibility uses local calendar days and keeps due-day items visible', () => {
+    const zone = 'Europe/Berlin'
+    const now = DateTime.fromISO('2026-03-29T20:00', { zone })
+    const createdAt = now.minus({ days: 10 }).toJSDate()
+    const deadline = (id, due, visibility) => ({
+        id,
+        title: `deadline-${id}`,
+        description: null,
+        due: DateTime.fromISO(due, { zone }).toJSDate(),
+        dueIsDate: false,
+        timezone: zone,
+        recurrenceRule: null,
+        completed: false,
+        cancelledAt: null,
+        visibilityShow: visibility.show.type,
+        visibilityDays: visibility.show.days ?? 0,
+        visibilityHide: visibility.hide,
+        createdAt,
+        updatedAt: createdAt,
+    })
+    const records = [
+        deadline(1, '2026-03-29T08:00', {
+            show: { type: 'before', days: 0 },
+            hide: 'on_due',
+        }),
+        deadline(2, '2026-03-31T09:00', {
+            show: { type: 'before', days: 2 },
+            hide: 'on_due',
+        }),
+        deadline(3, '2026-04-01T09:00', {
+            show: { type: 'before', days: 2 },
+            hide: 'on_due',
+        }),
+        deadline(4, '2026-03-28T09:00', {
+            show: { type: 'always' },
+            hide: 'on_due',
+        }),
+    ]
+
+    assert.deepEqual(
+        getVisibleDeadlineOccurrencesForScreen(records, [], [], now, 10).map(
+            ({ id }) => id,
+        ),
+        [1, 2],
+    )
+})
+
+test('on_complete keeps overdue recurring occurrences until each is completed', () => {
+    const zone = 'Europe/Moscow'
+    const now = DateTime.fromISO('2026-04-04T12:00', { zone })
+    const createdAt = DateTime.fromISO('2026-04-01T08:00', {
+        zone,
+    }).toJSDate()
+    const master = {
+        id: 10,
+        title: 'Daily obligation',
+        description: null,
+        due: createdAt,
+        dueIsDate: false,
+        timezone: zone,
+        recurrenceRule: 'FREQ=DAILY;COUNT=6',
+        completed: false,
+        cancelledAt: null,
+        visibilityShow: 'always',
+        visibilityDays: 0,
+        visibilityHide: 'on_complete',
+        createdAt,
+        updatedAt: createdAt,
+    }
+    const completedRecurrenceId = DateTime.fromISO('2026-04-02T08:00', {
+        zone,
+    }).toJSDate()
+    const completions = [
+        {
+            id: 1,
+            deadlineId: master.id,
+            recurrenceId: completedRecurrenceId,
+            completedAt: DateTime.fromISO('2026-04-02T10:00', {
+                zone,
+            }).toJSDate(),
+            createdAt,
+            updatedAt: createdAt,
+        },
+    ]
+
+    assert.deepEqual(
+        getVisibleDeadlineOccurrencesForScreen(
+            [master],
+            [],
+            completions,
+            now,
+            10,
+        ).map(({ due }) =>
+            DateTime.fromJSDate(due).setZone(zone).toFormat('yyyy-MM-dd'),
+        ),
+        ['2026-04-01', '2026-04-03', '2026-04-04'],
     )
 })
 

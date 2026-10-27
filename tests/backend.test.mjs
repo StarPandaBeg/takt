@@ -24,6 +24,8 @@ for (const migration of [
     '../apps/backend/drizzle/20261026073345_wakeful_maximus/migration.sql',
     '../apps/backend/drizzle/20261027074331_free_ego/migration.sql',
     '../apps/backend/drizzle/20261027075110_damp_cannonball/migration.sql',
+    '../apps/backend/drizzle/20261027094633_yellow_grim_reaper/migration.sql',
+    '../apps/backend/drizzle/20261027103323_parched_kinsey_walden/migration.sql',
 ]) {
     const sql = readFileSync(new URL(migration, import.meta.url), 'utf8')
     await databaseClient.executeMultiple(
@@ -39,15 +41,31 @@ const { ScreenChangeService } =
     await import('../apps/backend/dist/services/screen-changes.js')
 const { sources } = await import('../apps/backend/dist/services/sources.js')
 const { getEvent } =
-    await import('../apps/backend/dist/mcp/tools/get-event.tool.js')
+    await import('../apps/backend/dist/mcp/tools/events/get-event.tool.js')
 const { getEvents } =
-    await import('../apps/backend/dist/mcp/tools/get-events.tool.js')
+    await import('../apps/backend/dist/mcp/tools/events/get-events.tool.js')
 const { searchEvents } =
-    await import('../apps/backend/dist/mcp/tools/search-events.tool.js')
+    await import('../apps/backend/dist/mcp/tools/events/search-events.tool.js')
 const { updateEventTool } =
-    await import('../apps/backend/dist/mcp/tools/update-event.tool.js')
+    await import('../apps/backend/dist/mcp/tools/events/update-event.tool.js')
 const { cancelEventTool } =
-    await import('../apps/backend/dist/mcp/tools/cancel-event.tool.js')
+    await import('../apps/backend/dist/mcp/tools/events/cancel-event.tool.js')
+const { createDeadline } =
+    await import('../apps/backend/dist/mcp/tools/create-deadline.tool.js')
+const { getDeadline } =
+    await import('../apps/backend/dist/mcp/tools/get-deadline.tool.js')
+const { getDeadlines } =
+    await import('../apps/backend/dist/mcp/tools/get-deadlines.tool.js')
+const { searchDeadlines } =
+    await import('../apps/backend/dist/mcp/tools/search-deadlines.tool.js')
+const { updateDeadlineTool } =
+    await import('../apps/backend/dist/mcp/tools/update-deadline.tool.js')
+const { cancelDeadlineTool } =
+    await import('../apps/backend/dist/mcp/tools/cancel-deadline.tool.js')
+const { setDeadlineCompletion } =
+    await import(
+        '../apps/backend/dist/mcp/tools/set-deadline-completion.tool.js'
+    )
 
 test.after(() => {
     rmSync(databaseRoot, { recursive: true, force: true })
@@ -280,6 +298,143 @@ test('deadline API stores an iCalendar-compatible recurrence rule', async () => 
     } finally {
         await app.close()
     }
+})
+
+test('MCP deadline tools cover create, read, search, update, completion, and cancellation', async () => {
+    const created = await createDeadline({
+        title: 'Quarterly report',
+        description: 'Prepare figures',
+        due: '2026-11-16T18:00:00+03:00',
+        dueIsDate: false,
+        timezone: 'Europe/Moscow',
+        recurrence: { frequency: 'daily', count: 4 },
+    })
+    const id = created.structuredContent.id
+
+    let master = await getDeadline({ id })
+    assert.equal(master.structuredContent.title, 'Quarterly report')
+    assert.equal(master.structuredContent.cancelledAt, null)
+    assert.deepEqual(master.structuredContent.recurrence, {
+        frequency: 'daily',
+        count: 4,
+    })
+
+    let found = await searchDeadlines({
+        query: 'quarterly',
+        withCompleted: false,
+    })
+    assert.equal(found.structuredContent.length, 1)
+    assert.equal(found.structuredContent[0].id, id)
+
+    let occurrences = await getDeadlines({
+        from: '2026-11-16T00:00:00+03:00',
+        limit: 8,
+        withCompleted: false,
+    })
+    let ownOccurrences = occurrences.structuredContent.filter(
+        (deadline) => deadline.id === id,
+    )
+    assert.equal(ownOccurrences.length, 4)
+    assert.equal(
+        ownOccurrences[1].recurrenceId,
+        '2026-11-17T15:00:00.000Z',
+    )
+
+    await updateDeadlineTool({
+        id,
+        scope: 'occurrence',
+        recurrenceId: '2026-11-17T15:00:00.000Z',
+        changes: {
+            title: 'Submit revised report',
+            due: '2026-11-17T20:00:00+03:00',
+            dueIsDate: true,
+        },
+    })
+    master = await getDeadline({ id })
+    assert.deepEqual(master.structuredContent.exceptions, [
+        {
+            recurrenceId: '2026-11-17T15:00:00.000Z',
+            status: 'updated',
+            title: 'Submit revised report',
+            description: 'Prepare figures',
+            due: '2026-11-17T17:00:00.000Z',
+            dueIsDate: true,
+            timezone: 'Europe/Moscow',
+            completed: false,
+        },
+    ])
+
+    await setDeadlineCompletion({
+        id,
+        scope: 'occurrence',
+        recurrenceId: '2026-11-17T15:00:00.000Z',
+        completed: true,
+    })
+    occurrences = await getDeadlines({
+        from: '2026-11-17T00:00:00+03:00',
+        limit: 8,
+        withCompleted: false,
+    })
+    ownOccurrences = occurrences.structuredContent.filter(
+        (deadline) => deadline.id === id,
+    )
+    assert.equal(
+        ownOccurrences.some(
+            ({ recurrenceId }) =>
+                recurrenceId === '2026-11-17T15:00:00.000Z',
+        ),
+        false,
+    )
+    occurrences = await getDeadlines({
+        from: '2026-11-17T00:00:00+03:00',
+        limit: 8,
+        withCompleted: true,
+    })
+    ownOccurrences = occurrences.structuredContent.filter(
+        (deadline) => deadline.id === id,
+    )
+    assert.equal(
+        ownOccurrences.find(
+            ({ recurrenceId }) =>
+                recurrenceId === '2026-11-17T15:00:00.000Z',
+        ).completed,
+        true,
+    )
+
+    const split = await updateDeadlineTool({
+        id,
+        scope: 'this_and_future',
+        recurrenceId: '2026-11-18T15:00:00.000Z',
+        changes: { title: 'Future reports' },
+    })
+    const futureId = split.structuredContent.id
+    assert.notEqual(futureId, id)
+    master = await getDeadline({ id })
+    assert.deepEqual(master.structuredContent.recurrence, {
+        frequency: 'daily',
+        count: 2,
+    })
+    const future = await getDeadline({ id: futureId })
+    assert.equal(future.structuredContent.title, 'Future reports')
+    assert.deepEqual(future.structuredContent.recurrence, {
+        frequency: 'daily',
+        count: 2,
+    })
+
+    await cancelDeadlineTool({
+        id: futureId,
+        scope: 'occurrence',
+        recurrenceId: '2026-11-18T15:00:00.000Z',
+    })
+    await cancelDeadlineTool({ id: futureId, scope: 'series' })
+    const cancelled = await getDeadline({ id: futureId })
+    assert.match(cancelled.structuredContent.cancelledAt, /Z$/)
+    found = await searchDeadlines({
+        query: 'Future reports',
+        withCompleted: true,
+    })
+    assert.deepEqual(found.structuredContent, [])
+    await cancelDeadlineTool({ id, scope: 'series' })
 })
 
 test('event API cancels and reschedules one recurring occurrence', async () => {

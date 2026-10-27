@@ -4,6 +4,7 @@ import type { DateTime } from 'luxon'
 
 export interface Deadline {
     date: DateTime
+    dateOnly?: boolean
     text: string
     important?: boolean
 }
@@ -39,10 +40,11 @@ export default function DeadlineColumn({
     return (
         <Column gap={4} {...props}>
             {visibleDeadlines.map((d, i) => {
+                const datetimeFormat = d.dateOnly ? 'dd.MM' : 'dd.MM HH:mm'
                 return (
                     <>
                         <Column key={i}>
-                            <Text>{d.date.toFormat('dd.MM HH:mm')}</Text>
+                            <Text>{d.date.toFormat(datetimeFormat)}</Text>
                             <Text
                                 fontSize={d.important ? 20 : 16}
                                 fontWeight={d.important ? 600 : 400}

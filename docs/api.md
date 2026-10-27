@@ -480,6 +480,7 @@ interface DeadlineResponse {
     dueIsDate: boolean
     timezone: string
     completed: boolean
+    cancelledAt: string | null
     createdAt: string
     updatedAt: string
     recurrence: Recurrence | null
@@ -496,9 +497,22 @@ type DeadlineOccurrenceException =
           status: 'rescheduled'
           due: string
       }
+    | {
+          recurrenceId: string
+          status: 'updated'
+          title: string
+          description: string | null
+          due: string
+          dueIsDate: boolean
+          timezone: string
+          completed: boolean
+      }
 ```
 
 `recurrenceId` — исходный `due` экземпляра серии.
+`updated` содержит полный снимок occurrence override. `cancelledAt` — время
+мягкой отмены master; такая запись доступна по ID, но исключается из списков и
+расписания.
 
 ### `GET /api/deadlines`
 

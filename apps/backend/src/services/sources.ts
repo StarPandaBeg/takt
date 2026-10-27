@@ -1,9 +1,13 @@
 import * as deadlineExceptionsRepository from '#src/repository/deadline-recurrence-exceptions.js'
+import * as deadlineCompletionsRepository from '#src/repository/deadline-completions.js'
 import * as deadlinesRepository from '#src/repository/deadlines.js'
 import * as notesRepository from '#src/repository/notes.js'
 import type { Deadline, Event, Note } from '@takt/templates'
 import { DateTime } from 'luxon'
-import { convertDeadline, getUpcomingDeadlineOccurrences } from './deadlines.js'
+import {
+    convertDeadline,
+    getVisibleDeadlineOccurrencesForScreen,
+} from './deadlines.js'
 import { convertEvent } from './event-occurrences.js'
 import { getResolvedEvents } from './events.js'
 import { convert as convertNote } from './notes.js'
@@ -54,9 +58,16 @@ async function loadDeadlines(now: DateTime): Promise<Deadline[]> {
     const exceptions = await deadlineExceptionsRepository.getForDeadlineIds(
         masters.map(({ id }) => id),
     )
-    return getUpcomingDeadlineOccurrences(masters, exceptions, from, 32).map(
-        (deadline) => convertDeadline(deadline, now),
+    const completions = await deadlineCompletionsRepository.getForDeadlineIds(
+        masters.map(({ id }) => id),
     )
+    return getVisibleDeadlineOccurrencesForScreen(
+        masters,
+        exceptions,
+        completions,
+        now,
+        32,
+    ).map((deadline) => convertDeadline(deadline, now))
 }
 
 export const sources: DataSources = {

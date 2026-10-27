@@ -1,22 +1,35 @@
 import { db } from '#src/database/index.js'
 import {
+    deadlineCompletionsTable,
     deadlineRecurrenceExceptionsTable,
     deadlinesTable,
     type Deadline,
     type DeadlineInsert,
 } from '#src/database/schema.js'
-import { and, asc, eq, gte, isNotNull, or } from 'drizzle-orm'
+import {
+    and,
+    asc,
+    eq,
+    gte,
+    isNotNull,
+    isNull,
+    like,
+    lt,
+    or,
+} from 'drizzle-orm'
 
 export interface DeadlineFilters {
     readonly from?: Date | undefined
+    readonly to?: Date | undefined
     readonly limit?: number | undefined
     readonly withCompleted?: boolean | undefined
+    readonly query?: string | undefined
 }
 
 export const getFiltered = async (
     filters: DeadlineFilters,
 ): Promise<Deadline[]> => {
-    const conditions = []
+    const conditions = [isNull(deadlinesTable.cancelledAt)]
     if (filters.from !== undefined) {
         conditions.push(
             or(
@@ -25,14 +38,23 @@ export const getFiltered = async (
             )!,
         )
     }
-    if (!filters.withCompleted) {
-        conditions.push(eq(deadlinesTable.completed, false))
+    if (filters.to !== undefined) {
+        conditions.push(lt(deadlinesTable.due, filters.to))
+    }
+    if (filters.query !== undefined) {
+        const pattern = `%${filters.query}%`
+        conditions.push(
+            or(
+                like(deadlinesTable.title, pattern),
+                like(deadlinesTable.description, pattern),
+            )!,
+        )
     }
 
     let query = db
         .select()
         .from(deadlinesTable)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .where(and(...conditions))
         .orderBy(asc(deadlinesTable.due))
         .$dynamic()
 
@@ -43,19 +65,21 @@ export const getFiltered = async (
 /** Masters that can produce an occurrence at or after the requested date. */
 export const getScheduleCandidates = async (
     from: Date,
+    withCompleted = false,
 ): Promise<Deadline[]> => {
+    const conditions = [
+        isNull(deadlinesTable.cancelledAt),
+        or(
+            gte(deadlinesTable.due, from),
+            isNotNull(deadlinesTable.recurrenceRule),
+            eq(deadlinesTable.visibilityHide, 'on_complete'),
+        )!,
+    ]
+    void withCompleted
     return await db
         .select()
         .from(deadlinesTable)
-        .where(
-            and(
-                eq(deadlinesTable.completed, false),
-                or(
-                    gte(deadlinesTable.due, from),
-                    isNotNull(deadlinesTable.recurrenceRule),
-                ),
-            ),
-        )
+        .where(and(...conditions))
         .orderBy(asc(deadlinesTable.due))
 }
 
@@ -83,7 +107,9 @@ export type UpdateDeadline = {
             | 'dueIsDate'
             | 'timezone'
             | 'recurrenceRule'
-            | 'completed'
+            | 'visibilityShow'
+            | 'visibilityDays'
+            | 'visibilityHide'
         >
     ]?: Deadline[K] | undefined
 }
@@ -110,14 +136,86 @@ export const edit = async (
     })
 }
 
-export const markCompleted = async (
+export async function split(
     id: Deadline['id'],
-    completed: boolean,
-): Promise<void> => {
+    recurrenceId: Date,
+    previous: UpdateDeadline,
+    future: DeadlineInsert,
+): Promise<Deadline['id']> {
+    return await db.transaction(async (tx) => {
+        await tx
+            .update(deadlinesTable)
+            .set(previous)
+            .where(eq(deadlinesTable.id, id))
+        await tx
+            .delete(deadlineRecurrenceExceptionsTable)
+            .where(
+                and(
+                    eq(deadlineRecurrenceExceptionsTable.deadlineId, id),
+                    gte(
+                        deadlineRecurrenceExceptionsTable.recurrenceId,
+                        recurrenceId,
+                    ),
+                ),
+            )
+        await tx
+            .delete(deadlineCompletionsTable)
+            .where(
+                and(
+                    eq(deadlineCompletionsTable.deadlineId, id),
+                    gte(deadlineCompletionsTable.recurrenceId, recurrenceId),
+                ),
+            )
+        const result = await tx
+            .insert(deadlinesTable)
+            .values(future)
+            .returning({ id: deadlinesTable.id })
+        return result[0]!.id
+    })
+}
+
+export async function cancel(
+    id: Deadline['id'],
+    cancelledAt: Date,
+): Promise<void> {
     await db
         .update(deadlinesTable)
-        .set({ completed })
-        .where(eq(deadlinesTable.id, id))
+        .set({ cancelledAt })
+        .where(
+            and(eq(deadlinesTable.id, id), isNull(deadlinesTable.cancelledAt)),
+        )
+}
+
+export async function truncate(
+    id: Deadline['id'],
+    recurrenceId: Date,
+    recurrenceRule: string,
+): Promise<void> {
+    await db.transaction(async (tx) => {
+        await tx
+            .update(deadlinesTable)
+            .set({ recurrenceRule })
+            .where(eq(deadlinesTable.id, id))
+        await tx
+            .delete(deadlineRecurrenceExceptionsTable)
+            .where(
+                and(
+                    eq(deadlineRecurrenceExceptionsTable.deadlineId, id),
+                    gte(
+                        deadlineRecurrenceExceptionsTable.recurrenceId,
+                        recurrenceId,
+                    ),
+                ),
+            )
+        await tx
+            .delete(deadlineCompletionsTable)
+            .where(
+                and(
+                    eq(deadlineCompletionsTable.deadlineId, id),
+                    gte(deadlineCompletionsTable.recurrenceId, recurrenceId),
+                ),
+            )
+    })
 }
 
 export const remove = async (id: Deadline['id']): Promise<void> => {

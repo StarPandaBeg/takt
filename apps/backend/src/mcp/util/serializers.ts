@@ -1,7 +1,12 @@
 import type { Note } from '#src/database/schema.js'
+import type {
+    DeadlineEntity,
+    ResolvedDeadline,
+} from '#src/services/deadlines.js'
 import type { EventEntity, ResolvedEvent } from '#src/services/events.js'
+import type { Recurrence } from '#src/services/recurrence.js'
 
-function serializeRecurrence(recurrence: EventEntity['recurrence']) {
+function serializeRecurrence(recurrence: Recurrence | null) {
     if (recurrence === null || recurrence.until === undefined) {
         return recurrence
     }
@@ -50,6 +55,38 @@ export function serializeResolvedEvent(event: ResolvedEvent) {
         start: event.start.toISOString(),
         end: event.end?.toISOString() ?? null,
         recurrenceId: event.recurrenceId?.toISOString() ?? null,
+    }
+}
+
+export function serializeDeadlineEntity(deadline: DeadlineEntity) {
+    return {
+        ...deadline,
+        due: deadline.due.toISOString(),
+        createdAt: deadline.createdAt.toISOString(),
+        updatedAt: deadline.updatedAt.toISOString(),
+        cancelledAt: deadline.cancelledAt?.toISOString() ?? null,
+        completedAt: deadline.completedAt?.toISOString() ?? null,
+        recurrence: serializeRecurrence(deadline.recurrence),
+        completions: deadline.completions.map((completion) => ({
+            recurrenceId: completion.recurrenceId?.toISOString() ?? null,
+            completedAt: completion.completedAt.toISOString(),
+        })),
+        exceptions: deadline.exceptions.map((exception) => ({
+            ...exception,
+            recurrenceId: exception.recurrenceId.toISOString(),
+            ...('due' in exception
+                ? { due: exception.due.toISOString() }
+                : {}),
+        })),
+    }
+}
+
+export function serializeResolvedDeadline(deadline: ResolvedDeadline) {
+    return {
+        ...deadline,
+        due: deadline.due.toISOString(),
+        completedAt: deadline.completedAt?.toISOString() ?? null,
+        recurrenceId: deadline.recurrenceId?.toISOString() ?? null,
     }
 }
 

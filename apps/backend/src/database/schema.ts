@@ -75,10 +75,40 @@ export const deadlinesTable = sqliteTable('deadlines', {
     timezone: text().notNull().default('Europe/Moscow'),
     recurrenceRule: text('recurrence_rule'),
     completed: int({ mode: 'boolean' }).notNull().default(false),
+    cancelledAt: int('cancelled_at', { mode: 'timestamp_ms' }),
+    visibilityShow: text('visibility_show')
+        .notNull()
+        .default('always'),
+    visibilityDays: int('visibility_days').notNull().default(0),
+    visibilityHide: text('visibility_hide')
+        .notNull()
+        .default('on_due'),
     ...timestamps,
 })
 export type Deadline = InferSelectModel<typeof deadlinesTable>
 export type DeadlineInsert = InferInsertModel<typeof deadlinesTable>
+
+export const deadlineCompletionsTable = sqliteTable(
+    'deadline_completions',
+    {
+        id: int().primaryKey({ autoIncrement: true }),
+        deadlineId: int('deadline_id')
+            .notNull()
+            .references(() => deadlinesTable.id, { onDelete: 'cascade' }),
+        recurrenceId: int('recurrence_id', { mode: 'timestamp_ms' }),
+        completedAt: int('completed_at', { mode: 'timestamp_ms' }).notNull(),
+        ...timestamps,
+    },
+    (table) => [
+        uniqueIndex('deadline_completion_occurrence_unique').on(
+            table.deadlineId,
+            table.recurrenceId,
+        ),
+    ],
+)
+export type DeadlineCompletion = InferSelectModel<
+    typeof deadlineCompletionsTable
+>
 
 export const deadlineRecurrenceExceptionsTable = sqliteTable(
     'deadline_recurrence_exceptions',
@@ -89,6 +119,15 @@ export const deadlineRecurrenceExceptionsTable = sqliteTable(
             .references(() => deadlinesTable.id, { onDelete: 'cascade' }),
         recurrenceId: int('recurrence_id', { mode: 'timestamp_ms' }).notNull(),
         replacementDue: int('replacement_due', { mode: 'timestamp_ms' }),
+        replacementTitle: text('replacement_title'),
+        replacementDescription: text('replacement_description'),
+        replacementDueIsDate: int('replacement_due_is_date', {
+            mode: 'boolean',
+        }),
+        replacementTimezone: text('replacement_timezone'),
+        replacementCompleted: int('replacement_completed', {
+            mode: 'boolean',
+        }),
         ...timestamps,
     },
     (table) => [
@@ -117,6 +156,7 @@ export const relations = defineRelations({
     eventRecurrenceExceptionsTable,
     notesTable,
     deadlinesTable,
+    deadlineCompletionsTable,
     deadlineRecurrenceExceptionsTable,
     versionsTable,
 })
