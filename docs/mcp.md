@@ -80,3 +80,68 @@ interface SearchEventsInput {
 `description`, `start`, `end`, `timezone`, `allDay` и `recurrence`. Форматы
 правил повторения совпадают с разделом [Повторение](api.md#повторение) HTTP API.
 Возвращает `{ id: number }`.
+
+## `update_event`
+
+Изменяет master-серию, один экземпляр либо выбранный экземпляр и все будущие:
+
+```ts
+interface UpdateEventInput {
+    id: number
+    scope: 'series' | 'occurrence' | 'this_and_future'
+    recurrenceId?: string
+    changes: {
+        title?: string
+        description?: string | null
+        start?: string
+        end?: string | null
+        timezone?: string | null
+        allDay?: boolean
+        recurrence?: Recurrence | null
+    }
+}
+```
+
+`changes` должен содержать хотя бы одно поле. Отсутствующее поле сохраняет
+текущее значение; явный `null` очищает nullable-поле. Если меняется только
+`start`, существующая длительность сохраняется. `end: null` делает событие или
+экземпляр точечным.
+
+- `series` изменяет исходный master. `recurrenceId` не нужен. Изменение
+  `start`, `end`, `timezone` или `recurrence` очищает его occurrence overrides.
+- `occurrence` требует точный `recurrenceId` из `get_events`. Изменения
+  сохраняются как полный override выбранного экземпляра. Поле `recurrence`
+  для этого scope запрещено.
+- `this_and_future` требует `recurrenceId` и разделяет серию перед выбранным
+  экземпляром. Старый master получает конечный `count` или `until`, новый
+  master начинается с выбранного экземпляра и получает изменения. Исключения
+  до точки разделения остаются у старой серии; исключения начиная с неё
+  удаляются, поскольку после изменения времени, timezone или recurrence их
+  идентификаторы могут стать недействительными.
+
+Если выбран первый экземпляр, `this_and_future` эквивалентен `series` и новый
+master не создаётся. В остальных случаях результат `{ id }` содержит ID новой
+будущей серии; для двух других scope это ID исходного master.
+
+## `cancel_event`
+
+Отменяет один экземпляр, выбранный и все будущие экземпляры либо всю серию:
+
+```ts
+interface CancelEventInput {
+    id: number
+    scope: 'series' | 'occurrence' | 'this_and_future'
+    recurrenceId?: string
+}
+```
+
+- `series` выполняет мягкое удаление master-события, устанавливая
+  `cancelledAt`. Оно перестаёт попадать в `search_events`, `get_events` и экран,
+  но остаётся доступно через `get_event(id)`.
+- `occurrence` требует `recurrenceId` и сохраняет cancellation exception.
+- `this_and_future` требует `recurrenceId` и завершает RRULE перед выбранным
+  экземпляром. Прошлые exceptions сохраняются, выбранный и более поздние
+  удаляются как больше не относящиеся к активной части серии.
+
+Если `this_and_future` указывает на первый экземпляр, отменяется вся серия.
+Результат для всех scope — `{ id }` исходного master-события.

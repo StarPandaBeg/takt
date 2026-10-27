@@ -26,7 +26,7 @@ export interface EventFilters {
 }
 
 export const getFiltered = async (filters: EventFilters): Promise<Event[]> => {
-    const conditions = []
+    const conditions = [isNull(eventsTable.cancelledAt)]
     if (filters.from !== undefined) {
         conditions.push(gte(eventsTable.start, filters.from))
     }
@@ -46,7 +46,7 @@ export const getFiltered = async (filters: EventFilters): Promise<Event[]> => {
     let query = db
         .select()
         .from(eventsTable)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .where(and(...conditions))
         .orderBy(asc(eventsTable.start))
         .$dynamic()
 
@@ -63,15 +63,18 @@ export const getOverlapping = async (
         .select()
         .from(eventsTable)
         .where(
-            or(
-                isNotNull(eventsTable.recurrenceRule),
-                and(
-                    lt(eventsTable.start, to),
-                    or(
-                        gt(eventsTable.end, from),
-                        and(
-                            isNull(eventsTable.end),
-                            gte(eventsTable.start, from),
+            and(
+                isNull(eventsTable.cancelledAt),
+                or(
+                    isNotNull(eventsTable.recurrenceRule),
+                    and(
+                        lt(eventsTable.start, to),
+                        or(
+                            gt(eventsTable.end, from),
+                            and(
+                                isNull(eventsTable.end),
+                                gte(eventsTable.start, from),
+                            ),
                         ),
                     ),
                 ),
@@ -123,6 +126,64 @@ export const edit = async (
                 .delete(eventRecurrenceExceptionsTable)
                 .where(eq(eventRecurrenceExceptionsTable.eventId, id))
         }
+    })
+}
+
+export async function split(
+    id: Event['id'],
+    recurrenceId: Date,
+    previous: UpdateEvent,
+    future: EventInsert,
+): Promise<Event['id']> {
+    return await db.transaction(async (tx) => {
+        await tx.update(eventsTable).set(previous).where(eq(eventsTable.id, id))
+        await tx
+            .delete(eventRecurrenceExceptionsTable)
+            .where(
+                and(
+                    eq(eventRecurrenceExceptionsTable.eventId, id),
+                    gte(
+                        eventRecurrenceExceptionsTable.recurrenceId,
+                        recurrenceId,
+                    ),
+                ),
+            )
+        const result = await tx
+            .insert(eventsTable)
+            .values(future)
+            .returning({ id: eventsTable.id })
+        return result[0]!.id
+    })
+}
+
+export async function cancel(id: Event['id'], cancelledAt: Date): Promise<void> {
+    await db
+        .update(eventsTable)
+        .set({ cancelledAt })
+        .where(and(eq(eventsTable.id, id), isNull(eventsTable.cancelledAt)))
+}
+
+export async function truncate(
+    id: Event['id'],
+    recurrenceId: Date,
+    recurrenceRule: string,
+): Promise<void> {
+    await db.transaction(async (tx) => {
+        await tx
+            .update(eventsTable)
+            .set({ recurrenceRule })
+            .where(eq(eventsTable.id, id))
+        await tx
+            .delete(eventRecurrenceExceptionsTable)
+            .where(
+                and(
+                    eq(eventRecurrenceExceptionsTable.eventId, id),
+                    gte(
+                        eventRecurrenceExceptionsTable.recurrenceId,
+                        recurrenceId,
+                    ),
+                ),
+            )
     })
 }
 

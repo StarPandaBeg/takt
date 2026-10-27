@@ -104,14 +104,32 @@ export const eventOccurrenceExceptionSchema = z
             recurrenceId: z
                 .string()
                 .describe(
-                    'Original scheduled start time identifying an occurrence in the recurring series, even if it was rescheduled',
+                    'Original scheduled start time identifying an occurrence in the recurring series, even if it was updated',
                 ),
         }),
 
         z.object({
             status: z
                 .literal('rescheduled')
-                .describe('This occurrence has been rescheduled'),
+                .describe('This occurrence has a time-only override'),
+            recurrenceId: z
+                .string()
+                .describe(
+                    'Original scheduled start time identifying an occurrence in the recurring series',
+                ),
+            start: z.iso
+                .datetime({ offset: true })
+                .describe('New occurrence start time (ISO 8601)'),
+            end: z.iso
+                .datetime({ offset: true })
+                .nullable()
+                .describe('New occurrence end time, or null if unspecified'),
+        }),
+
+        z.object({
+            status: z
+                .literal('updated')
+                .describe('This occurrence overrides fields of the series'),
             recurrenceId: z
                 .string()
                 .describe(
@@ -120,14 +138,26 @@ export const eventOccurrenceExceptionSchema = z
             start: z.iso
                 .datetime({ offset: true })
                 .describe(
-                    'New start time of the rescheduled occurrence (ISO 8601)',
+                    'Effective start time of the updated occurrence (ISO 8601)',
                 ),
             end: z.iso
                 .datetime({ offset: true })
                 .nullable()
                 .describe(
-                    'New end time of the rescheduled occurrence (ISO 8601), or null if unspecified',
+                    'Effective end time of the updated occurrence (ISO 8601), or null if unspecified',
                 ),
+            title: z.string().describe('Occurrence-specific event name'),
+            description: z
+                .string()
+                .nullable()
+                .describe('Occurrence-specific description'),
+            timezone: z
+                .string()
+                .nullable()
+                .describe('Occurrence-specific IANA timezone, or null'),
+            allDay: z
+                .boolean()
+                .describe('Whether this occurrence is all-day'),
         }),
     ])
     .describe('Exception overriding a single occurrence of a recurring event')
@@ -153,12 +183,16 @@ export const eventEntitySchema = z.object({
         .describe('IANA timezone of the recurring master, or null'),
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
+    cancelledAt: z.iso
+        .datetime({ offset: true })
+        .nullable()
+        .describe('When the entire event master was cancelled, or null'),
     recurrence: recurrenceSchema
         .nullable()
         .describe('Rule describing how this event repeats'),
     exceptions: z
         .array(eventOccurrenceExceptionSchema)
-        .describe('Cancelled or rescheduled occurrences of a recurring event'),
+        .describe('Cancelled or updated occurrences of a recurring event'),
 })
 
 export const resolvedEventSchema = z.object({

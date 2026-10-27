@@ -24,6 +24,7 @@ export const eventsTable = sqliteTable('events', {
     timezone: text().default('Europe/Moscow'),
     allDay: int({ mode: 'boolean' }).notNull().default(false),
     recurrenceRule: text('recurrence_rule'),
+    cancelledAt: int('cancelled_at', { mode: 'timestamp_ms' }),
     ...timestamps,
 })
 export type Event = InferSelectModel<typeof eventsTable>
@@ -39,6 +40,10 @@ export const eventRecurrenceExceptionsTable = sqliteTable(
         recurrenceId: int('recurrence_id', { mode: 'timestamp_ms' }).notNull(),
         replacementStart: int('replacement_start', { mode: 'timestamp_ms' }),
         replacementEnd: int('replacement_end', { mode: 'timestamp_ms' }),
+        replacementTitle: text('replacement_title'),
+        replacementDescription: text('replacement_description'),
+        replacementTimezone: text('replacement_timezone'),
+        replacementAllDay: int('replacement_all_day', { mode: 'boolean' }),
         ...timestamps,
     },
     (table) => [

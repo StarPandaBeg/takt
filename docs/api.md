@@ -253,6 +253,7 @@ interface EventResponse {
     end: string | null
     timezone: string | null
     allDay: boolean
+    cancelledAt: string | null
     createdAt: string
     updatedAt: string
     recurrence: Recurrence | null
@@ -270,10 +271,27 @@ type EventOccurrenceException =
           start: string
           end: string | null
       }
+    | {
+          recurrenceId: string
+          status: 'updated'
+          title: string
+          description: string | null
+          start: string
+          end: string | null
+          timezone: string | null
+          allDay: boolean
+      }
 ```
 
 `recurrenceId` — исходный `start` конкретного экземпляра серии. После
-переноса он не меняется.
+изменения он не меняется. `rescheduled` — совместимый time-only override,
+создаваемый текущим occurrence HTTP endpoint. `updated` содержит полный снимок
+полей экземпляра; это позволяет отличать явный `null` от наследования значения
+master-серии.
+
+`cancelledAt` — время мягкой отмены всей master-серии. Отменённые master-записи
+не возвращаются списком и не материализуются в расписании, но доступны по
+точному `GET /api/events/:id`.
 
 Для календарного диапазона используется уже разрешённая модель экземпляра:
 

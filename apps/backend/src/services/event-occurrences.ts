@@ -117,12 +117,18 @@ export function getEventOccurrences(
                 if (exception.replacementStart === null) return []
                 const replacement: ResolvedEvent = {
                     id: event.id,
-                    title: event.title,
-                    description: event.description,
+                    title: exception.replacementTitle ?? event.title,
+                    description:
+                        exception.replacementTitle === null
+                            ? event.description
+                            : exception.replacementDescription,
                     start: exception.replacementStart,
                     end: exception.replacementEnd,
-                    timezone: event.timezone,
-                    allDay: event.allDay,
+                    timezone:
+                        exception.replacementTitle === null
+                            ? event.timezone
+                            : exception.replacementTimezone,
+                    allDay: exception.replacementAllDay ?? event.allDay,
                     recurrenceId: exception.recurrenceId,
                 }
                 return overlaps(replacement, fromDate, toDate)

@@ -5,6 +5,8 @@ import type { EventFilters } from '../repository/events.js'
 import * as eventsRepository from '../repository/events.js'
 import { getEventOccurrences, type ResolvedEvent } from './event-occurrences.js'
 import {
+    getRecurrenceOccurrencesBetween,
+    isRecurrenceOccurrence,
     parseRecurrence,
     serializeRecurrence,
     type Recurrence,
@@ -23,6 +25,29 @@ export type EventOccurrenceException =
           readonly start: Date
           readonly end: Date | null
       }
+    | {
+          readonly recurrenceId: Date
+          readonly status: 'updated'
+          readonly title: string
+          readonly description: string | null
+          readonly start: Date
+          readonly end: Date | null
+          readonly timezone: string | null
+          readonly allDay: boolean
+      }
+
+export type EventChanges = Partial<{
+    readonly title: string
+    readonly description: string | null
+    readonly start: Date
+    readonly end: Date | null
+    readonly timezone: string | null
+    readonly allDay: boolean
+    readonly recurrence: Recurrence | null
+}>
+
+export type EventUpdateScope = 'series' | 'occurrence' | 'this_and_future'
+export type EventCancellationScope = EventUpdateScope
 
 export type EventEntity = Omit<Event, 'recurrenceRule'> & {
     readonly recurrence: Recurrence | null
@@ -47,18 +72,32 @@ export function serializeEventRecurrence<
 
 function resolveException(
     exception: EventRecurrenceException,
+    event: Event,
 ): EventOccurrenceException {
-    return exception.replacementStart === null
-        ? {
-              recurrenceId: exception.recurrenceId,
-              status: 'cancelled',
-          }
-        : {
-              recurrenceId: exception.recurrenceId,
-              status: 'rescheduled',
-              start: exception.replacementStart,
-              end: exception.replacementEnd,
-          }
+    if (exception.replacementStart === null) {
+        return {
+            recurrenceId: exception.recurrenceId,
+            status: 'cancelled',
+        }
+    }
+    if (exception.replacementTitle === null) {
+        return {
+            recurrenceId: exception.recurrenceId,
+            status: 'rescheduled',
+            start: exception.replacementStart,
+            end: exception.replacementEnd,
+        }
+    }
+    return {
+        recurrenceId: exception.recurrenceId,
+        status: 'updated',
+        title: exception.replacementTitle,
+        description: exception.replacementDescription,
+        start: exception.replacementStart,
+        end: exception.replacementEnd,
+        timezone: exception.replacementTimezone,
+        allDay: exception.replacementAllDay ?? event.allDay,
+    }
 }
 
 function toEventEntity(
@@ -70,7 +109,9 @@ function toEventEntity(
         ...fields,
         recurrence:
             recurrenceRule === null ? null : parseRecurrence(recurrenceRule),
-        exceptions: exceptions.map(resolveException),
+        exceptions: exceptions.map((exception) =>
+            resolveException(exception, event),
+        ),
     }
 }
 
@@ -131,4 +172,257 @@ export async function getResolvedEvents(options: {
     return options.limit === undefined
         ? occurrences
         : occurrences.slice(0, options.limit)
+}
+
+function getEffectiveEnd(
+    originalStart: Date,
+    originalEnd: Date | null,
+    changes: EventChanges,
+): Date | null {
+    if (changes.end !== undefined) return changes.end
+    if (changes.start === undefined || originalEnd === null) return originalEnd
+    return new Date(
+        changes.start.getTime() + originalEnd.getTime() - originalStart.getTime(),
+    )
+}
+
+function assertValidInterval(start: Date, end: Date | null): void {
+    if (end !== null && end < start) {
+        throw new RangeError('Event end must not be earlier than start')
+    }
+}
+
+function getRecurringEvent(event: Event, recurrenceId: Date) {
+    if (event.recurrenceRule === null) {
+        throw new RangeError('Event is not recurring')
+    }
+    const zone = event.timezone ?? 'Europe/Moscow'
+    const start = DateTime.fromJSDate(event.start).setZone(zone)
+    const occurrence = DateTime.fromJSDate(recurrenceId).setZone(zone)
+    const recurrence = parseRecurrence(event.recurrenceRule)
+    if (!isRecurrenceOccurrence(start, recurrence, occurrence)) {
+        throw new RangeError(
+            'recurrenceId is not an occurrence of this series',
+        )
+    }
+    return { start, occurrence, recurrence }
+}
+
+function getRecurrenceSplit(
+    recurring: ReturnType<typeof getRecurringEvent>,
+): { readonly previous: Recurrence; readonly previousCount: number } {
+    const throughSelected = getRecurrenceOccurrencesBetween(
+        recurring.start,
+        recurring.recurrence,
+        recurring.start,
+        recurring.occurrence.plus({ milliseconds: 1 }),
+    )
+    const previousCount = throughSelected.length - 1
+    const previousOccurrence = throughSelected.at(-2)
+    if (previousOccurrence === undefined) {
+        throw new RangeError('Cannot truncate before the first occurrence')
+    }
+    return {
+        previous:
+            recurring.recurrence.count === undefined
+                ? {
+                      ...recurring.recurrence,
+                      until: previousOccurrence.toJSDate(),
+                  }
+                : {
+                      ...recurring.recurrence,
+                      count: previousCount,
+                      until: undefined,
+                  },
+        previousCount,
+    }
+}
+
+export async function updateEvent(options: {
+    readonly id: number
+    readonly scope: EventUpdateScope
+    readonly recurrenceId?: Date | undefined
+    readonly changes: EventChanges
+}): Promise<number> {
+    const event = await eventsRepository.get(options.id)
+    if (event === undefined) throw new RangeError('Event not found')
+
+    if (options.scope === 'series') {
+        const start = options.changes.start ?? event.start
+        const end = getEffectiveEnd(event.start, event.end, options.changes)
+        assertValidInterval(start, end)
+        await eventsRepository.edit(
+            event.id,
+            serializeEventRecurrence({
+                ...options.changes,
+                ...(options.changes.start === undefined ? {} : { start }),
+                ...(options.changes.end === undefined &&
+                options.changes.start === undefined
+                    ? {}
+                    : { end }),
+            }),
+        )
+        return event.id
+    }
+
+    if (options.recurrenceId === undefined) {
+        throw new RangeError(
+            'recurrenceId is required for occurrence and this_and_future',
+        )
+    }
+    const recurring = getRecurringEvent(event, options.recurrenceId)
+
+    if (options.scope === 'occurrence') {
+        if (options.changes.recurrence !== undefined) {
+            throw new RangeError(
+                'recurrence cannot be changed for a single occurrence',
+            )
+        }
+        const entity = await getEventEntity(event.id)
+        const found = entity?.exceptions.find(
+            (exception) =>
+                exception.status === 'updated' &&
+                exception.recurrenceId.getTime() ===
+                    options.recurrenceId!.getTime(),
+        )
+        const existing = found?.status === 'updated' ? found : undefined
+        const originalStart = existing?.start ?? options.recurrenceId
+        const originalEnd =
+            existing === undefined
+                ? event.end === null
+                    ? null
+                    : new Date(
+                          options.recurrenceId.getTime() +
+                              event.end.getTime() -
+                              event.start.getTime(),
+                      )
+                : existing.end
+        const start = options.changes.start ?? originalStart
+        const end = getEffectiveEnd(originalStart, originalEnd, options.changes)
+        assertValidInterval(start, end)
+        await eventExceptionsRepository.set(
+            event.id,
+            options.recurrenceId,
+            start,
+            end,
+            {
+                title: options.changes.title ?? existing?.title ?? event.title,
+                description:
+                    options.changes.description !== undefined
+                        ? options.changes.description
+                        : existing === undefined
+                          ? event.description
+                          : existing.description,
+                timezone:
+                    options.changes.timezone !== undefined
+                        ? options.changes.timezone
+                        : existing === undefined
+                          ? event.timezone
+                          : existing.timezone,
+                allDay:
+                    options.changes.allDay ?? existing?.allDay ?? event.allDay,
+            },
+        )
+        return event.id
+    }
+
+    if (options.recurrenceId.getTime() === event.start.getTime()) {
+        return await updateEvent({
+            id: event.id,
+            scope: 'series',
+            changes: options.changes,
+        })
+    }
+
+    const { previous: previousRecurrence, previousCount } =
+        getRecurrenceSplit(recurring)
+    const inheritedFutureRecurrence: Recurrence = {
+        ...recurring.recurrence,
+        ...(recurring.recurrence.count === undefined
+            ? {}
+            : { count: recurring.recurrence.count - previousCount }),
+    }
+    const start = options.changes.start ?? options.recurrenceId
+    const occurrenceEnd =
+        event.end === null
+            ? null
+            : new Date(
+                  options.recurrenceId.getTime() +
+                      event.end.getTime() -
+                      event.start.getTime(),
+              )
+    const end = getEffectiveEnd(
+        options.recurrenceId,
+        occurrenceEnd,
+        options.changes,
+    )
+    assertValidInterval(start, end)
+    const future = serializeEventRecurrence({
+        title: options.changes.title ?? event.title,
+        description:
+            options.changes.description !== undefined
+                ? options.changes.description
+                : event.description,
+        start,
+        end,
+        timezone:
+            options.changes.timezone !== undefined
+                ? options.changes.timezone
+                : event.timezone,
+        allDay: options.changes.allDay ?? event.allDay,
+        recurrence:
+            options.changes.recurrence !== undefined
+                ? options.changes.recurrence
+                : inheritedFutureRecurrence,
+    })
+    return await eventsRepository.split(
+        event.id,
+        options.recurrenceId,
+        { recurrenceRule: serializeRecurrence(previousRecurrence) },
+        future,
+    )
+}
+
+export async function cancelEvent(options: {
+    readonly id: number
+    readonly scope: EventCancellationScope
+    readonly recurrenceId?: Date | undefined
+}): Promise<number> {
+    const event = await eventsRepository.get(options.id)
+    if (event === undefined) throw new RangeError('Event not found')
+    if (event.cancelledAt !== null) return event.id
+
+    if (options.scope === 'series') {
+        await eventsRepository.cancel(event.id, new Date())
+        return event.id
+    }
+
+    if (options.recurrenceId === undefined) {
+        throw new RangeError(
+            'recurrenceId is required for occurrence and this_and_future',
+        )
+    }
+    const recurring = getRecurringEvent(event, options.recurrenceId)
+
+    if (options.scope === 'occurrence') {
+        await eventExceptionsRepository.set(
+            event.id,
+            options.recurrenceId,
+            null,
+            null,
+        )
+        return event.id
+    }
+
+    if (options.recurrenceId.getTime() === event.start.getTime()) {
+        await eventsRepository.cancel(event.id, new Date())
+        return event.id
+    }
+
+    await eventsRepository.truncate(
+        event.id,
+        options.recurrenceId,
+        serializeRecurrence(getRecurrenceSplit(recurring).previous),
+    )
+    return event.id
 }

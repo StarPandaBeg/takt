@@ -14,6 +14,7 @@ export function serializeEventEntity(event: EventEntity) {
         end: event.end?.toISOString() ?? null,
         createdAt: event.createdAt.toISOString(),
         updatedAt: event.updatedAt.toISOString(),
+        cancelledAt: event.cancelledAt?.toISOString() ?? null,
         recurrence: serializeRecurrence(event.recurrence),
         exceptions: event.exceptions.map((exception) =>
             exception.status === 'cancelled'
@@ -21,11 +22,22 @@ export function serializeEventEntity(event: EventEntity) {
                       status: exception.status,
                       recurrenceId: exception.recurrenceId.toISOString(),
                   }
-                : {
+                : exception.status === 'rescheduled'
+                  ? {
+                        status: exception.status,
+                        recurrenceId: exception.recurrenceId.toISOString(),
+                        start: exception.start.toISOString(),
+                        end: exception.end?.toISOString() ?? null,
+                    }
+                  : {
                       status: exception.status,
                       recurrenceId: exception.recurrenceId.toISOString(),
+                      title: exception.title,
+                      description: exception.description,
                       start: exception.start.toISOString(),
                       end: exception.end?.toISOString() ?? null,
+                      timezone: exception.timezone,
+                      allDay: exception.allDay,
                   },
         ),
     }

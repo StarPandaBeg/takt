@@ -24,10 +24,26 @@ export async function set(
     recurrenceId: Date,
     replacementStart: Date | null,
     replacementEnd: Date | null,
+    replacement?:
+        | {
+              readonly title: string
+              readonly description: string | null
+              readonly timezone: string | null
+              readonly allDay: boolean
+        },
 ): Promise<void> {
     await db
         .insert(eventRecurrenceExceptionsTable)
-        .values({ eventId, recurrenceId, replacementStart, replacementEnd })
+        .values({
+            eventId,
+            recurrenceId,
+            replacementStart,
+            replacementEnd,
+            replacementTitle: replacement?.title,
+            replacementDescription: replacement?.description,
+            replacementTimezone: replacement?.timezone,
+            replacementAllDay: replacement?.allDay,
+        })
         .onConflictDoUpdate({
             target: [
                 eventRecurrenceExceptionsTable.eventId,
@@ -36,6 +52,10 @@ export async function set(
             set: {
                 replacementStart,
                 replacementEnd,
+                replacementTitle: replacement?.title ?? null,
+                replacementDescription: replacement?.description ?? null,
+                replacementTimezone: replacement?.timezone ?? null,
+                replacementAllDay: replacement?.allDay ?? null,
                 updatedAt: new Date(),
             },
         })
