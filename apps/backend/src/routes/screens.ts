@@ -1,19 +1,15 @@
+import { createNodeEnvironment } from '#/render-environment.js'
+import { generateScene, getSceneHash, getSceneNames } from '#/services/scene.js'
+import type {
+    ScreenChange,
+    ScreenChangeService,
+} from '#/services/screen-changes.js'
 import { createRenderer } from '@takt/renderer'
 import { exportEsp, exportPng } from '@takt/renderer/exporters'
 import { project } from '@takt/templates'
 import type { FastifyPluginAsync } from 'fastify'
 import type { ServerResponse } from 'node:http'
 import * as z from 'zod'
-import { createNodeEnvironment } from '../render-environment.js'
-import type {
-    ScreenChange,
-    ScreenChangeService,
-} from '../services/screen-changes.js'
-import {
-    generateScene,
-    getSceneHash,
-    getSceneNames,
-} from '../services/scene.js'
 
 const nameSchema = z.object({
     name: z.enum(getSceneNames()),
@@ -71,7 +67,8 @@ export const screenRoutes: FastifyPluginAsync<ScreenRoutesOptions> = async (
             }
         })
         const heartbeat = setInterval(() => {
-            if (!closed && !response.destroyed) response.write(': heartbeat\n\n')
+            if (!closed && !response.destroyed)
+                response.write(': heartbeat\n\n')
         }, HEARTBEAT_INTERVAL)
         heartbeat.unref()
 

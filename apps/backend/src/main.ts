@@ -1,5 +1,5 @@
+import { buildApp } from '#/app.js'
 import 'dotenv/config'
-import { buildApp } from './app.js'
 
 const DEFAULT_HOST = '0.0.0.0'
 const DEFAULT_PORT = 3000

@@ -34,5 +34,8 @@
     "devDependencies": {
         "@types/luxon": "^3.7.6",
         "drizzle-kit": "^1.0.0-rc.5"
+    },
+    "imports": {
+        "#/*": "./dist/*"
     }
 }

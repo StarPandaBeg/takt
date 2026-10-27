@@ -1,13 +1,10 @@
-import type { Deadline as TemplateDeadline } from '@takt/templates'
-import { DateTime } from 'luxon'
 import type {
     Deadline,
     DeadlineRecurrenceException,
-} from '../database/schema.js'
-import {
-    getRecurrenceOccurrences,
-    parseRecurrence,
-} from './recurrence.js'
+} from '#/database/schema.js'
+import type { Deadline as TemplateDeadline } from '@takt/templates'
+import { DateTime } from 'luxon'
+import { getRecurrenceOccurrences, parseRecurrence } from './recurrence.js'
 
 export function convertDeadline(
     deadline: Deadline,
@@ -42,7 +39,9 @@ export function getUpcomingDeadlineOccurrences(
 
         const deadlineExceptions = exceptionsByDeadline.get(deadline.id) ?? []
         const recurrenceIds = new Set(
-            deadlineExceptions.map(({ recurrenceId }) => recurrenceId.getTime()),
+            deadlineExceptions.map(({ recurrenceId }) =>
+                recurrenceId.getTime(),
+            ),
         )
         const zone = deadline.timezone
         const start = DateTime.fromJSDate(deadline.due).setZone(zone)
@@ -55,11 +54,10 @@ export function getUpcomingDeadlineOccurrences(
         )
             .filter((due) => !recurrenceIds.has(due.toMillis()))
             .map((due) => ({ ...deadline, due: due.toJSDate() }))
-        const replacements = deadlineExceptions.flatMap(
-            ({ replacementDue }) =>
-                replacementDue !== null && replacementDue >= from.toJSDate()
-                    ? [{ ...deadline, due: replacementDue }]
-                    : [],
+        const replacements = deadlineExceptions.flatMap(({ replacementDue }) =>
+            replacementDue !== null && replacementDue >= from.toJSDate()
+                ? [{ ...deadline, due: replacementDue }]
+                : [],
         )
         return [...regular, ...replacements]
     })

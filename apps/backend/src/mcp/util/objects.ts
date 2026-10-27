@@ -155,9 +155,7 @@ export const eventOccurrenceExceptionSchema = z
                 .string()
                 .nullable()
                 .describe('Occurrence-specific IANA timezone, or null'),
-            allDay: z
-                .boolean()
-                .describe('Whether this occurrence is all-day'),
+            allDay: z.boolean().describe('Whether this occurrence is all-day'),
         }),
     ])
     .describe('Exception overriding a single occurrence of a recurring event')
@@ -213,5 +211,16 @@ export const resolvedEventSchema = z.object({
         .nullable()
         .describe(
             'Original scheduled start identifying this series occurrence, or null for a non-recurring event',
+        ),
+})
+
+export const noteSchema = z.object({
+    id: z.int().describe('ID of the note'),
+    text: z.string(),
+    completedAt: z.iso
+        .datetime({ offset: true })
+        .nullable()
+        .describe(
+            'Time when note was completed. May be null if note is active',
         ),
 })

@@ -1,16 +1,16 @@
-import type { FastifyPluginAsync } from 'fastify'
-import { DateTime } from 'luxon'
-import * as z from 'zod'
-import type { Deadline } from '../database/schema.js'
-import * as deadlineExceptions from '../repository/deadline-recurrence-exceptions.js'
-import * as deadlines from '../repository/deadlines.js'
+import type { Deadline } from '#/database/schema.js'
+import * as deadlineExceptions from '#/repository/deadline-recurrence-exceptions.js'
+import * as deadlines from '#/repository/deadlines.js'
 import {
     isRecurrenceOccurrence,
     parseRecurrence,
     recurrenceSchema,
     serializeRecurrence,
     type Recurrence,
-} from '../services/recurrence.js'
+} from '#/services/recurrence.js'
+import type { FastifyPluginAsync } from 'fastify'
+import { DateTime } from 'luxon'
+import * as z from 'zod'
 
 const idSchema = z.object({
     id: z.coerce.number().int().positive(),
@@ -122,60 +122,54 @@ export const deadlinesRoutes: FastifyPluginAsync = async (fastify) => {
         await deadlines.edit(id, toRecordInput(body))
     })
 
-    fastify.put(
-        '/:id/occurrences/:recurrenceId',
-        async (request, reply) => {
-            const { id, recurrenceId } = occurrenceParamsSchema.parse(
-                request.params,
-            )
-            const exception = occurrenceExceptionSchema.parse(request.body)
-            const deadline = await deadlines.get(id)
-            if (deadline === undefined) {
-                return reply.code(404).send({ message: 'Deadline not found' })
-            }
-            if (deadline.recurrenceRule === null) {
-                return reply
-                    .code(409)
-                    .send({ message: 'Deadline is not recurring' })
-            }
+    fastify.put('/:id/occurrences/:recurrenceId', async (request, reply) => {
+        const { id, recurrenceId } = occurrenceParamsSchema.parse(
+            request.params,
+        )
+        const exception = occurrenceExceptionSchema.parse(request.body)
+        const deadline = await deadlines.get(id)
+        if (deadline === undefined) {
+            return reply.code(404).send({ message: 'Deadline not found' })
+        }
+        if (deadline.recurrenceRule === null) {
+            return reply
+                .code(409)
+                .send({ message: 'Deadline is not recurring' })
+        }
 
-            const start = DateTime.fromJSDate(deadline.due).setZone(
-                deadline.timezone,
+        const start = DateTime.fromJSDate(deadline.due).setZone(
+            deadline.timezone,
+        )
+        const occurrence = DateTime.fromJSDate(recurrenceId).setZone(
+            deadline.timezone,
+        )
+        if (
+            !isRecurrenceOccurrence(
+                start,
+                parseRecurrence(deadline.recurrenceRule),
+                occurrence,
             )
-            const occurrence = DateTime.fromJSDate(recurrenceId).setZone(
-                deadline.timezone,
-            )
-            if (
-                !isRecurrenceOccurrence(
-                    start,
-                    parseRecurrence(deadline.recurrenceRule),
-                    occurrence,
-                )
-            ) {
-                return reply.code(400).send({
-                    message: 'recurrenceId is not an occurrence of this series',
-                })
-            }
+        ) {
+            return reply.code(400).send({
+                message: 'recurrenceId is not an occurrence of this series',
+            })
+        }
 
-            await deadlineExceptions.set(
-                id,
-                recurrenceId,
-                exception.status === 'cancelled' ? null : exception.due,
-            )
-            return reply.code(204).send()
-        },
-    )
+        await deadlineExceptions.set(
+            id,
+            recurrenceId,
+            exception.status === 'cancelled' ? null : exception.due,
+        )
+        return reply.code(204).send()
+    })
 
-    fastify.delete(
-        '/:id/occurrences/:recurrenceId',
-        async (request, reply) => {
-            const { id, recurrenceId } = occurrenceParamsSchema.parse(
-                request.params,
-            )
-            await deadlineExceptions.remove(id, recurrenceId)
-            return reply.code(204).send()
-        },
-    )
+    fastify.delete('/:id/occurrences/:recurrenceId', async (request, reply) => {
+        const { id, recurrenceId } = occurrenceParamsSchema.parse(
+            request.params,
+        )
+        await deadlineExceptions.remove(id, recurrenceId)
+        return reply.code(204).send()
+    })
 
     fastify.post('/:id/markDone', async (request, reply) => {
         const { id } = idSchema.parse(request.params)

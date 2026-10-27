@@ -1,9 +1,9 @@
-import { and, asc, eq, inArray } from 'drizzle-orm'
-import { db } from '../database/index.js'
+import { db } from '#/database/index.js'
 import {
     eventRecurrenceExceptionsTable,
     type EventRecurrenceException,
-} from '../database/schema.js'
+} from '#/database/schema.js'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 
 export async function getForEventIds(
     eventIds: readonly number[],
@@ -24,13 +24,12 @@ export async function set(
     recurrenceId: Date,
     replacementStart: Date | null,
     replacementEnd: Date | null,
-    replacement?:
-        | {
-              readonly title: string
-              readonly description: string | null
-              readonly timezone: string | null
-              readonly allDay: boolean
-        },
+    replacement?: {
+        readonly title: string
+        readonly description: string | null
+        readonly timezone: string | null
+        readonly allDay: boolean
+    },
 ): Promise<void> {
     await db
         .insert(eventRecurrenceExceptionsTable)

@@ -1,11 +1,11 @@
-import { and, asc, eq, gte, isNotNull, or } from 'drizzle-orm'
-import { db } from '../database/index.js'
+import { db } from '#/database/index.js'
 import {
     deadlineRecurrenceExceptionsTable,
     deadlinesTable,
     type Deadline,
     type DeadlineInsert,
-} from '../database/schema.js'
+} from '#/database/schema.js'
+import { and, asc, eq, gte, isNotNull, or } from 'drizzle-orm'
 
 export interface DeadlineFilters {
     readonly from?: Date | undefined
@@ -41,7 +41,9 @@ export const getFiltered = async (
 }
 
 /** Masters that can produce an occurrence at or after the requested date. */
-export const getScheduleCandidates = async (from: Date): Promise<Deadline[]> => {
+export const getScheduleCandidates = async (
+    from: Date,
+): Promise<Deadline[]> => {
     return await db
         .select()
         .from(deadlinesTable)
@@ -103,9 +105,7 @@ export const edit = async (
         ) {
             await tx
                 .delete(deadlineRecurrenceExceptionsTable)
-                .where(
-                    eq(deadlineRecurrenceExceptionsTable.deadlineId, id),
-                )
+                .where(eq(deadlineRecurrenceExceptionsTable.deadlineId, id))
         }
     })
 }

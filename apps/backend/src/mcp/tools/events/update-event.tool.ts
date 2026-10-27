@@ -1,10 +1,10 @@
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
-import { updateEvent } from '../../services/events.js'
-import { recurrenceSchema as domainRecurrenceSchema } from '../../services/recurrence.js'
-import { toToolResponse } from '../util/helpers.js'
-import { recurrenceSchema } from '../util/objects.js'
+import { toToolResponse } from '#/mcp/util/helpers.js'
+import { recurrenceSchema } from '#/mcp/util/objects.js'
+import { updateEvent } from '#/services/events.js'
+import { recurrenceSchema as domainRecurrenceSchema } from '#/services/recurrence.js'
 
 const changesSchema = z
     .object({
@@ -59,8 +59,7 @@ export const updateEventInputSchema = z
             context.addIssue({
                 code: 'custom',
                 path: ['changes', 'recurrence'],
-                message:
-                    'recurrence cannot be changed for a single occurrence',
+                message: 'recurrence cannot be changed for a single occurrence',
             })
         }
     })

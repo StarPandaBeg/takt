@@ -1,12 +1,12 @@
+import { deadlinesRoutes } from '#/routes/deadlines.js'
+import { eventsRoutes } from '#/routes/events.js'
+import { mcpRoutes } from '#/routes/mcp.js'
+import { notesRoutes } from '#/routes/notes.js'
+import { screenRoutes } from '#/routes/screens.js'
+import { getSceneHash, getSceneNames } from '#/services/scene.js'
+import { ScreenChangeService } from '#/services/screen-changes.js'
 import cors from '@fastify/cors'
 import Fastify, { type FastifyInstance } from 'fastify'
-import { deadlinesRoutes } from './routes/deadlines.js'
-import { eventsRoutes } from './routes/events.js'
-import { mcpRoutes } from './routes/mcp.js'
-import { notesRoutes } from './routes/notes.js'
-import { screenRoutes } from './routes/screens.js'
-import { getSceneHash, getSceneNames } from './services/scene.js'
-import { ScreenChangeService } from './services/screen-changes.js'
 
 export interface AppOptions {
     readonly logger?: boolean

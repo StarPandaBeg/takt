@@ -1,5 +1,5 @@
+import * as schema from '#/database/schema.js'
 import * as templates from '@takt/templates'
-import * as schema from '../database/schema.js'
 
 export const convert = (note: schema.Note): templates.Note => {
     return {

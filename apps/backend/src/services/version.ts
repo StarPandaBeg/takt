@@ -1,5 +1,5 @@
-import type { Version } from '../database/schema.js'
-import * as versionsRepo from '../repository/version.js'
+import type { Version } from '#/database/schema.js'
+import * as versionsRepo from '#/repository/version.js'
 
 export const get = async (key: Version['key']): Promise<Version['value']> => {
     const version = await versionsRepo.get(key)

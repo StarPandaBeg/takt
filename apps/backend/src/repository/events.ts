@@ -1,4 +1,10 @@
 import {
+    eventRecurrenceExceptionsTable,
+    eventsTable,
+    type Event,
+    type EventInsert,
+} from '#/database/schema.js'
+import {
     and,
     asc,
     eq,
@@ -11,12 +17,6 @@ import {
     or,
 } from 'drizzle-orm'
 import { db } from '../database/index.js'
-import {
-    eventRecurrenceExceptionsTable,
-    eventsTable,
-    type Event,
-    type EventInsert,
-} from '../database/schema.js'
 
 export interface EventFilters {
     readonly from?: Date | undefined
@@ -156,7 +156,10 @@ export async function split(
     })
 }
 
-export async function cancel(id: Event['id'], cancelledAt: Date): Promise<void> {
+export async function cancel(
+    id: Event['id'],
+    cancelledAt: Date,
+): Promise<void> {
     await db
         .update(eventsTable)
         .set({ cancelledAt })

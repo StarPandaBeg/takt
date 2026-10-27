@@ -1,8 +1,8 @@
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
-import { cancelEvent } from '../../services/events.js'
-import { toToolResponse } from '../util/helpers.js'
+import { toToolResponse } from '#/mcp/util/helpers.js'
+import { cancelEvent } from '#/services/events.js'
 
 export const cancelEventInputSchema = z
     .object({

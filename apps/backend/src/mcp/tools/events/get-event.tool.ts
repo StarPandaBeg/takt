@@ -1,9 +1,9 @@
+import { toToolResponse } from '#/mcp/util/helpers.js'
+import { eventEntitySchema } from '#/mcp/util/objects.js'
+import { serializeEventEntity } from '#/mcp/util/serializers.js'
+import { getEventEntity } from '#/services/events.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
-import { getEventEntity } from '../../services/events.js'
-import { toToolResponse } from '../util/helpers.js'
-import { eventEntitySchema } from '../util/objects.js'
-import { serializeEventEntity } from '../util/serializers.js'
 
 export const getEventInputSchema = z.object({
     id: z.int().positive().describe('ID of the event master'),

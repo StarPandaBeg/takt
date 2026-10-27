@@ -1,8 +1,8 @@
+import type { Event, EventRecurrenceException } from '#/database/schema.js'
+import * as eventExceptionsRepository from '#/repository/event-recurrence-exceptions.js'
+import type { EventFilters } from '#/repository/events.js'
+import * as eventsRepository from '#/repository/events.js'
 import { DateTime } from 'luxon'
-import type { Event, EventRecurrenceException } from '../database/schema.js'
-import * as eventExceptionsRepository from '../repository/event-recurrence-exceptions.js'
-import type { EventFilters } from '../repository/events.js'
-import * as eventsRepository from '../repository/events.js'
 import { getEventOccurrences, type ResolvedEvent } from './event-occurrences.js'
 import {
     getRecurrenceOccurrencesBetween,
@@ -182,7 +182,9 @@ function getEffectiveEnd(
     if (changes.end !== undefined) return changes.end
     if (changes.start === undefined || originalEnd === null) return originalEnd
     return new Date(
-        changes.start.getTime() + originalEnd.getTime() - originalStart.getTime(),
+        changes.start.getTime() +
+            originalEnd.getTime() -
+            originalStart.getTime(),
     )
 }
 
@@ -201,16 +203,15 @@ function getRecurringEvent(event: Event, recurrenceId: Date) {
     const occurrence = DateTime.fromJSDate(recurrenceId).setZone(zone)
     const recurrence = parseRecurrence(event.recurrenceRule)
     if (!isRecurrenceOccurrence(start, recurrence, occurrence)) {
-        throw new RangeError(
-            'recurrenceId is not an occurrence of this series',
-        )
+        throw new RangeError('recurrenceId is not an occurrence of this series')
     }
     return { start, occurrence, recurrence }
 }
 
-function getRecurrenceSplit(
-    recurring: ReturnType<typeof getRecurringEvent>,
-): { readonly previous: Recurrence; readonly previousCount: number } {
+function getRecurrenceSplit(recurring: ReturnType<typeof getRecurringEvent>): {
+    readonly previous: Recurrence
+    readonly previousCount: number
+} {
     const throughSelected = getRecurrenceOccurrencesBetween(
         recurring.start,
         recurring.recurrence,

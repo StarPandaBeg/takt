@@ -1,6 +1,6 @@
+import * as notes from '#/repository/notes.js'
 import type { FastifyPluginAsync } from 'fastify'
 import * as z from 'zod'
-import * as notes from '../repository/notes.js'
 
 const getAllQuerySchema = z.object({
     limit: z.coerce.number().int().positive().max(8192).optional(),

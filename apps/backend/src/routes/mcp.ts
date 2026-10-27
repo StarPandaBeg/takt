@@ -1,5 +1,5 @@
+import { handleMcp } from '#/mcp/index.js'
 import type { FastifyPluginAsync } from 'fastify'
-import { handleMcp } from '../mcp/index.js'
 
 export const mcpRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.all('/', async (request, reply) => {

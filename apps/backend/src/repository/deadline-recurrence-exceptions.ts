@@ -1,9 +1,9 @@
-import { and, asc, eq, inArray } from 'drizzle-orm'
-import { db } from '../database/index.js'
+import { db } from '#/database/index.js'
 import {
     deadlineRecurrenceExceptionsTable,
     type DeadlineRecurrenceException,
-} from '../database/schema.js'
+} from '#/database/schema.js'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 
 export async function getForDeadlineIds(
     deadlineIds: readonly number[],
@@ -55,4 +55,3 @@ export async function remove(
             ),
         )
 }
-

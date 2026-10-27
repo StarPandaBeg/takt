@@ -1,6 +1,6 @@
+import { db } from '#/database/index.js'
+import { notesTable, type Note, type NoteInsert } from '#/database/schema.js'
 import { eq, isNull } from 'drizzle-orm'
-import { db } from '../database/index.js'
-import { notesTable, type Note, type NoteInsert } from '../database/schema.js'
 
 export const getAll = async (): Promise<Note[]> => {
     return await db.query.notesTable.findMany()

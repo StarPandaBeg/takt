@@ -1,6 +1,6 @@
+import type { Event, EventRecurrenceException } from '#/database/schema.js'
 import type { Event as TemplateEvent } from '@takt/templates'
 import { DateTime } from 'luxon'
-import type { Event, EventRecurrenceException } from '../database/schema.js'
 import {
     getRecurrenceOccurrencesBetween,
     parseRecurrence,

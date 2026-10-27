@@ -1,4 +1,5 @@
-import type { EventEntity, ResolvedEvent } from '../../services/events.js'
+import type { Note } from '#/database/schema.js'
+import type { EventEntity, ResolvedEvent } from '#/services/events.js'
 
 function serializeRecurrence(recurrence: EventEntity['recurrence']) {
     if (recurrence === null || recurrence.until === undefined) {
@@ -30,15 +31,15 @@ export function serializeEventEntity(event: EventEntity) {
                         end: exception.end?.toISOString() ?? null,
                     }
                   : {
-                      status: exception.status,
-                      recurrenceId: exception.recurrenceId.toISOString(),
-                      title: exception.title,
-                      description: exception.description,
-                      start: exception.start.toISOString(),
-                      end: exception.end?.toISOString() ?? null,
-                      timezone: exception.timezone,
-                      allDay: exception.allDay,
-                  },
+                        status: exception.status,
+                        recurrenceId: exception.recurrenceId.toISOString(),
+                        title: exception.title,
+                        description: exception.description,
+                        start: exception.start.toISOString(),
+                        end: exception.end?.toISOString() ?? null,
+                        timezone: exception.timezone,
+                        allDay: exception.allDay,
+                    },
         ),
     }
 }
@@ -49,5 +50,13 @@ export function serializeResolvedEvent(event: ResolvedEvent) {
         start: event.start.toISOString(),
         end: event.end?.toISOString() ?? null,
         recurrenceId: event.recurrenceId?.toISOString() ?? null,
+    }
+}
+
+export function serializeNote(note: Note) {
+    return {
+        id: note.id,
+        text: note.text,
+        completedAt: note.completed_at?.toISOString() ?? null,
     }
 }

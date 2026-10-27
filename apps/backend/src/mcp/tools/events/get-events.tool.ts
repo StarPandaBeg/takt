@@ -1,10 +1,10 @@
+import { toToolResponse } from '#/mcp/util/helpers.js'
+import { resolvedEventSchema } from '#/mcp/util/objects.js'
+import { serializeResolvedEvent } from '#/mcp/util/serializers.js'
+import { getResolvedEvents } from '#/services/events.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import { DateTime } from 'luxon'
 import * as z from 'zod'
-import { getResolvedEvents } from '../../services/events.js'
-import { toToolResponse } from '../util/helpers.js'
-import { resolvedEventSchema } from '../util/objects.js'
-import { serializeResolvedEvent } from '../util/serializers.js'
 
 export const getEventsInputSchema = z
     .object({
