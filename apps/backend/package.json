@@ -19,6 +19,8 @@
     "dependencies": {
         "@fastify/cors": "^11.3.1",
         "@libsql/client": "^0.18.0",
+        "@modelcontextprotocol/node": "^2.1.2",
+        "@modelcontextprotocol/server": "^2.4.0",
         "@napi-rs/canvas": "^1.0.13",
         "@takt/renderer": "^1.0.0",
         "@takt/templates": "^1.0.0",

@@ -10,6 +10,7 @@ SQLite-backed Fastify API и доставку изображений устро�
 
 - [Начало работы](getting-started.md) — установка, сборка, запуск и проверка.
 - [HTTP API](api.md) — notes, events, deadlines, recurrence, screens и SSE.
+- [MCP API](mcp.md) — инструменты событий и различие между series master и разрешённым экземпляром.
 - [Архитектура](architecture.md) — границы пакетов, зависимости и поток данных.
 - [JSX и UI tree](concepts/jsx-ui-tree.md) — runtime, компоненты, нормализация и сериализуемое дерево.
 - [Layout и rendering](concepts/layout-rendering.md) — measure/arrange, rasterization, изображения и PNG.
@@ -18,12 +19,12 @@ SQLite-backed Fastify API и доставку изображений устро�
 
 ## Пакеты и приложения
 
-| Часть | Ответственность | Документация |
-| --- | --- | --- |
-| `@takt/ui` | JSX runtime, примитивы, нормализация в `UINode[]` | [UI](packages/ui.md) |
-| `@takt/renderer` | layout, монохромная растеризация, экспорт PNG | [Renderer](packages/renderer.md) |
-| `@takt/templates` | типы проектов/сцен и две сцены календаря | [Templates](packages/templates.md) |
-| `@takt/backend` | Node Canvas environment и HTTP-выдача сцен | [Backend](packages/backend.md) |
+| Часть             | Ответственность                                   | Документация                       |
+| ----------------- | ------------------------------------------------- | ---------------------------------- |
+| `@takt/ui`        | JSX runtime, примитивы, нормализация в `UINode[]` | [UI](packages/ui.md)               |
+| `@takt/renderer`  | layout, монохромная растеризация, экспорт PNG     | [Renderer](packages/renderer.md)   |
+| `@takt/templates` | типы проектов/сцен и две сцены календаря          | [Templates](packages/templates.md) |
+| `@takt/backend`   | Node Canvas environment и HTTP-выдача сцен        | [Backend](packages/backend.md)     |
 
 ## Текущие границы реализации
 
@@ -31,4 +32,3 @@ SQLite-backed Fastify API и доставку изображений устро�
 уже использует SQLite/libSQL, предоставляет mutation API для заметок, событий и
 дедлайнов, поддерживает recurrence/occurrence exceptions, вычисляет семантические
 hashes экранов и отправляет изменения через SSE.
-

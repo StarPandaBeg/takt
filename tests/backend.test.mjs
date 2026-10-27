@@ -36,6 +36,12 @@ const { createNodeEnvironment } =
 const { ScreenChangeService } =
     await import('../apps/backend/dist/services/screen-changes.js')
 const { sources } = await import('../apps/backend/dist/services/sources.js')
+const { getEvent } =
+    await import('../apps/backend/dist/mcp/tools/get-event.tool.js')
+const { getEvents } =
+    await import('../apps/backend/dist/mcp/tools/get-events.tool.js')
+const { searchEvents } =
+    await import('../apps/backend/dist/mcp/tools/search-events.tool.js')
 
 test.after(() => {
     rmSync(databaseRoot, { recursive: true, force: true })
@@ -319,6 +325,74 @@ test('event API cancels and reschedules one recurring occurrence', async () => {
                 end: '2026-10-27T10:00:00.000Z',
             },
         ])
+
+        const range = new URLSearchParams({
+            from: '2026-10-27T00:00:00+03:00',
+            to: '2026-10-28T00:00:00+03:00',
+        })
+        const expectedOccurrence = {
+            id,
+            title: 'Recurring event',
+            description: null,
+            start: '2026-10-27T09:00:00.000Z',
+            end: '2026-10-27T10:00:00.000Z',
+            timezone: 'Europe/Moscow',
+            allDay: false,
+            recurrenceId,
+        }
+
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/events/occurrences?${range}`,
+        })
+        assert.deepEqual(response.json(), [expectedOccurrence])
+
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/events?${range}`,
+        })
+        assert.deepEqual(response.json(), [expectedOccurrence])
+
+        const mcpOccurrences = await getEvents({
+            start: '2026-10-27T00:00:00+03:00',
+            end: '2026-10-28T00:00:00+03:00',
+        })
+        assert.deepEqual(mcpOccurrences.structuredContent, [expectedOccurrence])
+
+        const mcpMaster = await getEvent({ id })
+        assert.deepEqual(mcpMaster.structuredContent.recurrence, {
+            frequency: 'daily',
+            count: 3,
+        })
+        assert.deepEqual(mcpMaster.structuredContent.exceptions, [
+            {
+                recurrenceId,
+                status: 'rescheduled',
+                start: '2026-10-27T09:00:00.000Z',
+                end: '2026-10-27T10:00:00.000Z',
+            },
+        ])
+
+        const searchResult = await searchEvents({
+            from: '2026-10-26T00:00:00+03:00',
+            to: '2026-10-27T00:00:00+03:00',
+            query: 'recurring',
+            limit: 1,
+        })
+        assert.equal(searchResult.structuredContent.length, 1)
+        assert.equal(searchResult.structuredContent[0].id, id)
+        assert.equal(
+            searchResult.structuredContent[0].start,
+            '2026-10-26T07:00:00.000Z',
+        )
+        assert.deepEqual(searchResult.structuredContent[0].recurrence, {
+            frequency: 'daily',
+            count: 3,
+        })
+        assert.deepEqual(
+            searchResult.structuredContent[0].exceptions,
+            mcpMaster.structuredContent.exceptions,
+        )
 
         response = await app.inject({
             method: 'DELETE',

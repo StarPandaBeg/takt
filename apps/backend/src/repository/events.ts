@@ -1,4 +1,15 @@
-import { and, asc, eq, gt, gte, isNotNull, isNull, lt, or } from 'drizzle-orm'
+import {
+    and,
+    asc,
+    eq,
+    gt,
+    gte,
+    isNotNull,
+    isNull,
+    like,
+    lt,
+    or,
+} from 'drizzle-orm'
 import { db } from '../database/index.js'
 import {
     eventRecurrenceExceptionsTable,
@@ -10,24 +21,24 @@ import {
 export interface EventFilters {
     readonly from?: Date | undefined
     readonly to?: Date | undefined
+    readonly query?: string | undefined
     readonly limit?: number | undefined
 }
 
 export const getFiltered = async (filters: EventFilters): Promise<Event[]> => {
     const conditions = []
     if (filters.from !== undefined) {
-        conditions.push(
-            or(
-                gte(eventsTable.start, filters.from),
-                isNotNull(eventsTable.recurrenceRule),
-            )!,
-        )
+        conditions.push(gte(eventsTable.start, filters.from))
     }
     if (filters.to !== undefined) {
+        conditions.push(lt(eventsTable.start, filters.to))
+    }
+    if (filters.query !== undefined) {
+        const pattern = `%${filters.query}%`
         conditions.push(
             or(
-                lt(eventsTable.start, filters.to),
-                isNotNull(eventsTable.recurrenceRule),
+                like(eventsTable.title, pattern),
+                like(eventsTable.description, pattern),
             )!,
         )
     }

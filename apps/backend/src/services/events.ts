@@ -1,94 +1,134 @@
-import type { Event as TemplateEvent } from '@takt/templates'
 import { DateTime } from 'luxon'
 import type { Event, EventRecurrenceException } from '../database/schema.js'
+import * as eventExceptionsRepository from '../repository/event-recurrence-exceptions.js'
+import type { EventFilters } from '../repository/events.js'
+import * as eventsRepository from '../repository/events.js'
+import { getEventOccurrences, type ResolvedEvent } from './event-occurrences.js'
 import {
-    getRecurrenceOccurrencesBetween,
     parseRecurrence,
+    serializeRecurrence,
+    type Recurrence,
 } from './recurrence.js'
 
-export const convertEvent = (event: Event): TemplateEvent => {
-    const zone = event.timezone ?? 'Europe/Moscow'
+export type { ResolvedEvent } from './event-occurrences.js'
+
+export type EventOccurrenceException =
+    | {
+          readonly recurrenceId: Date
+          readonly status: 'cancelled'
+      }
+    | {
+          readonly recurrenceId: Date
+          readonly status: 'rescheduled'
+          readonly start: Date
+          readonly end: Date | null
+      }
+
+export type EventEntity = Omit<Event, 'recurrenceRule'> & {
+    readonly recurrence: Recurrence | null
+    readonly exceptions: EventOccurrenceException[]
+}
+
+export function serializeEventRecurrence<
+    T extends { recurrence?: Recurrence | null | undefined },
+>({ recurrence, ...event }: T) {
     return {
-        text: event.title,
-        start: DateTime.fromJSDate(event.start).setZone(zone),
-        ...(event.end === null
+        ...event,
+        ...(recurrence === undefined
             ? {}
-            : { end: DateTime.fromJSDate(event.end).setZone(zone) }),
+            : {
+                  recurrenceRule:
+                      recurrence === null
+                          ? null
+                          : serializeRecurrence(recurrence),
+              }),
     }
 }
 
-function overlaps(event: Event, from: Date, to: Date): boolean {
-    return (
-        event.start < to &&
-        (event.end === null ? event.start >= from : event.end > from)
+function resolveException(
+    exception: EventRecurrenceException,
+): EventOccurrenceException {
+    return exception.replacementStart === null
+        ? {
+              recurrenceId: exception.recurrenceId,
+              status: 'cancelled',
+          }
+        : {
+              recurrenceId: exception.recurrenceId,
+              status: 'rescheduled',
+              start: exception.replacementStart,
+              end: exception.replacementEnd,
+          }
+}
+
+function toEventEntity(
+    event: Event,
+    exceptions: readonly EventRecurrenceException[],
+): EventEntity {
+    const { recurrenceRule, ...fields } = event
+    return {
+        ...fields,
+        recurrence:
+            recurrenceRule === null ? null : parseRecurrence(recurrenceRule),
+        exceptions: exceptions.map(resolveException),
+    }
+}
+
+export async function getEventEntity(
+    id: Event['id'],
+): Promise<EventEntity | undefined> {
+    const event = await eventsRepository.get(id)
+    if (event === undefined) return undefined
+    const exceptions = await eventExceptionsRepository.getForEventIds([id])
+    return toEventEntity(event, exceptions)
+}
+
+export async function getEventEntities(
+    filters: EventFilters,
+): Promise<EventEntity[]> {
+    const events = await eventsRepository.getFiltered(filters)
+    const exceptions = await eventExceptionsRepository.getForEventIds(
+        events.map(({ id }) => id),
+    )
+    const grouped = Map.groupBy(exceptions, (exception) => exception.eventId)
+    return events.map((event) =>
+        toEventEntity(event, grouped.get(event.id) ?? []),
     )
 }
 
-export function getEventOccurrences(
-    events: readonly Event[],
-    exceptions: readonly EventRecurrenceException[],
-    from: DateTime,
-    to: DateTime,
-): Event[] {
-    const exceptionsByEvent = Map.groupBy(
-        exceptions,
-        (exception) => exception.eventId,
+export async function getResolvedEvents(options: {
+    readonly from: DateTime
+    readonly to: DateTime
+    readonly limit?: number | undefined
+}): Promise<ResolvedEvent[]> {
+    if (
+        !options.from.isValid ||
+        !options.to.isValid ||
+        options.to <= options.from
+    ) {
+        throw new RangeError('Event range end must be later than start')
+    }
+    if (
+        options.limit !== undefined &&
+        (!Number.isInteger(options.limit) || options.limit <= 0)
+    ) {
+        throw new RangeError('Event limit must be a positive integer')
+    }
+
+    const masters = await eventsRepository.getOverlapping(
+        options.from.toJSDate(),
+        options.to.toJSDate(),
     )
-    const fromDate = from.toJSDate()
-    const toDate = to.toJSDate()
-
-    return events
-        .flatMap((event) => {
-            if (event.recurrenceRule === null) {
-                return overlaps(event, fromDate, toDate) ? [event] : []
-            }
-
-            const eventExceptions = exceptionsByEvent.get(event.id) ?? []
-            const recurrenceIds = new Set(
-                eventExceptions.map(({ recurrenceId }) =>
-                    recurrenceId.getTime(),
-                ),
-            )
-            const zone = event.timezone ?? 'Europe/Moscow'
-            const start = DateTime.fromJSDate(event.start).setZone(zone)
-            const duration =
-                event.end === null
-                    ? undefined
-                    : event.end.getTime() - event.start.getTime()
-            const occurrenceFrom =
-                duration === undefined
-                    ? from.setZone(zone)
-                    : from.setZone(zone).minus({ milliseconds: duration })
-            const regular = getRecurrenceOccurrencesBetween(
-                start,
-                parseRecurrence(event.recurrenceRule),
-                occurrenceFrom,
-                to.setZone(zone),
-            )
-                .filter(
-                    (occurrence) => !recurrenceIds.has(occurrence.toMillis()),
-                )
-                .map((occurrence) => ({
-                    ...event,
-                    start: occurrence.toJSDate(),
-                    end:
-                        duration === undefined
-                            ? null
-                            : occurrence.plus({ milliseconds: duration }).toJSDate(),
-                }))
-                .filter((occurrence) => overlaps(occurrence, fromDate, toDate))
-            const replacements = eventExceptions.flatMap((exception) => {
-                if (exception.replacementStart === null) return []
-                const replacement = {
-                    ...event,
-                    start: exception.replacementStart,
-                    end: exception.replacementEnd,
-                }
-                return overlaps(replacement, fromDate, toDate)
-                    ? [replacement]
-                    : []
-            })
-            return [...regular, ...replacements]
-        })
-        .sort((left, right) => left.start.getTime() - right.start.getTime())
+    const exceptions = await eventExceptionsRepository.getForEventIds(
+        masters.map(({ id }) => id),
+    )
+    const occurrences = getEventOccurrences(
+        masters,
+        exceptions,
+        options.from,
+        options.to,
+    )
+    return options.limit === undefined
+        ? occurrences
+        : occurrences.slice(0, options.limit)
 }

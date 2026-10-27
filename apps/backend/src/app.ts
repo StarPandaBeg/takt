@@ -2,10 +2,11 @@ import cors from '@fastify/cors'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { deadlinesRoutes } from './routes/deadlines.js'
 import { eventsRoutes } from './routes/events.js'
+import { mcpRoutes } from './routes/mcp.js'
 import { notesRoutes } from './routes/notes.js'
 import { screenRoutes } from './routes/screens.js'
-import { ScreenChangeService } from './services/screen-changes.js'
 import { getSceneHash, getSceneNames } from './services/scene.js'
+import { ScreenChangeService } from './services/screen-changes.js'
 
 export interface AppOptions {
     readonly logger?: boolean
@@ -20,7 +21,8 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     const screenChanges = new ScreenChangeService({
         names: getSceneNames(),
         getHash: getSceneHash,
-        onError: (error) => app.log.error(error, 'Screen revision check failed'),
+        onError: (error) =>
+            app.log.error(error, 'Screen revision check failed'),
     })
     app.register(cors, {
         origin: '*',
@@ -42,6 +44,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
         done()
     })
 
+    app.register(mcpRoutes, { prefix: '/mcp' })
     app.register(notesRoutes, { prefix: '/api/notes' })
     app.register(eventsRoutes, { prefix: '/api/events' })
     app.register(deadlinesRoutes, { prefix: '/api/deadlines' })

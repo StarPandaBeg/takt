@@ -6,7 +6,8 @@
         "outDir": "./dist",
         "rootDir": "./src",
         "tsBuildInfoFile": "./dist/.tsbuildinfo",
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "exactOptionalPropertyTypes": false
     },
     "include": ["src/**/*.ts"],
     "references": [

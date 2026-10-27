@@ -2,14 +2,10 @@ import type { Deadline, Event, Note } from '@takt/templates'
 import { DateTime } from 'luxon'
 import * as deadlineExceptionsRepository from '../repository/deadline-recurrence-exceptions.js'
 import * as deadlinesRepository from '../repository/deadlines.js'
-import * as eventExceptionsRepository from '../repository/event-recurrence-exceptions.js'
-import * as eventsRepository from '../repository/events.js'
 import * as notesRepository from '../repository/notes.js'
-import {
-    convertDeadline,
-    getUpcomingDeadlineOccurrences,
-} from './deadlines.js'
-import { convertEvent, getEventOccurrences } from './events.js'
+import { convertDeadline, getUpcomingDeadlineOccurrences } from './deadlines.js'
+import { convertEvent } from './event-occurrences.js'
+import { getResolvedEvents } from './events.js'
 import { convert as convertNote } from './notes.js'
 import {
     createScreenRevisionHash,
@@ -47,14 +43,7 @@ async function loadNotes(): Promise<Note[]> {
 async function loadEvents(now: DateTime): Promise<Event[]> {
     const from = now.startOf('day')
     const to = now.plus({ days: 1 }).startOf('day')
-    const masters = await eventsRepository.getOverlapping(
-        from.toJSDate(),
-        to.toJSDate(),
-    )
-    const exceptions = await eventExceptionsRepository.getForEventIds(
-        masters.map(({ id }) => id),
-    )
-    return getEventOccurrences(masters, exceptions, from, to).map(convertEvent)
+    return (await getResolvedEvents({ from, to })).map(convertEvent)
 }
 
 async function loadDeadlines(now: DateTime): Promise<Deadline[]> {

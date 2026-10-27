@@ -1,25 +1,25 @@
-import { DateTime } from 'luxon'
-import assert from 'node:assert/strict'
-import test from 'node:test'
 import {
     selectDeadlinesForScreen,
     selectEventsForScreen,
 } from '@takt/templates'
+import { DateTime } from 'luxon'
+import assert from 'node:assert/strict'
+import test from 'node:test'
 import {
     convertDeadline,
     getUpcomingDeadlineOccurrences,
 } from '../apps/backend/dist/services/deadlines.js'
-import { getEventOccurrences } from '../apps/backend/dist/services/events.js'
-import {
-    getDayRevision,
-    getDeadlinesRevision,
-    getEventsRevision,
-} from '../apps/backend/dist/services/screen-revision.js'
+import { getEventOccurrences } from '../apps/backend/dist/services/event-occurrences.js'
 import {
     getRecurrenceOccurrences,
     parseRecurrence,
     serializeRecurrence,
 } from '../apps/backend/dist/services/recurrence.js'
+import {
+    getDayRevision,
+    getDeadlinesRevision,
+    getEventsRevision,
+} from '../apps/backend/dist/services/screen-revision.js'
 
 function event(hour) {
     return {
@@ -206,10 +206,7 @@ test('recurrence rules use canonical iCalendar RRULE values', () => {
             },
             'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR',
         ],
-        [
-            { frequency: 'monthly-date', day: 15 },
-            'FREQ=MONTHLY;BYMONTHDAY=15',
-        ],
+        [{ frequency: 'monthly-date', day: 15 }, 'FREQ=MONTHLY;BYMONTHDAY=15'],
         [
             {
                 frequency: 'monthly-weekday',
@@ -218,10 +215,7 @@ test('recurrence rules use canonical iCalendar RRULE values', () => {
             },
             'FREQ=MONTHLY;BYDAY=-1FR',
         ],
-        [
-            { frequency: 'yearly', count: 3 },
-            'FREQ=YEARLY;COUNT=3',
-        ],
+        [{ frequency: 'yearly', count: 3 }, 'FREQ=YEARLY;COUNT=3'],
     ]
 
     for (const [rule, serialized] of rules) {
