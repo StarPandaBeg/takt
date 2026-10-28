@@ -79,7 +79,7 @@ AUTH_TOKEN=replace-with-a-long-random-token docker compose up --build -d
 docker compose ps
 ```
 
-Backend будет доступен на `http://localhost:3000`. Порт хоста и timezone можно
+Backend будет доступен на `http://localhost:3011`. Порт хоста и timezone можно
 переопределить без изменения compose-файла:
 
 ```bash
@@ -101,6 +101,50 @@ docker compose logs -f backend
 публичным для оркестратора. Несмотря на наличие токена, для публичного сервера
 используйте HTTPS через reverse proxy, чтобы секрет не передавался открытым
 текстом.
+
+### Публикация образа в GHCR
+
+Workflow [`.github/workflows/docker.yml`](../.github/workflows/docker.yml)
+собирает образ для `linux/amd64` через Buildx и использует GitHub Actions cache.
+Имя образа формируется из `github.repository` в нижнем регистре. Для этого
+репозитория оно имеет вид `ghcr.io/starpandabeg/takt`.
+
+- push в `main` публикует `ghcr.io/starpandabeg/takt:latest`;
+- push тега `v1.2.0` публикует `ghcr.io/starpandabeg/takt:v1.2.0`, не изменяя
+  `latest`;
+- pull request в `main` только собирает образ и не авторизуется в GHCR;
+- ручной запуск публикует immutable-style тег `sha-<короткий-commit-sha>`.
+
+Workflow использует только встроенный `GITHUB_TOKEN`. В настройках GitHub
+следует проверить, что Actions разрешены политикой репозитория/организации и
+что workflow может запрашивать `packages: write`. После первой публикации пакет
+появится в разделе Packages. Для анонимного скачивания с сервера сделайте пакет
+public; для private-пакета предоставьте серверу отдельный read-only credential
+с правом `read:packages`. Это не требуется для самого CI.
+
+### Запуск опубликованного образа на сервере
+
+Создайте рядом с `compose.yaml` файл `.env`:
+
+```dotenv
+AUTH_TOKEN=replace-with-a-long-random-token
+TAKT_IMAGE=ghcr.io/starpandabeg/takt:v1.2.0
+TAKT_PORT=3011
+DEFAULT_TIMEZONE=Europe/Moscow
+```
+
+Затем скачайте и запустите образ без локальной сборки:
+
+```bash
+docker compose pull backend
+docker compose up -d --no-build backend
+docker compose ps
+```
+
+Для public-пакета вход в GHCR не нужен. Для private-пакета сначала выполните
+`docker login ghcr.io` с учётными данными, имеющими только `read:packages`.
+Обновление версии выполняется изменением `TAKT_IMAGE`, повторным `pull` и
+`up -d --no-build`. Именованный том `takt-data` при этом сохраняется.
 
 ## Минимальный renderer example
 

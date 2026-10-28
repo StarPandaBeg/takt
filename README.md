@@ -62,11 +62,16 @@ HOST=127.0.0.1 PORT=3001 AUTH_TOKEN=replace-me npm start
 AUTH_TOKEN=replace-with-a-long-random-token docker compose up --build -d
 ```
 
-По умолчанию сервис публикуется на порту `3000`; изменить порт можно через
+По умолчанию сервис публикуется на порту `3011`; изменить порт можно через
 `TAKT_PORT=8080`. Все рабочие endpoints требуют заголовок
 `Authorization: Bearer <AUTH_TOKEN>`, а миграции применяются автоматически при
 старте контейнера.
 Подробности приведены в [руководстве по запуску](docs/getting-started.md#запуск-в-docker).
+
+Push в `main` автоматически публикует `ghcr.io/starpandabeg/takt:latest`, а
+Git-тег `v1.2.0` — версию `ghcr.io/starpandabeg/takt:v1.2.0`. Pull request
+только проверяет сборку. Развёртывание опубликованного образа описано в
+[разделе про GHCR](docs/getting-started.md#публикация-образа-в-ghcr).
 
 Подробные требования и все команды приведены в [руководстве по запуску](docs/getting-started.md).
 

@@ -2,7 +2,7 @@ services:
     backend:
         build:
             context: .
-        image: takt-backend:latest
+        image: ${TAKT_IMAGE:-takt-backend:latest}
         restart: unless-stopped
         init: true
         environment:
