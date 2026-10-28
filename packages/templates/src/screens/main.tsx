@@ -51,8 +51,7 @@ export const calendarMainScreen = defineScene<CalendarMainContext>(
                 />
 
                 <Column x={170} padding={16} gap={8}>
-                    <H2>СЕГОДНЯ</H2>
-                    <EventList events={events} now={today} limit={8} />
+                    <EventList events={events} now={today} limit={6} />
                 </Column>
 
                 <Column x={170} y={280} padding={16} gap={8} width={550}>
