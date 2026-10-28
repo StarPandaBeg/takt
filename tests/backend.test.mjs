@@ -1,7 +1,8 @@
 import { createClient } from '@libsql/client'
-import { createCanvas, loadImage } from '@napi-rs/canvas'
+import { createCanvas, GlobalFonts, loadImage } from '@napi-rs/canvas'
 import { createRenderer } from '@takt/renderer'
 import { exportPng } from '@takt/renderer/exporters'
+import { project } from '@takt/templates'
 import { Image } from '@takt/ui/components'
 import { DateTime } from 'luxon'
 import assert from 'node:assert/strict'
@@ -1045,6 +1046,22 @@ test('Node Canvas measures and rasterizes the same text geometry', () => {
 
     assert.deepEqual({ width: bitmap.width, height: bitmap.height }, measured)
     assert.equal(bitmap.buffer.length, bitmap.width * bitmap.height)
+})
+
+test('bundled project registers all required Inter weights', () => {
+    assert.equal(project.settings.fonts.length, 3)
+    createNodeEnvironment({ fonts: project.settings.fonts })
+
+    const inter = GlobalFonts.families.find(
+        ({ family }) => family === 'Inter',
+    )
+    assert.ok(inter)
+    assert.deepEqual(
+        [...new Set(inter.styles.map(({ weight }) => weight))].sort(
+            (left, right) => left - right,
+        ),
+        [400, 500, 600],
+    )
 })
 
 test('Node Canvas includes strikethrough in measured text bitmap', () => {

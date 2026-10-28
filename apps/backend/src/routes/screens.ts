@@ -35,7 +35,7 @@ export const screenRoutes: FastifyPluginAsync<ScreenRoutesOptions> = async (
     fastify,
     { changes },
 ) => {
-    const environment = createNodeEnvironment()
+    const environment = createNodeEnvironment({ fonts: project.settings.fonts })
     const render = createRenderer(environment)
     const streams = new Set<ServerResponse>()
 

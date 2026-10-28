@@ -42,6 +42,7 @@ Logger по умолчанию включён. `authToken` по умолчани
 interface NodeEnvironmentOptions {
     readonly assetRoot?: string
     readonly imageCacheSize?: number
+    readonly fonts?: readonly NodeFontAsset[]
 }
 
 interface NodeRenderEnvironment extends RenderEnvironment {
@@ -50,6 +51,8 @@ interface NodeRenderEnvironment extends RenderEnvironment {
 ```
 
 - `assetRoot` по умолчанию — корень репозитория.
+- `fonts` регистрирует локальные font assets в Node Canvas до создания drawing
+  context; повторная регистрация того же family/path пропускается.
 - Relative image paths разрешаются относительно `assetRoot`; `file:` URL поддерживаются напрямую.
 - Другие URL schemes, включая HTTP(S), отклоняются.
 - `preloadImages` сначала вызывает UI `resolve`, собирает unique image paths и декодирует их параллельно.
@@ -65,4 +68,3 @@ Text geometry и alpha bitmap строятся одной Canvas implementation.
 целое `0..65535`) и обязательный `AUTH_TOKEN`, запускает Fastify и корректно
 закрывает его по `SIGINT`/`SIGTERM`. Команды приведены в
 [начале работы](../getting-started.md).
-

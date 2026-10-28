@@ -1,4 +1,4 @@
-import { createCanvas, Image } from '@napi-rs/canvas'
+import { createCanvas, GlobalFonts, Image } from '@napi-rs/canvas'
 import type { DecodedImage, RenderEnvironment, TextStyle } from '@takt/renderer'
 import { resolve as resolveUI, type JSXChild, type UINode } from '@takt/ui'
 import { readFileSync, statSync } from 'node:fs'
@@ -24,6 +24,13 @@ export interface NodeEnvironmentOptions {
     readonly assetRoot?: string
     /** Maximum number of decoded images retained by this environment. */
     readonly imageCacheSize?: number
+    /** Local font files registered before the Canvas context is created. */
+    readonly fonts?: readonly NodeFontAsset[]
+}
+
+export interface NodeFontAsset {
+    readonly family: string
+    readonly source: string
 }
 
 interface CachedImage {
@@ -43,11 +50,63 @@ export interface NodeRenderEnvironment extends RenderEnvironment {
 }
 
 const DEFAULT_ASSET_ROOT = fileURLToPath(new URL('../../../', import.meta.url))
+const registeredFontAssets = new Set<string>()
+
+function resolveLocalSource(
+    source: string,
+    assetRoot: string,
+    kind: 'fonts' | 'images',
+): string {
+    if (source.length === 0) throw new Error('source must not be empty')
+
+    if (/^[a-z][a-z\d+.-]*:/i.test(source)) {
+        const url = new URL(source)
+        if (url.protocol !== 'file:') {
+            throw new Error(`Node renderer only supports local ${kind}`)
+        }
+        return fileURLToPath(url)
+    }
+
+    return resolve(assetRoot, source)
+}
+
+function registerFonts(
+    fonts: readonly NodeFontAsset[],
+    assetRoot: string,
+): void {
+    for (const font of fonts) {
+        if (font.family.trim().length === 0) {
+            throw new Error('Font family must not be empty')
+        }
+
+        let path: string
+        try {
+            path = resolveLocalSource(font.source, assetRoot, 'fonts')
+        } catch (cause) {
+            throw new Error(
+                `Unable to resolve font "${font.family}" from "${font.source}"`,
+                { cause },
+            )
+        }
+
+        const key = `${font.family}\0${path}`
+        if (registeredFontAssets.has(key)) continue
+
+        const registered = GlobalFonts.registerFromPath(path, font.family)
+        if (registered === null) {
+            throw new Error(
+                `Unable to register font "${font.family}" from "${path}"`,
+            )
+        }
+        registeredFontAssets.add(key)
+    }
+}
 
 export function createNodeEnvironment(
     options: NodeEnvironmentOptions = {},
 ): NodeRenderEnvironment {
     const assetRoot = resolve(options.assetRoot ?? DEFAULT_ASSET_ROOT)
+    registerFonts(options.fonts ?? [], assetRoot)
     const imageCacheSize = options.imageCacheSize ?? 32
     if (!Number.isInteger(imageCacheSize) || imageCacheSize < 0) {
         throw new RangeError('imageCacheSize must be a non-negative integer')
@@ -59,19 +118,8 @@ export function createNodeEnvironment(
     const ctx = canvas.getContext('2d')
 
     function resolveImageSource(source: string): string {
-        if (source.length === 0) {
-            throw new Error('src must not be empty')
-        }
-
-        if (/^[a-z][a-z\d+.-]*:/i.test(source)) {
-            const url = new URL(source)
-            if (url.protocol !== 'file:') {
-                throw new Error('Node renderer only supports local images')
-            }
-            return fileURLToPath(url)
-        }
-
-        return resolve(assetRoot, source)
+        if (source.length === 0) throw new Error('src must not be empty')
+        return resolveLocalSource(source, assetRoot, 'images')
     }
 
     function inspectImage(src: string): ImageResource {

@@ -43,7 +43,11 @@ const project = defineProject<Context>()({
 
 ## Bundled project
 
-`project.settings.screen` равен `800 × 480`. UI typography presets переключаются с Arial на Inter по имени family; файл шрифта пакет не регистрирует и не поставляет.
+`project.settings.screen` равен `800 × 480`. UI typography presets используют
+Inter 4.1. Пакет поставляет Regular 400, Medium 500 и SemiBold 600 вместе с
+лицензией SIL Open Font License в `assets/fonts` и публикует их file URL через
+`project.settings.fonts`. Node backend регистрирует эти assets до создания
+Canvas context, поэтому rendering не зависит от установленного в системе Inter.
 
 Контекст сцены `main` содержит:
 
@@ -58,14 +62,13 @@ interface CalendarMainContext {
 
 `Event.end` optional, поэтому событие без продолжительности поддерживается. Bundled scenes:
 
-| Имя | Содержимое |
-| --- | --- |
-| `main` | дата, время обновления, deadlines, события, notes и вертикальная неделя |
-| `splash` | полноэкранный dithered background и изображение panda |
+| Имя      | Содержимое                                                              |
+| -------- | ----------------------------------------------------------------------- |
+| `main`   | дата, время обновления, deadlines, события, notes и вертикальная неделя |
+| `splash` | полноэкранный dithered background и изображение panda                   |
 
 Обе сцены детерминированы относительно context и локальных asset files. Они не обращаются к сети или базе.
 
 ## Взаимодействие
 
 Backend индексирует `project.scenes` по URL parameter, формирует `ProjectContext`, вызывает `generate`, preloads найденные `Image` sources и передаёт результат renderer вместе с `project.settings.screen`. Подробнее — [проекты и сцены](../concepts/scenes.md).
-

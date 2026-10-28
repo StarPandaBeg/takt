@@ -3,7 +3,12 @@ import { defineProject } from './project.js'
 import { calendarMainScreen } from './screens/main.js'
 import { calendarSplashScreen } from './screens/splash.js'
 
-export { defineProject, type Project, type ProjectSettings } from './project.js'
+export {
+    defineProject,
+    type Project,
+    type ProjectFontAsset,
+    type ProjectSettings,
+} from './project.js'
 export { defineScene, type Scene } from './scene.js'
 
 export {
@@ -41,6 +46,29 @@ export const project = defineProject(config)({
             width: 800,
             height: 480,
         },
+        fonts: [
+            {
+                family: 'Inter',
+                source: new URL(
+                    '../assets/fonts/Inter-Regular.ttf',
+                    import.meta.url,
+                ).href,
+            },
+            {
+                family: 'Inter',
+                source: new URL(
+                    '../assets/fonts/Inter-Medium.ttf',
+                    import.meta.url,
+                ).href,
+            },
+            {
+                family: 'Inter',
+                source: new URL(
+                    '../assets/fonts/Inter-SemiBold.ttf',
+                    import.meta.url,
+                ).href,
+            },
+        ],
     },
     scenes: {
         main: calendarMainScreen,
