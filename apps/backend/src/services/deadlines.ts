@@ -424,7 +424,7 @@ export async function getResolvedDeadlines(options: {
 }
 
 export function convertDeadline(
-    deadline: Pick<Deadline, 'title' | 'due' | 'dueIsDate'>,
+    deadline: Pick<Deadline, 'title' | 'due' | 'dueIsDate' | 'visibilityShow' | 'visibilityDays'>,
     now: DateTime,
 ): TemplateDeadline {
     const date = DateTime.fromJSDate(deadline.due).setZone(now.zone)
@@ -432,7 +432,10 @@ export function convertDeadline(
         text: deadline.title,
         date,
         dateOnly: deadline.dueIsDate,
+        showRule: deadline.visibilityShow,
+        showDays: deadline.visibilityDays,
         important: date.toMillis() <= now.plus({ days: 3 }).toMillis(),
+
     }
 }
 

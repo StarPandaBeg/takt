@@ -55,7 +55,7 @@ export default function Notes({
                 </Column>
             ))}
             {visibleNotes.length == 0 && (
-                <Text italic fontSize={14}>
+                <Text italic fontSize={16}>
                     &lt;Сейчас тут пусто!&gt;
                 </Text>
             )}

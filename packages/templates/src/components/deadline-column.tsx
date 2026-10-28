@@ -7,6 +7,8 @@ export interface Deadline {
     dateOnly?: boolean
     text: string
     important?: boolean
+    showRule?: string
+    showDays?: number
 }
 
 export interface DeadlineColumnProps extends FlexProps {
@@ -41,10 +43,17 @@ export default function DeadlineColumn({
         <Column gap={4} {...props}>
             {visibleDeadlines.map((d, i) => {
                 const datetimeFormat = d.dateOnly ? 'dd.MM' : 'dd.MM HH:mm'
+                const isDueSelectedDate =
+                    d.showRule == 'always' ||
+                    (d.showRule == 'before' && d.showDays != 0)
+
                 return (
                     <>
                         <Column key={i}>
-                            <Text>{d.date.toFormat(datetimeFormat)}</Text>
+                            <Text>
+                                {isDueSelectedDate ? 'до ' : ''}
+                                {d.date.toFormat(datetimeFormat)}
+                            </Text>
                             <Text
                                 fontSize={d.important ? 20 : 16}
                                 fontWeight={d.important ? 600 : 400}

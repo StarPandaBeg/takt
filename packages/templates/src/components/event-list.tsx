@@ -91,7 +91,7 @@ function formatEventTime(event: Event): string {
 
 function EventRow({ event, state = 'default' }: EventRowProps) {
     const lineWidth = state === 'active' ? 4 : 2
-    const color = state === 'disabled' ? 'gray_50' : 'black'
+    const color = state === 'disabled' ? 'gray_75' : 'black'
 
     return (
         <Group>
@@ -131,13 +131,13 @@ function FeaturedEvent({ event, now }: { event: Event; now: DateTime }) {
 
     return (
         <Column>
-            <Text fontSize={14} color="gray_50">
+            <Text fontSize={16}>
                 {isActive ? 'СЕЙЧАС' : 'БЛИЖАЙШЕЕ СОБЫТИЕ'}
             </Text>
             <Text fontSize={28} fontWeight={600}>
                 {event.text}
             </Text>
-            <Text fontSize={18}>{formatEventTime(event)}</Text>
+            <Text fontSize={16}>{formatEventTime(event)}</Text>
         </Column>
     )
 }
@@ -165,7 +165,7 @@ export default function EventList({
                 ))}
 
                 {visibleEvents.length === 0 && (
-                    <Text italic fontSize={14}>
+                    <Text italic fontSize={16}>
                         {'<Кажется, планов нет! Отдыхай!>'}
                     </Text>
                 )}
