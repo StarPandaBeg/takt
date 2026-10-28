@@ -186,11 +186,10 @@ function* recurrenceCandidates(
     rule: Recurrence,
 ): Generator<DateTime> {
     const interval = rule.interval ?? 1
-    yield start
 
     switch (rule.frequency) {
         case 'daily': {
-            for (let offset = interval; ; offset += interval) {
+            for (let offset = 0; ; offset += interval) {
                 yield start.plus({ days: offset })
             }
         }
@@ -206,7 +205,7 @@ function* recurrenceCandidates(
                         week.plus({ days: weekday - 1 }),
                         start,
                     )
-                    if (occurrence > start) yield occurrence
+                    if (occurrence >= start) yield occurrence
                 }
             }
         }
@@ -221,7 +220,7 @@ function* recurrenceCandidates(
                 if (
                     occurrence.isValid &&
                     occurrence.month === month.month &&
-                    occurrence > start
+                    occurrence >= start
                 ) {
                     yield occurrence
                 }
@@ -248,14 +247,14 @@ function* recurrenceCandidates(
                 occurrence = atStartTime(occurrence, start)
                 if (
                     occurrence.month === month.month &&
-                    occurrence > start
+                    occurrence >= start
                 ) {
                     yield occurrence
                 }
             }
         }
         case 'yearly': {
-            for (let offset = interval; ; offset += interval) {
+            for (let offset = 0; ; offset += interval) {
                 const occurrence = DateTime.fromObject(
                     {
                         year: start.year + offset,

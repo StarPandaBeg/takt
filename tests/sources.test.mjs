@@ -256,6 +256,23 @@ test('recurrence expansion handles all supported calendar patterns', () => {
     )
     assert.deepEqual(
         dates(
+            '2026-10-28T13:00',
+            {
+                frequency: 'weekly',
+                weekdays: ['MO', 'TU', 'TH', 'FR'],
+            },
+            undefined,
+            4,
+        ),
+        [
+            '2026-10-29 13:00',
+            '2026-10-30 13:00',
+            '2026-11-02 13:00',
+            '2026-11-03 13:00',
+        ],
+    )
+    assert.deepEqual(
+        dates(
             '2026-01-31T09:00',
             { frequency: 'monthly-date', day: 31 },
             undefined,

@@ -34,7 +34,10 @@ for (const migration of [
 }
 databaseClient.close()
 
-const { buildApp } = await import('../apps/backend/dist/app.js')
+const { buildApp: buildBackendApp } =
+    await import('../apps/backend/dist/app.js')
+const buildApp = (options = {}) =>
+    buildBackendApp({ ...options, authToken: false })
 const { createNodeEnvironment } =
     await import('../apps/backend/dist/render-environment.js')
 const { ScreenChangeService } =
@@ -50,25 +53,125 @@ const { updateEventTool } =
     await import('../apps/backend/dist/mcp/tools/events/update-event.tool.js')
 const { cancelEventTool } =
     await import('../apps/backend/dist/mcp/tools/events/cancel-event.tool.js')
+const { createEvent } =
+    await import('../apps/backend/dist/mcp/tools/events/create-event.tool.js')
 const { createDeadline } =
-    await import('../apps/backend/dist/mcp/tools/create-deadline.tool.js')
+    await import(
+        '../apps/backend/dist/mcp/tools/deadlines/create-deadline.tool.js'
+    )
 const { getDeadline } =
-    await import('../apps/backend/dist/mcp/tools/get-deadline.tool.js')
+    await import('../apps/backend/dist/mcp/tools/deadlines/get-deadline.tool.js')
 const { getDeadlines } =
-    await import('../apps/backend/dist/mcp/tools/get-deadlines.tool.js')
+    await import(
+        '../apps/backend/dist/mcp/tools/deadlines/get-deadlines.tool.js'
+    )
 const { searchDeadlines } =
-    await import('../apps/backend/dist/mcp/tools/search-deadlines.tool.js')
+    await import(
+        '../apps/backend/dist/mcp/tools/deadlines/search-deadlines.tool.js'
+    )
 const { updateDeadlineTool } =
-    await import('../apps/backend/dist/mcp/tools/update-deadline.tool.js')
+    await import(
+        '../apps/backend/dist/mcp/tools/deadlines/update-deadline.tool.js'
+    )
 const { cancelDeadlineTool } =
-    await import('../apps/backend/dist/mcp/tools/cancel-deadline.tool.js')
+    await import(
+        '../apps/backend/dist/mcp/tools/deadlines/cancel-deadline.tool.js'
+    )
 const { setDeadlineCompletion } =
     await import(
-        '../apps/backend/dist/mcp/tools/set-deadline-completion.tool.js'
+        '../apps/backend/dist/mcp/tools/deadlines/set-deadline-completion.tool.js'
     )
+const { createNote } =
+    await import('../apps/backend/dist/mcp/tools/notes/create-note.tool.js')
+const { getNote } =
+    await import('../apps/backend/dist/mcp/tools/notes/get-note.tool.js')
+const { updateNote } =
+    await import('../apps/backend/dist/mcp/tools/notes/update-note.tool.js')
 
 test.after(() => {
     rmSync(databaseRoot, { recursive: true, force: true })
+})
+
+test('backend exposes a health check', async () => {
+    const app = buildApp({ logger: false })
+
+    try {
+        const response = await app.inject({ method: 'GET', url: '/health' })
+
+        assert.equal(response.statusCode, 200)
+        assert.deepEqual(response.json(), { status: 'ok' })
+    } finally {
+        await app.close()
+    }
+})
+
+test('backend requires the configured bearer token', async () => {
+    assert.throws(
+        () => buildBackendApp({ logger: false, authToken: '' }),
+        /AUTH_TOKEN must contain a non-empty bearer token/,
+    )
+    assert.throws(
+        () => buildBackendApp({ logger: false, authToken: 'not valid' }),
+        /AUTH_TOKEN must not contain whitespace/,
+    )
+
+    const app = buildBackendApp({ logger: false, authToken: 'test-token' })
+
+    try {
+        for (const authorization of [
+            undefined,
+            'Basic test-token',
+            'Bearer wrong-token',
+        ]) {
+            const response = await app.inject({
+                method: 'GET',
+                url: '/api/notes',
+                headers: authorization === undefined ? {} : { authorization },
+            })
+
+            assert.equal(response.statusCode, 401)
+            assert.equal(response.headers['www-authenticate'], 'Bearer')
+            assert.deepEqual(response.json(), { error: 'Unauthorized' })
+        }
+
+        const authorized = await app.inject({
+            method: 'GET',
+            url: '/api/notes',
+            headers: { authorization: 'Bearer test-token' },
+        })
+        assert.equal(authorized.statusCode, 200)
+
+        const health = await app.inject({ method: 'GET', url: '/health' })
+        assert.equal(health.statusCode, 200)
+    } finally {
+        await app.close()
+    }
+})
+
+test('MCP note create and update return the complete entity', async () => {
+    const created = await createNote({ text: 'Remember the adapter' })
+    const id = created.structuredContent.id
+    assert.deepEqual(created.structuredContent, {
+        id,
+        text: 'Remember the adapter',
+        completedAt: null,
+    })
+
+    const completedAt = '2026-10-28T12:00:00.000Z'
+    const updated = await updateNote({
+        id,
+        text: 'Adapter is packed',
+        completedAt,
+    })
+    assert.deepEqual(updated.structuredContent, {
+        id,
+        text: 'Adapter is packed',
+        completedAt,
+    })
+    assert.deepEqual(
+        (await getNote({ id })).structuredContent,
+        updated.structuredContent,
+    )
 })
 
 test('backend serves the rendered frame as PNG', async () => {
@@ -312,6 +415,7 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
     const id = created.structuredContent.id
 
     let master = await getDeadline({ id })
+    assert.deepEqual(created.structuredContent, master.structuredContent)
     assert.equal(master.structuredContent.title, 'Quarterly report')
     assert.equal(master.structuredContent.cancelledAt, null)
     assert.deepEqual(master.structuredContent.recurrence, {
@@ -340,7 +444,7 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
         '2026-11-17T15:00:00.000Z',
     )
 
-    await updateDeadlineTool({
+    const updated = await updateDeadlineTool({
         id,
         scope: 'occurrence',
         recurrenceId: '2026-11-17T15:00:00.000Z',
@@ -351,6 +455,7 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
         },
     })
     master = await getDeadline({ id })
+    assert.deepEqual(updated.structuredContent, master.structuredContent)
     assert.deepEqual(master.structuredContent.exceptions, [
         {
             recurrenceId: '2026-11-17T15:00:00.000Z',
@@ -360,7 +465,6 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
             due: '2026-11-17T17:00:00.000Z',
             dueIsDate: true,
             timezone: 'Europe/Moscow',
-            completed: false,
         },
     ])
 
@@ -415,6 +519,7 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
         count: 2,
     })
     const future = await getDeadline({ id: futureId })
+    assert.deepEqual(split.structuredContent, future.structuredContent)
     assert.equal(future.structuredContent.title, 'Future reports')
     assert.deepEqual(future.structuredContent.recurrence, {
         frequency: 'daily',
@@ -569,6 +674,70 @@ test('event API cancels and reschedules one recurring occurrence', async () => {
     }
 })
 
+test('weekly event excludes a DTSTART whose weekday is not selected', async () => {
+    const created = await createEvent({
+        title: 'daily',
+        start: '2026-10-28T10:00:00Z',
+        end: '2026-10-28T10:30:00Z',
+        timezone: 'Europe/Moscow',
+        recurrence: {
+            frequency: 'weekly',
+            weekdays: ['MO', 'TU', 'TH', 'FR'],
+        },
+    })
+    const id = created.structuredContent.id
+    assert.deepEqual(
+        created.structuredContent,
+        (await getEvent({ id })).structuredContent,
+    )
+    assert.equal(created.structuredContent.title, 'daily')
+    assert.deepEqual(created.structuredContent.recurrence, {
+        frequency: 'weekly',
+        weekdays: ['MO', 'TU', 'TH', 'FR'],
+    })
+
+    try {
+        const wednesday = await getEvents({
+            start: '2026-10-28T00:00:00Z',
+            end: '2026-10-29T00:00:00Z',
+        })
+        assert.deepEqual(
+            wednesday.structuredContent.filter((event) => event.id === id),
+            [],
+        )
+
+        const thursday = await getEvents({
+            start: '2026-10-29T00:00:00Z',
+            end: '2026-10-30T00:00:00Z',
+        })
+        assert.deepEqual(
+            thursday.structuredContent
+                .filter((event) => event.id === id)
+                .map(({ start, end }) => ({ start, end })),
+            [
+                {
+                    start: '2026-10-29T10:00:00.000Z',
+                    end: '2026-10-29T10:30:00.000Z',
+                },
+            ],
+        )
+
+        const updated = await updateEventTool({
+            id,
+            scope: 'this_and_future',
+            recurrenceId: '2026-10-29T10:00:00.000Z',
+            changes: { title: 'updated daily' },
+        })
+        assert.equal(updated.structuredContent.id, id)
+        assert.deepEqual(
+            updated.structuredContent,
+            (await getEvent({ id })).structuredContent,
+        )
+    } finally {
+        await cancelEventTool({ id, scope: 'series' })
+    }
+})
+
 test('MCP update_event updates one occurrence and splits this and future', async () => {
     const app = buildApp({ logger: false })
 
@@ -601,9 +770,8 @@ test('MCP update_event updates one occurrence and splits this and future', async
                 timezone: null,
             },
         })
-        assert.deepEqual(result.structuredContent, { id })
-
         let master = await getEvent({ id })
+        assert.deepEqual(result.structuredContent, master.structuredContent)
         assert.deepEqual(master.structuredContent.exceptions, [
             {
                 recurrenceId: '2026-11-03T07:00:00.000Z',
@@ -659,6 +827,7 @@ test('MCP update_event updates one occurrence and splits this and future', async
         assert.equal(master.structuredContent.exceptions.length, 1)
 
         const future = await getEvent({ id: futureId })
+        assert.deepEqual(result.structuredContent, future.structuredContent)
         assert.equal(future.structuredContent.title, 'Afternoon standup')
         assert.equal(future.structuredContent.start, '2026-11-04T11:00:00.000Z')
         assert.equal(future.structuredContent.end, '2026-11-04T12:00:00.000Z')
@@ -795,7 +964,7 @@ test('events and deadlines API feeds complete template inputs', async () => {
             method: 'GET',
             url: '/api/deadlines?withCompleted=true',
         })
-        assert.equal(response.json()[0].completed, true)
+        assert.match(response.json()[0].completedAt, /Z$/)
         await app.inject({
             method: 'POST',
             url: `/api/deadlines/${deadlineId}/markUndone`,

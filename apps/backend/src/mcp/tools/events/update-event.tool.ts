@@ -2,8 +2,12 @@ import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
-import { recurrenceSchema } from '#src/mcp/util/objects.js'
-import { updateEvent } from '#src/services/events.js'
+import {
+    eventEntitySchema,
+    recurrenceSchema,
+} from '#src/mcp/util/objects.js'
+import { serializeEventEntity } from '#src/mcp/util/serializers.js'
+import { getEventEntity, updateEvent } from '#src/services/events.js'
 import { recurrenceSchema as domainRecurrenceSchema } from '#src/services/recurrence.js'
 
 const changesSchema = z
@@ -64,14 +68,9 @@ export const updateEventInputSchema = z
         }
     })
 
-export const updateEventOutputSchema = z.object({
-    id: z
-        .int()
-        .positive()
-        .describe(
-            'ID of the updated master, or the new future master for this_and_future',
-        ),
-})
+export const updateEventOutputSchema = eventEntitySchema.describe(
+    'The complete updated master, or the new future master for this_and_future, in the same format as get_event',
+)
 
 export const updateEventTool: ToolCallback<
     typeof updateEventInputSchema
@@ -115,5 +114,9 @@ export const updateEventTool: ToolCallback<
             recurrenceId === undefined ? undefined : new Date(recurrenceId),
         changes: convertedChanges,
     })
-    return toToolResponse({ id: eventId })
+    const event = await getEventEntity(eventId)
+    if (event === undefined) {
+        throw new Error(`Updated event ${eventId} could not be read back`)
+    }
+    return toToolResponse(serializeEventEntity(event))
 }

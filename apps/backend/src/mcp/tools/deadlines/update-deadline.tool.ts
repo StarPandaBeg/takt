@@ -4,10 +4,15 @@ import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
 import {
+    deadlineEntitySchema,
     deadlineVisibilitySchema,
     recurrenceSchema,
 } from '#src/mcp/util/objects.js'
-import { updateDeadline } from '#src/services/deadlines.js'
+import { serializeDeadlineEntity } from '#src/mcp/util/serializers.js'
+import {
+    getDeadlineEntity,
+    updateDeadline,
+} from '#src/services/deadlines.js'
 import { recurrenceSchema as domainRecurrenceSchema } from '#src/services/recurrence.js'
 
 const timezoneSchema = z
@@ -107,14 +112,9 @@ export const updateDeadlineInputSchema = z
         }
     })
 
-export const updateDeadlineOutputSchema = z.object({
-    id: z
-        .int()
-        .positive()
-        .describe(
-            'ID of the updated master, or the new future master for this_and_future',
-        ),
-})
+export const updateDeadlineOutputSchema = deadlineEntitySchema.describe(
+    'The complete updated master, or the new future master for this_and_future, in the same format as get_deadline',
+)
 
 export const updateDeadlineTool: ToolCallback<
     typeof updateDeadlineInputSchema
@@ -156,5 +156,9 @@ export const updateDeadlineTool: ToolCallback<
             recurrenceId === undefined ? undefined : new Date(recurrenceId),
         changes: converted,
     })
-    return toToolResponse({ id: deadlineId })
+    const deadline = await getDeadlineEntity(deadlineId)
+    if (deadline === undefined) {
+        throw new Error(`Updated deadline ${deadlineId} could not be read back`)
+    }
+    return toToolResponse(serializeDeadlineEntity(deadline))
 }

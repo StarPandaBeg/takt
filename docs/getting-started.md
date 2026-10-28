@@ -39,13 +39,13 @@ npm run rebuild            # clean + полная сборка
 
 ```bash
 npm run build
-npm start
+AUTH_TOKEN=replace-with-a-long-random-token npm start
 ```
 
 По умолчанию Fastify слушает `0.0.0.0:3000`. Переменные `HOST` и `PORT` читаются напрямую из окружения:
 
 ```bash
-HOST=127.0.0.1 PORT=3001 npm start
+HOST=127.0.0.1 PORT=3001 AUTH_TOKEN=replace-me npm start
 ```
 
 После запуска доступны две сцены и metadata endpoint:
@@ -67,8 +67,40 @@ PNG и ESP endpoints возвращают `Cache-Control: no-store`. `/screens/e
 Режим разработки сначала собирает проект, затем параллельно запускает TypeScript watch и backend с `node --watch`:
 
 ```bash
-npm run dev
+AUTH_TOKEN=replace-me npm run dev
 ```
+
+## Запуск в Docker
+
+Для тестового сервера достаточно Docker Compose:
+
+```bash
+AUTH_TOKEN=replace-with-a-long-random-token docker compose up --build -d
+docker compose ps
+```
+
+Backend будет доступен на `http://localhost:3000`. Порт хоста и timezone можно
+переопределить без изменения compose-файла:
+
+```bash
+AUTH_TOKEN=replace-me TAKT_PORT=8080 DEFAULT_TIMEZONE=Asia/Yekaterinburg docker compose up --build -d
+```
+
+SQLite хранится в именованном томе `takt-data` и не теряется при пересоздании
+контейнера. Перед каждым запуском backend автоматически применяет новые Drizzle
+миграции. Проверить состояние можно запросом `GET /health` или через
+`docker compose ps`; посмотреть журнал — командой:
+
+```bash
+docker compose logs -f backend
+```
+
+Для обновления развертывания получите новую версию исходников и повторите
+`docker compose up --build -d`. Для всех API, MCP и screen-запросов передавайте
+`Authorization: Bearer <AUTH_TOKEN>`. Endpoint `/health` намеренно остаётся
+публичным для оркестратора. Несмотря на наличие токена, для публичного сервера
+используйте HTTPS через reverse proxy, чтобы секрет не передавался открытым
+текстом.
 
 ## Минимальный renderer example
 
@@ -103,4 +135,3 @@ const frame = render({
 В реальном Node-приложении backend использует `createNodeEnvironment()`, который измеряет и растеризует текст через `@napi-rs/canvas`, а изображения требует предварительно передать в `preloadImages(content)`. Полный pipeline описан в [renderer](packages/renderer.md).
 
 > Пример TSX предполагает `"jsx": "react-jsx"` и `"jsxImportSource": "@takt/ui"`, как в пакетах репозитория.
-

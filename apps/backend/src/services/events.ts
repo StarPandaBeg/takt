@@ -5,6 +5,7 @@ import * as eventsRepository from '#src/repository/events.js'
 import { DateTime } from 'luxon'
 import { getEventOccurrences, type ResolvedEvent } from './event-occurrences.js'
 import {
+    getRecurrenceOccurrences,
     getRecurrenceOccurrencesBetween,
     isRecurrenceOccurrence,
     parseRecurrence,
@@ -205,7 +206,18 @@ function getRecurringEvent(event: Event, recurrenceId: Date) {
     if (!isRecurrenceOccurrence(start, recurrence, occurrence)) {
         throw new RangeError('recurrenceId is not an occurrence of this series')
     }
-    return { start, occurrence, recurrence }
+    const firstOccurrence = getRecurrenceOccurrences(
+        start,
+        recurrence,
+        start,
+        1,
+    )[0]
+    return {
+        start,
+        occurrence,
+        recurrence,
+        isFirst: firstOccurrence?.toMillis() === occurrence.toMillis(),
+    }
 }
 
 function getRecurrenceSplit(recurring: ReturnType<typeof getRecurringEvent>): {
@@ -327,7 +339,7 @@ export async function updateEvent(options: {
         return event.id
     }
 
-    if (options.recurrenceId.getTime() === event.start.getTime()) {
+    if (recurring.isFirst) {
         return await updateEvent({
             id: event.id,
             scope: 'series',
@@ -415,7 +427,7 @@ export async function cancelEvent(options: {
         return event.id
     }
 
-    if (options.recurrenceId.getTime() === event.start.getTime()) {
+    if (recurring.isFirst) {
         await eventsRepository.cancel(event.id, new Date())
         return event.id
     }

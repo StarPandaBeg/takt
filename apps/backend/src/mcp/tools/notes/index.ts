@@ -59,7 +59,7 @@ export function registerNoteTools(server: McpServer) {
         {
             title: 'Create Note',
             description:
-                'Create new note entry from text. Note must be a short line of text, meaning small reminder',
+                'Create new note entry from text and return the complete created note. Note must be a short line of text, meaning small reminder',
             inputSchema: createNoteInputSchema,
             outputSchema: createNoteOutputSchema,
             annotations: {
@@ -76,7 +76,7 @@ export function registerNoteTools(server: McpServer) {
         {
             title: 'Update Note',
             description:
-                'Update note text and/or completion date. Not included fields are remain untouched. Also you can use this tool to soft remove notes by setting completion time',
+                'Update note text and/or completion date and return the complete updated note. Not included fields remain untouched. You can soft remove a note by setting completion time',
             inputSchema: updateNoteInputSchema,
             outputSchema: updateNoteOutputSchema,
             annotations: {

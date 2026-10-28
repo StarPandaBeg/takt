@@ -96,7 +96,8 @@ export function registerEventTools(server: McpServer) {
                 'Create a new calendar event, optionally with a recurrence rule. ' +
                 'Use this tool to schedule meetings, appointments, tasks, or recurring activities. ' +
                 'Events may have no end time. ' +
-                'For recurring events, specify the recurrence pattern using the provided schema.',
+                'For recurring events, specify the recurrence pattern using the provided schema. ' +
+                'Returns the complete created master in the same format as get_event.',
             inputSchema: createEventInputSchema,
             outputSchema: createEventOutputSchema,
             annotations: {
@@ -116,7 +117,8 @@ export function registerEventTools(server: McpServer) {
                 'Update an entire event series, one occurrence, or the selected occurrence and all future occurrences. ' +
                 'Use recurrenceId from get_events to target an occurrence. ' +
                 'A single-occurrence update is stored as an override and cannot change recurrence. ' +
-                'Updating this_and_future splits the series and returns the ID of the new future master. ' +
+                'Updating this_and_future splits the series and returns the complete new future master. ' +
+                'Other scopes return the complete updated original master. ' +
                 'Omitted fields stay unchanged; set nullable fields to null to clear them.',
             inputSchema: updateEventInputSchema,
             outputSchema: updateEventOutputSchema,

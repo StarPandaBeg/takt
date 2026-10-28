@@ -1,0 +1,20 @@
+services:
+    backend:
+        build:
+            context: .
+        image: takt-backend:latest
+        restart: unless-stopped
+        init: true
+        environment:
+            DB_FILE_NAME: file:/data/takt.db
+            HOST: 0.0.0.0
+            PORT: 3000
+            AUTH_TOKEN: ${AUTH_TOKEN:?AUTH_TOKEN must be set}
+            DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Europe/Moscow}
+        ports:
+            - '${TAKT_PORT:-3011}:3000'
+        volumes:
+            - takt-data:/data
+
+volumes:
+    takt-data:

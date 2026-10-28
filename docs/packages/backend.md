@@ -23,12 +23,16 @@ occurrence overrides, а затем оставляет только ближай
 ```ts
 interface AppOptions {
     readonly logger?: boolean
+    readonly authToken?: string | false
 }
 
 function buildApp(options: AppOptions = {}): FastifyInstance
 ```
 
-Logger по умолчанию включён. Тесты используют Fastify `inject` и `logger: false`.
+Logger по умолчанию включён. `authToken` по умолчанию читается из обязательной
+переменной `AUTH_TOKEN`; `false` разрешён только для изолированных тестов.
+Публичным остаётся только `GET /health`, остальные маршруты требуют Bearer-токен.
+Тесты используют Fastify `inject`, `logger: false` и явное отключение проверки.
 
 ## Node render environment
 
@@ -57,5 +61,8 @@ Text geometry и alpha bitmap строятся одной Canvas implementation.
 
 ## Запуск
 
-`main.ts` читает `HOST` (default `0.0.0.0`) и `PORT` (default `3000`, допустимо целое `0..65535`), запускает Fastify и корректно закрывает его по `SIGINT`/`SIGTERM`. Команды приведены в [начале работы](../getting-started.md).
+`main.ts` читает `HOST` (default `0.0.0.0`), `PORT` (default `3000`, допустимо
+целое `0..65535`) и обязательный `AUTH_TOKEN`, запускает Fastify и корректно
+закрывает его по `SIGINT`/`SIGTERM`. Команды приведены в
+[начале работы](../getting-started.md).
 

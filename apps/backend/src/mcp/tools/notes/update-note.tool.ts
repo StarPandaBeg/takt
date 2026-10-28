@@ -1,4 +1,6 @@
 import { toToolResponse } from '#src/mcp/util/helpers.js'
+import { noteSchema } from '#src/mcp/util/objects.js'
+import { serializeNote } from '#src/mcp/util/serializers.js'
 import * as notesRepository from '#src/repository/notes.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
@@ -14,9 +16,9 @@ export const updateNoteInputSchema = z.object({
             'Note completion time. Set to null to mark note as incompleted',
         ),
 })
-export const updateNoteOutputSchema = z.object({
-    id: z.int().describe('ID of the updated note'),
-})
+export const updateNoteOutputSchema = noteSchema.describe(
+    'The complete updated note, in the same format as get_note',
+)
 
 export const updateNote: ToolCallback<typeof updateNoteInputSchema> = async ({
     id,
@@ -29,5 +31,7 @@ export const updateNote: ToolCallback<typeof updateNoteInputSchema> = async ({
             id,
             completedAt ? new Date(completedAt) : null,
         )
-    return toToolResponse({ id })
+    const note = await notesRepository.get(id)
+    if (note === undefined) throw new RangeError('Note not found')
+    return toToolResponse(serializeNote(note))
 }

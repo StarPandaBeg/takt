@@ -2,9 +2,16 @@ import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
-import { recurrenceSchema } from '#src/mcp/util/objects.js'
+import {
+    eventEntitySchema,
+    recurrenceSchema,
+} from '#src/mcp/util/objects.js'
+import { serializeEventEntity } from '#src/mcp/util/serializers.js'
 import * as events from '#src/repository/events.js'
-import { serializeEventRecurrence } from '#src/services/events.js'
+import {
+    getEventEntity,
+    serializeEventRecurrence,
+} from '#src/services/events.js'
 
 // MCP принимает ISO-строки, а не JS Date
 export const createEventInputSchema = z
@@ -53,9 +60,9 @@ export const createEventInputSchema = z
         },
     )
 
-export const createEventOutputSchema = z.object({
-    id: z.int().describe('ID of the created event'),
-})
+export const createEventOutputSchema = eventEntitySchema.describe(
+    'The complete created event master, in the same format as get_event',
+)
 
 export const createEvent: ToolCallback<typeof createEventInputSchema> = async (
     input,
@@ -75,5 +82,9 @@ export const createEvent: ToolCallback<typeof createEventInputSchema> = async (
     })
 
     const id = await events.create(record)
-    return toToolResponse({ id })
+    const event = await getEventEntity(id)
+    if (event === undefined) {
+        throw new Error(`Created event ${id} could not be read back`)
+    }
+    return toToolResponse(serializeEventEntity(event))
 }

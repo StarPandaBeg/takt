@@ -589,7 +589,18 @@ function getRecurringDeadline(deadline: Deadline, recurrenceId: Date) {
     if (!isRecurrenceOccurrence(start, recurrence, occurrence)) {
         throw new RangeError('recurrenceId is not an occurrence of this series')
     }
-    return { start, occurrence, recurrence }
+    const firstOccurrence = getRecurrenceOccurrences(
+        start,
+        recurrence,
+        start,
+        1,
+    )[0]
+    return {
+        start,
+        occurrence,
+        recurrence,
+        isFirst: firstOccurrence?.toMillis() === occurrence.toMillis(),
+    }
 }
 
 function getRecurrenceSplit(
@@ -697,7 +708,7 @@ export async function updateDeadline(options: {
         return deadline.id
     }
 
-    if (options.recurrenceId.getTime() === deadline.due.getTime()) {
+    if (recurring.isFirst) {
         return await updateDeadline({
             id: deadline.id,
             scope: 'series',
@@ -767,7 +778,7 @@ export async function cancelDeadline(options: {
         )
         return deadline.id
     }
-    if (options.recurrenceId.getTime() === deadline.due.getTime()) {
+    if (recurring.isFirst) {
         await deadlinesRepository.cancel(deadline.id, new Date())
         return deadline.id
     }

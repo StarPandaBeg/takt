@@ -92,7 +92,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Create Deadline',
             description:
-                'Create a one-time or recurring deadline with optional date-only semantics.',
+                'Create a one-time or recurring deadline with optional date-only semantics. Returns the complete created master in the same format as get_deadline.',
             inputSchema: createDeadlineInputSchema,
             outputSchema: createDeadlineOutputSchema,
             annotations: {
@@ -109,7 +109,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Update Deadline',
             description:
-                'Update a deadline series, one occurrence, or the selected occurrence and all future occurrences.',
+                'Update a deadline series, one occurrence, or the selected occurrence and all future occurrences. Returns the complete affected master in the same format as get_deadline; for this_and_future this is the new future master.',
             inputSchema: updateDeadlineInputSchema,
             outputSchema: updateDeadlineOutputSchema,
             annotations: {

@@ -31,7 +31,7 @@ web-интерфейс и firmware пока не реализованы.
 ```bash
 npm install
 npm test
-npm start
+AUTH_TOKEN=replace-with-a-long-random-token npm start
 ```
 
 После запуска backend слушает `http://localhost:3000`:
@@ -47,14 +47,26 @@ GET http://localhost:3000/screens/events
 разработки с автоматической пересборкой:
 
 ```bash
-npm run dev
+AUTH_TOKEN=replace-me npm run dev
 ```
 
 Переменные `HOST` и `PORT` позволяют изменить адрес сервера:
 
 ```bash
-HOST=127.0.0.1 PORT=3001 npm start
+HOST=127.0.0.1 PORT=3001 AUTH_TOKEN=replace-me npm start
 ```
+
+Запуск backend с постоянным SQLite-томом в Docker:
+
+```bash
+AUTH_TOKEN=replace-with-a-long-random-token docker compose up --build -d
+```
+
+По умолчанию сервис публикуется на порту `3000`; изменить порт можно через
+`TAKT_PORT=8080`. Все рабочие endpoints требуют заголовок
+`Authorization: Bearer <AUTH_TOKEN>`, а миграции применяются автоматически при
+старте контейнера.
+Подробности приведены в [руководстве по запуску](docs/getting-started.md#запуск-в-docker).
 
 Подробные требования и все команды приведены в [руководстве по запуску](docs/getting-started.md).
 

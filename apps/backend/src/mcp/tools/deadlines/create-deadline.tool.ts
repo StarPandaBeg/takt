@@ -4,11 +4,14 @@ import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
 import {
+    deadlineEntitySchema,
     deadlineVisibilitySchema,
     recurrenceSchema,
 } from '#src/mcp/util/objects.js'
+import { serializeDeadlineEntity } from '#src/mcp/util/serializers.js'
 import * as deadlines from '#src/repository/deadlines.js'
 import {
+    getDeadlineEntity,
     serializeDeadlineRecurrence,
     setDeadlineCompletion,
 } from '#src/services/deadlines.js'
@@ -70,9 +73,9 @@ export const createDeadlineInputSchema = z.object({
         ),
 })
 
-export const createDeadlineOutputSchema = z.object({
-    id: z.int().positive().describe('ID of the created deadline'),
-})
+export const createDeadlineOutputSchema = deadlineEntitySchema.describe(
+    'The complete created deadline master, in the same format as get_deadline',
+)
 
 export const createDeadline: ToolCallback<
     typeof createDeadlineInputSchema
@@ -114,5 +117,9 @@ export const createDeadline: ToolCallback<
     if (input.completed === true) {
         await setDeadlineCompletion({ id, completed: true })
     }
-    return toToolResponse({ id })
+    const deadline = await getDeadlineEntity(id)
+    if (deadline === undefined) {
+        throw new Error(`Created deadline ${id} could not be read back`)
+    }
+    return toToolResponse(serializeDeadlineEntity(deadline))
 }

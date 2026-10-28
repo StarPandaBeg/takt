@@ -3,7 +3,8 @@
 MCP endpoint доступен по `/mcp`. Инструменты событий используют тот же
 application service, что HTTP API и источники экранов, поэтому правила
 повторения и occurrence exceptions обрабатываются одинаково во всех трёх
-точках входа.
+точках входа. MCP-клиент должен передавать HTTP-заголовок
+`Authorization: Bearer <AUTH_TOKEN>` при каждом запросе к endpoint.
 
 ## `get_events`
 
@@ -79,7 +80,7 @@ interface SearchEventsInput {
 Создаёт одиночное или повторяющееся событие. Поддерживает `title`,
 `description`, `start`, `end`, `timezone`, `allDay` и `recurrence`. Форматы
 правил повторения совпадают с разделом [Повторение](api.md#повторение) HTTP API.
-Возвращает `{ id: number }`.
+Возвращает полную созданную master-сущность в том же формате, что `get_event`.
 
 ## `update_event`
 
@@ -120,8 +121,9 @@ interface UpdateEventInput {
   идентификаторы могут стать недействительными.
 
 Если выбран первый экземпляр, `this_and_future` эквивалентен `series` и новый
-master не создаётся. В остальных случаях результат `{ id }` содержит ID новой
-будущей серии; для двух других scope это ID исходного master.
+master не создаётся. Инструмент возвращает полную изменённую master-сущность в
+формате `get_event`: для настоящего разделения это новая будущая серия, для
+двух других scope — исходный master с актуальными exceptions.
 
 ## `cancel_event`
 
@@ -180,7 +182,7 @@ interface GetDeadlinesInput {
 
 Создаёт одиночный или повторяющийся дедлайн. Принимает `title`, `description`,
 `due`, `dueIsDate`, IANA `timezone`, `completed` и `recurrence`. Возвращает
-`{ id }`.
+полную созданную master-сущность в том же формате, что `get_deadline`.
 
 ### `update_deadline`
 
@@ -204,7 +206,9 @@ interface UpdateDeadlineInput {
 ```
 
 Один occurrence хранится как полный override и не может менять recurrence.
-`this_and_future` разделяет серию и возвращает ID нового будущего master.
+Инструмент возвращает полную изменённую сущность в формате `get_deadline`.
+`this_and_future` при фактическом разделении возвращает новый будущий master;
+остальные scope возвращают исходный master с актуальными exceptions.
 
 ### `cancel_deadline`
 
@@ -227,3 +231,11 @@ interface SetDeadlineCompletionInput {
 
 Для одного occurrence состояние сохраняется в override. Для
 `this_and_future` создаётся новая серия и возвращается её ID.
+
+## Инструменты заметок
+
+- `get_note` возвращает заметку по ID, а `get_notes` — список заметок.
+- `create_note` создаёт заметку и возвращает её полную сущность в формате
+  `get_note`, включая `id`, `text` и `completedAt`.
+- `update_note` изменяет текст и/или `completedAt` и также возвращает полную
+  актуальную сущность в формате `get_note`.
