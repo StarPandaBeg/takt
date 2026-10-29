@@ -491,6 +491,49 @@ test('deadline visibility uses local calendar days and keeps due-day items visib
     )
 })
 
+test('calendar screen hides a completed deadline before its future due date', () => {
+    const zone = 'Europe/Moscow'
+    const now = DateTime.fromISO('2026-10-29T12:00', { zone })
+    const due = DateTime.fromISO('2026-11-05T09:00', { zone }).toJSDate()
+    const master = {
+        id: 1,
+        title: 'Future deadline',
+        description: null,
+        due,
+        dueIsDate: false,
+        timezone: zone,
+        recurrenceRule: null,
+        completed: false,
+        cancelledAt: null,
+        visibilityShow: 'always',
+        visibilityDays: 0,
+        visibilityHide: 'on_due',
+        createdAt: now.toJSDate(),
+        updatedAt: now.toJSDate(),
+    }
+    const completions = [
+        {
+            id: 1,
+            deadlineId: master.id,
+            recurrenceId: null,
+            completedAt: now.toJSDate(),
+            createdAt: now.toJSDate(),
+            updatedAt: now.toJSDate(),
+        },
+    ]
+
+    assert.deepEqual(
+        getVisibleDeadlineOccurrencesForScreen(
+            [master],
+            [],
+            completions,
+            now,
+            10,
+        ),
+        [],
+    )
+})
+
 test('on_complete keeps overdue recurring occurrences until each is completed', () => {
     const zone = 'Europe/Moscow'
     const now = DateTime.fromISO('2026-04-04T12:00', { zone })

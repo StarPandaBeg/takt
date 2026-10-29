@@ -530,6 +530,8 @@ export function getVisibleDeadlineOccurrencesForScreen(
             MAX_VISIBLE_OCCURRENCE_CANDIDATES,
             true,
         ).filter((occurrence) => {
+            if (occurrence.completed) return false
+
             const due = DateTime.fromJSDate(occurrence.due).setZone(
                 occurrence.timezone,
             )
@@ -543,7 +545,7 @@ export function getVisibleDeadlineOccurrencesForScreen(
             if (showFrom !== undefined && today < showFrom) return false
             return occurrence.visibility.hide === 'on_due'
                 ? today <= due.startOf('day')
-                : !occurrence.completed
+                : true
         })
 
         const sorted = resolved.sort(
