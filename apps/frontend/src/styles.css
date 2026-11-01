@@ -1855,6 +1855,9 @@ h2 {
 .simple-note.is-completing {
     background-color: #fafaf9;
 }
+.simple-note.is-reverting {
+    background-color: var(--surface-muted);
+}
 .simple-note:last-child {
     border-bottom: 0;
 }
@@ -2829,6 +2832,10 @@ h2 {
 .dashboard-note-item.is-completing {
     background: #f5f5f2;
     opacity: 0.72;
+}
+
+.dashboard-note-item.is-reverting {
+    background: var(--surface-muted);
 }
 
 .dashboard-note-item.is-done .dashboard-note-text {

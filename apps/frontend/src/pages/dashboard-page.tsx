@@ -88,6 +88,7 @@ export function DashboardPage() {
     const {
         isCompleting,
         isSubmitting: isNoteSubmitting,
+        isReverting: isNoteReverting,
         handleToggleNote,
         handleCancelCompletion,
     } = useDelayedNoteCompletion({
@@ -123,8 +124,15 @@ export function DashboardPage() {
 
     // На главной отображаются ТОЛЬКО активные заметки (архивные/завершенные скрыты)
     const activeDashboardNotes = useMemo(() => {
-        return notes.filter((n) => n.completedAt === null).slice(0, 5)
-    }, [notes])
+        return notes
+            .filter(
+                (note) =>
+                    note.completedAt === null ||
+                    isCompleting(note.id) ||
+                    isNoteReverting(note.id),
+            )
+            .slice(0, 5)
+    }, [notes, isCompleting, isNoteReverting])
 
     const openCreate = (kind: CreateKind) => {
         setQuickMenuOpen(false)
@@ -291,20 +299,26 @@ export function DashboardPage() {
                             <div className="dashboard-notes">
                                 {activeDashboardNotes.map((note) => {
                                     const inProcess = isCompleting(note.id)
+                                    const isReverting = isNoteReverting(note.id)
+                                    const isSubmitting = isNoteSubmitting(
+                                        note.id,
+                                    )
 
                                     return (
                                         <div
                                             key={note.id}
-                                            className={`dashboard-note-item ${inProcess ? 'is-done is-completing' : ''}`}
+                                            className={`dashboard-note-item${inProcess ? ' is-done is-completing' : ''}${isReverting ? ' is-reverting' : ''}`}
                                             onClick={() => {
-                                                if (!inProcess) {
+                                                if (!isReverting) {
                                                     handleToggleNote(note)
                                                 }
                                             }}
                                             title={
-                                                inProcess
-                                                    ? 'Завершается...'
-                                                    : 'Нажмите, чтобы отметить заметку'
+                                                isReverting
+                                                    ? 'Возвращается в активные...'
+                                                    : inProcess
+                                                      ? 'Нажмите ещё раз, чтобы отменить'
+                                                      : 'Нажмите, чтобы отметить заметку'
                                             }
                                             role="button"
                                             tabIndex={0}
@@ -314,7 +328,7 @@ export function DashboardPage() {
                                                     e.key === ' '
                                                 ) {
                                                     e.preventDefault()
-                                                    if (!inProcess) {
+                                                    if (!isReverting) {
                                                         handleToggleNote(note)
                                                     }
                                                 }
@@ -323,17 +337,27 @@ export function DashboardPage() {
                                             <button
                                                 type="button"
                                                 className="note-check-btn"
-                                                disabled={isNoteSubmitting(
-                                                    note.id,
-                                                )}
+                                                disabled={isReverting}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     handleToggleNote(note)
                                                 }}
-                                                aria-label="Отметить заметку выполненной"
-                                                title="Отметить выполненной"
+                                                aria-label={
+                                                    isReverting
+                                                        ? 'Заметка возвращается в активные'
+                                                        : inProcess
+                                                          ? 'Отменить завершение заметки'
+                                                          : 'Отметить заметку выполненной'
+                                                }
+                                                title={
+                                                    isReverting
+                                                        ? 'Возвращается в активные...'
+                                                        : inProcess
+                                                          ? 'Отменить завершение'
+                                                          : 'Отметить выполненной'
+                                                }
                                             >
-                                                {isNoteSubmitting(note.id) ? (
+                                                {isSubmitting ? (
                                                     <Loader2
                                                         size={14}
                                                         className="spin-animation"

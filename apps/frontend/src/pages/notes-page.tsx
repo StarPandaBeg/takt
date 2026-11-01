@@ -1,4 +1,13 @@
-import { Check, CheckCircle2, Info, Pencil, Plus, Undo2, X } from 'lucide-react'
+import {
+    Check,
+    CheckCircle2,
+    Info,
+    Loader2,
+    Pencil,
+    Plus,
+    Undo2,
+    X,
+} from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 
 import { ErrorBanner } from '../components/common/error-banner'
@@ -29,24 +38,37 @@ export function NotesPage() {
     const [submitting, setSubmitting] = useState(false)
 
     // Мгновенное сохранение с коротким окном для отмены
-    const { isCompleting, handleToggleNote, handleCancelCompletion } =
-        useDelayedNoteCompletion({
-            onComplete: toggleNote,
-            delayMs: 5000,
-        })
+    const {
+        isCompleting,
+        isSubmitting,
+        isReverting,
+        handleToggleNote,
+        handleCancelCompletion,
+    } = useDelayedNoteCompletion({
+        onComplete: toggleNote,
+        delayMs: 5000,
+    })
 
     const filteredNotes = useMemo(() => {
         return notes.filter((note) => {
             // Keep the just-completed note in place while undo is available.
             if (filter === 'active') {
-                return note.completedAt === null || isCompleting(note.id)
+                return (
+                    note.completedAt === null ||
+                    isCompleting(note.id) ||
+                    isReverting(note.id)
+                )
             }
             if (filter === 'completed') {
-                return note.completedAt !== null && !isCompleting(note.id)
+                return (
+                    note.completedAt !== null &&
+                    !isCompleting(note.id) &&
+                    !isReverting(note.id)
+                )
             }
             return true
         })
-    }, [notes, filter, isCompleting])
+    }, [notes, filter, isCompleting, isReverting])
 
     const handleCreate = async (e: FormEvent) => {
         e.preventDefault()
@@ -161,12 +183,16 @@ export function NotesPage() {
                 <div className="simple-note-list">
                     {filteredNotes.map((note) => {
                         const inProcess = isCompleting(note.id)
-                        const isDone = note.completedAt !== null || inProcess
+                        const reverting = isReverting(note.id)
+                        const submitting = isSubmitting(note.id)
+                        const isDone =
+                            !reverting &&
+                            (note.completedAt !== null || inProcess)
                         const isInlineEditing = inlineEditingId === note.id
 
                         return (
                             <div
-                                className={`simple-note ${isDone ? 'is-done' : ''} ${inProcess ? 'is-completing' : ''}`}
+                                className={`simple-note ${isDone ? 'is-done' : ''} ${inProcess ? 'is-completing' : ''} ${reverting ? 'is-reverting' : ''}`}
                                 key={note.id}
                             >
                                 {isInlineEditing ? (
@@ -218,17 +244,33 @@ export function NotesPage() {
                                         <button
                                             type="button"
                                             className="note-status-toggle"
+                                            disabled={reverting}
                                             onClick={() => {
                                                 handleToggleNote(note)
                                             }}
                                             title={
-                                                isDone
-                                                    ? 'Вернуть в активные'
-                                                    : 'Отметить выполненной'
+                                                reverting
+                                                    ? 'Возвращается в активные...'
+                                                    : inProcess
+                                                      ? 'Отменить завершение'
+                                                      : isDone
+                                                        ? 'Вернуть в активные'
+                                                        : 'Отметить выполненной'
                                             }
-                                            aria-label="Переключить статус заметки"
+                                            aria-label={
+                                                reverting
+                                                    ? 'Заметка возвращается в активные'
+                                                    : inProcess
+                                                      ? 'Отменить завершение заметки'
+                                                      : 'Переключить статус заметки'
+                                            }
                                         >
-                                            {isDone ? (
+                                            {submitting ? (
+                                                <Loader2
+                                                    size={18}
+                                                    className="spin-animation"
+                                                />
+                                            ) : isDone ? (
                                                 <CheckCircle2 size={18} />
                                             ) : (
                                                 <span className="note-status-empty" />

@@ -18,6 +18,9 @@ export function useDelayedNoteCompletion({
     const [submittingIds, setSubmittingIds] = useState<Set<number>>(
         () => new Set(),
     )
+    const [revertingIds, setRevertingIds] = useState<Set<number>>(
+        () => new Set(),
+    )
     const timersRef = useRef<
         Map<
             number,
@@ -46,6 +49,11 @@ export function useDelayedNoteCompletion({
     const isSubmitting = useCallback(
         (id: number) => submittingIds.has(id),
         [submittingIds],
+    )
+
+    const isReverting = useCallback(
+        (id: number) => revertingIds.has(id),
+        [revertingIds],
     )
 
     const executeComplete = useCallback(
@@ -81,12 +89,20 @@ export function useDelayedNoteCompletion({
                 next.delete(id)
                 return next
             })
+            setRevertingIds((prev) => new Set(prev).add(id))
 
             // Serialize the compensating mutation after completion so a fast
             // undo cannot be reordered ahead of the original request.
             void pending.completion
                 .then(() => executeComplete(pending.completedNote, true))
                 .catch(() => undefined)
+                .finally(() => {
+                    setRevertingIds((prev) => {
+                        const next = new Set(prev)
+                        next.delete(id)
+                        return next
+                    })
+                })
         },
         [executeComplete],
     )
@@ -95,15 +111,25 @@ export function useDelayedNoteCompletion({
         (note: Note) => {
             const id = note.id
 
-            // Если заметка уже была выполнена в БД — сразу возвращаем её в активные
-            if (note.completedAt !== null) {
-                void executeComplete(note, true).catch(() => undefined)
-                return
-            }
-
             // A second click during the undo window reverts the saved change.
             if (timersRef.current.has(id)) {
                 handleCancelCompletion(note)
+                return
+            }
+
+            // A completed note returns to the active list immediately while
+            // the compensating request is in progress.
+            if (note.completedAt !== null) {
+                setRevertingIds((prev) => new Set(prev).add(id))
+                void executeComplete(note, true)
+                    .catch(() => undefined)
+                    .finally(() => {
+                        setRevertingIds((prev) => {
+                            const next = new Set(prev)
+                            next.delete(id)
+                            return next
+                        })
+                    })
                 return
             }
 
@@ -147,6 +173,7 @@ export function useDelayedNoteCompletion({
     return {
         isCompleting,
         isSubmitting,
+        isReverting,
         handleToggleNote,
         handleCancelCompletion,
     }
