@@ -2,7 +2,10 @@ import {
     AlertCircle,
     CalendarPlus,
     Check,
+    ChevronLeft,
+    ChevronRight,
     Flag,
+    Loader2,
     Plus,
     Repeat,
     StickyNote,
@@ -19,6 +22,7 @@ import { EventDialog } from '../components/events/event-dialog'
 import { MiniCalendar } from '../components/mini-calendar'
 import { NoteDialog } from '../components/notes/note-dialog'
 import { PageHeader } from '../components/page-header'
+import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
 import { useDelayedNoteCompletion } from '../hooks/use-delayed-note-completion'
 import {
     eventTime,
@@ -27,6 +31,7 @@ import {
     formatLongDate,
     getTodayIso,
     parseIsoDate,
+    toIsoDate,
 } from '../lib/date'
 import type { CreateKind, ResolvedDeadline, ResolvedEvent } from '../types'
 import { useTakt } from '../use-app'
@@ -80,16 +85,33 @@ export function DashboardPage() {
     )
 
     // Отложенное завершение заметок на главной с возможностью отмены
-    const { isCompleting, handleToggleNote, handleCancelCompletion } =
-        useDelayedNoteCompletion({
-            onComplete: toggleNote,
-            delayMs: 5000,
-        })
+    const {
+        isCompleting,
+        isSubmitting: isNoteSubmitting,
+        handleToggleNote,
+        handleCancelCompletion,
+    } = useDelayedNoteCompletion({
+        onComplete: toggleNote,
+        delayMs: 5000,
+    })
 
-    // Активные дедлайны для дашборда (первые 5)
+    // Отложенное завершение дедлайнов на главной с возможностью отмены
+    const {
+        isCompleting: isDeadlineCompleting,
+        isSubmitting: isDeadlineSubmitting,
+        handleToggleDeadline,
+        handleCancelCompletion: handleCancelDeadlineCompletion,
+    } = useDelayedDeadlineCompletion({
+        onComplete: toggleDeadline,
+        delayMs: 5000,
+    })
+
+    // Активные дедлайны для дашборда (невыполненные или находящиеся в процессе завершения)
     const dashboardDeadlines = useMemo(() => {
-        return deadlines.slice(0, 5)
-    }, [deadlines])
+        return deadlines
+            .filter((d) => !d.completed || isDeadlineCompleting(d))
+            .slice(0, 5)
+    }, [deadlines, isDeadlineCompleting])
 
     // Общее количество дедлайнов (серий и отдельных задач без разворачивания повторов)
     const totalDeadlinesCount = useMemo(() => {
@@ -114,6 +136,27 @@ export function DashboardPage() {
     const selectDate = (date: string) => {
         setSelectedDate(date)
         setVisibleMonth(parseIsoDate(date))
+    }
+
+    const goToPrevDay = () => {
+        const d = parseIsoDate(selectedDate)
+        d.setDate(d.getDate() - 1)
+        const newDate = toIsoDate(d)
+        setSelectedDate(newDate)
+        setVisibleMonth(parseIsoDate(newDate))
+    }
+
+    const goToNextDay = () => {
+        const d = parseIsoDate(selectedDate)
+        d.setDate(d.getDate() + 1)
+        const newDate = toIsoDate(d)
+        setSelectedDate(newDate)
+        setVisibleMonth(parseIsoDate(newDate))
+    }
+
+    const goToToday = () => {
+        setSelectedDate(today)
+        setVisibleMonth(parseIsoDate(today))
     }
 
     return (
@@ -280,6 +323,9 @@ export function DashboardPage() {
                                             <button
                                                 type="button"
                                                 className="note-check-btn"
+                                                disabled={isNoteSubmitting(
+                                                    note.id,
+                                                )}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     handleToggleNote(note)
@@ -287,7 +333,12 @@ export function DashboardPage() {
                                                 aria-label="Отметить заметку выполненной"
                                                 title="Отметить выполненной"
                                             >
-                                                {inProcess ? (
+                                                {isNoteSubmitting(note.id) ? (
+                                                    <Loader2
+                                                        size={14}
+                                                        className="spin-animation"
+                                                    />
+                                                ) : inProcess ? (
                                                     <Check size={14} />
                                                 ) : (
                                                     <span className="note-check-empty" />
@@ -335,13 +386,43 @@ export function DashboardPage() {
                     <div className="dashboard-col dashboard-col--agenda">
                         <article className="dashboard-card schedule-widget">
                             <div className="dashboard-card__header">
-                                <div>
-                                    <h2>Расписание</h2>
+                                <div className="dashboard-card__header-left">
+                                    <h2 className="dashboard-card__title">
+                                        Расписание
+                                    </h2>
                                     <span className="dashboard-card__subtitle">
                                         {formatLongDate(selectedDate)}
                                     </span>
                                 </div>
                                 <div className="dashboard-card__actions">
+                                    <div className="schedule-widget__day-nav">
+                                        <button
+                                            className="icon-button icon-button--compact"
+                                            type="button"
+                                            onClick={goToPrevDay}
+                                            aria-label="Предыдущий день"
+                                            title="Предыдущий день"
+                                        >
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        <button
+                                            className={`schedule-today-pill ${selectedDate === today ? 'is-active' : ''}`}
+                                            type="button"
+                                            onClick={goToToday}
+                                            title="Сегодня"
+                                        >
+                                            Сегодня
+                                        </button>
+                                        <button
+                                            className="icon-button icon-button--compact"
+                                            type="button"
+                                            onClick={goToNextDay}
+                                            aria-label="Следующий день"
+                                            title="Следующий день"
+                                        >
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
                                     <button
                                         className="icon-button"
                                         type="button"
@@ -428,50 +509,91 @@ export function DashboardPage() {
                                 </div>
                             </div>
                             <div className="deadline-list">
-                                {dashboardDeadlines.map((deadline) => (
-                                    <div
-                                        className={`deadline${deadline.completed ? ' is-complete' : ''}`}
-                                        key={`${deadline.id}-${deadline.recurrenceId ?? 'master'}`}
-                                    >
-                                        <button
-                                            className="deadline__check"
-                                            type="button"
-                                            aria-label={`Отметить «${deadline.title}» выполненным`}
-                                            onClick={() => {
-                                                void toggleDeadline(deadline)
-                                            }}
+                                {dashboardDeadlines.map((deadline) => {
+                                    const inProcess =
+                                        isDeadlineCompleting(deadline)
+                                    const isDone =
+                                        deadline.completed || inProcess
+
+                                    return (
+                                        <div
+                                            className={`deadline${isDone ? ' is-complete' : ''}${inProcess ? ' is-completing' : ''}`}
+                                            key={`${deadline.id}-${deadline.recurrenceId ?? 'master'}`}
                                         >
-                                            {deadline.completed && (
-                                                <Check size={15} />
-                                            )}
-                                        </button>
-                                        <button
-                                            className="deadline__title"
-                                            type="button"
-                                            onClick={() =>
-                                                setEditingDeadline(deadline)
-                                            }
-                                        >
-                                            <span>{deadline.title}</span>
-                                            {deadline.visibility &&
-                                                deadline.visibility.hide ===
-                                                    'on_complete' && (
-                                                    <span
-                                                        className="deadline-badge"
-                                                        title="Остается на экране до подтверждения выполнения"
-                                                    >
-                                                        До выполнения
-                                                    </span>
+                                            <button
+                                                className="deadline__check"
+                                                type="button"
+                                                disabled={isDeadlineSubmitting(
+                                                    deadline,
                                                 )}
-                                        </button>
-                                        <time>
-                                            {formatDeadlineDue(
-                                                deadline.due,
-                                                deadline.dueIsDate,
-                                            )}
-                                        </time>
-                                    </div>
-                                ))}
+                                                aria-label={`Отметить «${deadline.title}» выполненным`}
+                                                onClick={() => {
+                                                    handleToggleDeadline(
+                                                        deadline,
+                                                    )
+                                                }}
+                                            >
+                                                {isDeadlineSubmitting(
+                                                    deadline,
+                                                ) ? (
+                                                    <Loader2
+                                                        size={13}
+                                                        className="spin-animation"
+                                                    />
+                                                ) : isDone ? (
+                                                    <Check size={15} />
+                                                ) : null}
+                                            </button>
+                                            <button
+                                                className="deadline__title"
+                                                type="button"
+                                                onClick={() => {
+                                                    if (!inProcess) {
+                                                        setEditingDeadline(
+                                                            deadline,
+                                                        )
+                                                    }
+                                                }}
+                                            >
+                                                <span>{deadline.title}</span>
+                                                {deadline.visibility &&
+                                                    deadline.visibility.hide ===
+                                                        'on_complete' && (
+                                                        <span
+                                                            className="deadline-badge"
+                                                            title="Остается на экране до подтверждения выполнения"
+                                                        >
+                                                            До выполнения
+                                                        </span>
+                                                    )}
+                                            </button>
+                                            <div className="deadline__meta">
+                                                <time>
+                                                    {formatDeadlineDue(
+                                                        deadline.due,
+                                                        deadline.dueIsDate,
+                                                    )}
+                                                </time>
+                                                {inProcess && (
+                                                    <button
+                                                        type="button"
+                                                        className="deadline-undo-icon-btn"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleCancelDeadlineCompletion(
+                                                                deadline,
+                                                            )
+                                                        }}
+                                                        title="Отменить завершение"
+                                                        aria-label="Отменить завершение"
+                                                    >
+                                                        <Undo2 size={13} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                                 {!dashboardDeadlines.length && (
                                     <div className="compact-empty">
                                         <p>Нет актуальных дедлайнов.</p>

@@ -151,7 +151,7 @@ select:focus-visible {
     background: var(--surface);
 }
 .page {
-    width: min(1640px, 100%);
+    width: min(1760px, 100%);
     margin: 0 auto;
     padding: 28px clamp(28px, 3vw, 56px) 40px;
 }
@@ -386,7 +386,27 @@ h2 {
     display: block;
     transform: none;
     filter: none;
+    transition:
+        opacity 0.2s ease,
+        filter 0.2s ease;
 }
+.device-frame__eink-display.is-refreshing {
+    opacity: 0.45;
+    filter: brightness(0.85);
+}
+.device-frame__refresh-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.25);
+    color: var(--ink);
+    pointer-events: none;
+    border-radius: 4px;
+    z-index: 2;
+}
+.device-frame__placeholder-state,
 .device-frame__offline-state {
     width: 100%;
     height: auto;
@@ -401,6 +421,7 @@ h2 {
     padding: 20px;
     text-align: center;
     box-sizing: border-box;
+    background: #fbfbf9;
 }
 .device-preview__meta {
     display: flex;
@@ -533,6 +554,44 @@ h2 {
     height: 440px;
     display: flex;
     flex-direction: column;
+}
+.schedule-widget__title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.schedule-widget__day-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.icon-button--compact {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+}
+.schedule-today-pill {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    line-height: 1.2;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.schedule-today-pill:hover {
+    color: var(--ink);
+    border-color: var(--ink);
+    background: var(--surface-muted);
+}
+.schedule-today-pill.is-active {
+    background: var(--ink);
+    color: #ffffff;
+    border-color: var(--ink);
 }
 .schedule-widget .dashboard-card__header {
     flex-shrink: 0;
@@ -766,6 +825,35 @@ h2 {
     font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
+}
+.deadline__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+.deadline-undo-icon-btn {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        color 0.15s ease,
+        border-color 0.15s ease;
+}
+.deadline-undo-icon-btn:hover {
+    background: #f0f0ed;
+    color: var(--ink);
+    border-color: #999;
 }
 
 /* Shared controls */
@@ -1429,12 +1517,46 @@ h2 {
 .full-calendar-viewport .is-selected-day {
     background-color: #f3e9e5 !important;
 }
+.calendar-workspace.is-collapsed {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* Вертикальный сплиттер между сеткой календаря и расписанием дня */
+.calendar-splitter {
+    position: relative;
+    width: 8px;
+    background: var(--surface);
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    cursor: col-resize;
+    user-select: none;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease;
+    z-index: 5;
+}
+.calendar-splitter:hover,
+.calendar-splitter:active {
+    background: #e4e4dd;
+}
+.calendar-splitter__handle {
+    width: 2px;
+    height: 36px;
+    border-radius: 2px;
+    background: #b5b5ad;
+    transition: background-color 0.15s ease;
+}
+.calendar-splitter:hover .calendar-splitter__handle {
+    background: var(--ink);
+}
+
 .selected-day-panel {
     display: flex;
     min-width: 0;
     min-height: 0;
     flex-direction: column;
-    border-left: 1px solid var(--line);
     background: #fafaf8;
 }
 .selected-day-panel__header {
@@ -1446,6 +1568,21 @@ h2 {
     gap: 14px;
     padding: 20px 22px;
     border-bottom: 1px solid var(--line);
+}
+.selected-day-panel__title-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.selected-day-nav-arrows {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.selected-day-panel__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 .selected-day-panel__header span {
     color: var(--muted);
@@ -1514,15 +1651,18 @@ h2 {
     letter-spacing: 0.04em;
     color: var(--muted);
 }
-.selected-day-deadlines > div {
-    display: grid;
-    min-height: 40px;
-    grid-template-columns: 24px minmax(0, 1fr);
+.selected-day-deadlines > div,
+.selected-day-deadline {
+    display: flex;
     align-items: center;
+    min-height: 38px;
     gap: 10px;
     padding: 4px 0;
 }
-.selected-day-deadlines > div > button:last-child {
+.selected-day-deadlines > div > button,
+.selected-day-deadline__title {
+    flex: 1;
+    min-width: 0;
     overflow: hidden;
     padding: 0;
     border: 0;
@@ -1532,8 +1672,32 @@ h2 {
     text-overflow: ellipsis;
     white-space: nowrap;
     cursor: pointer;
+    color: var(--ink);
+    transition: color 0.15s ease;
 }
-.selected-day-deadlines > div.is-complete > button:last-child {
+.selected-day-deadlines > div > button.deadline__check,
+.selected-day-deadline .deadline__check {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+}
+.selected-day-deadlines > div > button.deadline-undo-icon-btn,
+.selected-day-deadline .deadline-undo-icon-btn {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    margin-left: auto;
+}
+.selected-day-deadlines
+    > div
+    > button:not(.deadline__check):not(.deadline-undo-icon-btn):hover,
+.selected-day-deadline__title:hover {
+    color: var(--accent);
+}
+.selected-day-deadlines
+    > div.is-complete
+    > button:not(.deadline__check):not(.deadline-undo-icon-btn),
+.selected-day-deadline.is-complete .selected-day-deadline__title {
     color: var(--muted);
     text-decoration: line-through;
 }
@@ -1984,8 +2148,11 @@ h2 {
     }
     .calendar-workspace {
         min-height: 0;
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
         overflow: visible;
+    }
+    .calendar-splitter {
+        display: none !important;
     }
     .calendar-main-column {
         height: 720px;
@@ -3100,4 +3267,80 @@ h2 {
     .full-calendar-viewport .fc-daygrid-day-frame {
         cursor: pointer;
     }
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+    max-width: 380px;
+}
+.toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.08),
+        0 1px 3px rgba(0, 0, 0, 0.05);
+    font-size: 13px;
+    color: var(--ink);
+    animation: toast-slide-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes toast-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+.toast__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.toast--success .toast__icon {
+    color: #10b981;
+}
+.toast--error .toast__icon {
+    color: #ef4444;
+}
+.toast--info .toast__icon {
+    color: var(--accent);
+}
+.toast__message {
+    flex: 1;
+    min-width: 0;
+    line-height: 1.4;
+    word-break: break-word;
+}
+.toast__close {
+    border: none;
+    background: transparent;
+    padding: 2px;
+    margin-left: 4px;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+}
+.toast__close:hover {
+    color: var(--ink);
 }

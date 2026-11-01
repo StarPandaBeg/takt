@@ -15,6 +15,9 @@ export function useDelayedNoteCompletion({
     const [completingIds, setCompletingIds] = useState<Set<number>>(
         () => new Set(),
     )
+    const [submittingIds, setSubmittingIds] = useState<Set<number>>(
+        () => new Set(),
+    )
     const timersRef = useRef<
         Map<number, { timer: NodeJS.Timeout; note: Note }>
     >(new Map())
@@ -36,17 +39,38 @@ export function useDelayedNoteCompletion({
         [completingIds],
     )
 
+    const isSubmitting = useCallback(
+        (id: number) => submittingIds.has(id),
+        [submittingIds],
+    )
+
+    const executeComplete = useCallback(
+        async (note: Note, isRevert: boolean) => {
+            setSubmittingIds((prev) => new Set(prev).add(note.id))
+            try {
+                if (isRevert && onRevert) {
+                    await onRevert(note)
+                } else {
+                    await onComplete(note)
+                }
+            } finally {
+                setSubmittingIds((prev) => {
+                    const next = new Set(prev)
+                    next.delete(note.id)
+                    return next
+                })
+            }
+        },
+        [onComplete, onRevert],
+    )
+
     const handleToggleNote = useCallback(
         (note: Note) => {
             const id = note.id
 
             // Если заметка уже была выполнена в БД — сразу возвращаем её в активные
             if (note.completedAt !== null) {
-                if (onRevert) {
-                    void onRevert(note)
-                } else {
-                    void onComplete(note)
-                }
+                void executeComplete(note, true)
                 return
             }
 
@@ -75,12 +99,12 @@ export function useDelayedNoteCompletion({
                     next.delete(id)
                     return next
                 })
-                void onComplete(note)
+                void executeComplete(note, false)
             }, delayMs)
 
             timersRef.current.set(id, { timer, note })
         },
-        [delayMs, onComplete, onRevert],
+        [delayMs, executeComplete],
     )
 
     const handleCancelCompletion = useCallback((note: Note) => {
@@ -101,6 +125,7 @@ export function useDelayedNoteCompletion({
 
     return {
         isCompleting,
+        isSubmitting,
         handleToggleNote,
         handleCancelCompletion,
     }

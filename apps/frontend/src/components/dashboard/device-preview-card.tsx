@@ -15,7 +15,6 @@ export function DevicePreviewCard({
 }: DevicePreviewCardProps) {
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [imageUrl, setImageUrl] = useState<string | null>(null)
-    const [isLoading, setIsLoading] = useState(false)
     const [loadError, setLoadError] = useState<string | null>(null)
 
     // Загрузка изображения экрана с авторизацией через Blob
@@ -42,8 +41,6 @@ export function DevicePreviewCard({
                     ? err.message
                     : 'Не удалось загрузить экран устройства',
             )
-        } finally {
-            setIsLoading(false)
         }
     }, [isServerConnected])
 
@@ -66,7 +63,6 @@ export function DevicePreviewCard({
                     return url
                 })
                 setLoadError(null)
-                setIsLoading(false)
             })
             .catch((err: unknown) => {
                 if (isCancelled) return
@@ -75,7 +71,6 @@ export function DevicePreviewCard({
                         ? err.message
                         : 'Не удалось загрузить экран устройства',
                 )
-                setIsLoading(false)
             })
 
         return () => {
@@ -125,11 +120,7 @@ export function DevicePreviewCard({
                     >
                         <RefreshCw
                             size={16}
-                            className={
-                                isRefreshing || (isLoading && !imageUrl)
-                                    ? 'spin-animation'
-                                    : ''
-                            }
+                            className={isRefreshing ? 'spin-animation' : ''}
                         />
                     </button>
                 </div>
@@ -139,7 +130,32 @@ export function DevicePreviewCard({
                 {/* Корпус настольного устройства Takt */}
                 <div className="device-frame">
                     <div className="device-frame__screen-bezel">
-                        {!isServerConnected ? (
+                        {imageUrl ? (
+                            <>
+                                <img
+                                    src={imageUrl}
+                                    alt="Экран устройства Takt"
+                                    className={`device-frame__eink-display ${isRefreshing ? 'is-refreshing' : ''}`}
+                                    width={800}
+                                    height={480}
+                                    style={{
+                                        imageRendering: 'auto',
+                                        width: '100%',
+                                        height: 'auto',
+                                        objectFit: 'contain',
+                                        transform: 'none',
+                                    }}
+                                />
+                                {isRefreshing && (
+                                    <div className="device-frame__refresh-overlay">
+                                        <RefreshCw
+                                            size={24}
+                                            className="spin-animation"
+                                        />
+                                    </div>
+                                )}
+                            </>
+                        ) : !isServerConnected ? (
                             <div className="device-frame__offline-state">
                                 <Tv size={24} />
                                 <span>Нет связи с устройством</span>
@@ -149,25 +165,10 @@ export function DevicePreviewCard({
                                 <Tv size={24} />
                                 <span>{loadError}</span>
                             </div>
-                        ) : imageUrl ? (
-                            <img
-                                src={imageUrl}
-                                alt="Экран устройства Takt"
-                                className="device-frame__eink-display"
-                                width={800}
-                                height={480}
-                                style={{
-                                    imageRendering: 'auto',
-                                    width: '100%',
-                                    height: 'auto',
-                                    objectFit: 'contain',
-                                    transform: 'none',
-                                }}
-                            />
                         ) : (
-                            <div className="device-frame__offline-state">
+                            <div className="device-frame__placeholder-state">
                                 <RefreshCw
-                                    size={20}
+                                    size={24}
                                     className="spin-animation"
                                 />
                                 <span>Загрузка экрана...</span>

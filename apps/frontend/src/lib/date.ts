@@ -46,16 +46,26 @@ const genitiveMonths = [
 
 export const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
+const moscowDateFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: DEFAULT_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+})
+
+const moscowTimeFormatter = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: DEFAULT_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+})
+
 export function getTodayIso(): string {
-    const now = new Date()
-    return toIsoDate(now)
+    return moscowDateFormatter.format(new Date())
 }
 
 export function toIsoDate(date: Date): string {
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
+    return moscowDateFormatter.format(date)
 }
 
 export function parseIsoDate(value: string): Date {
@@ -92,29 +102,57 @@ export function getCalendarDays(month: Date): Date[] {
 }
 
 /**
- * Извлекает YYYY-MM-DD из ISO/RFC3339 строки даты
+ * Извлекает YYYY-MM-DD в часовом поясе пользователя (Europe/Moscow) из ISO/RFC3339 строки даты
  */
-export function extractDateString(isoString: string): string {
+export function extractDateString(
+    isoString: string,
+    timeZone: string = DEFAULT_TIMEZONE,
+): string {
     if (!isoString) return getTodayIso()
-    return isoString.slice(0, 10)
-}
-
-/**
- * Извлекает HH:mm из ISO/RFC3339 строки даты
- */
-export function extractTimeString(isoString: string): string {
-    if (!isoString) return '09:00'
-    const match = /T(\d{2}:\d{2})/.exec(isoString)
-    if (match?.[1]) {
-        return match[1]
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
+        return isoString
     }
     const date = new Date(isoString)
-    if (Number.isNaN(date.getTime())) return '09:00'
-    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    if (Number.isNaN(date.getTime())) {
+        return isoString.slice(0, 10)
+    }
+    if (timeZone === DEFAULT_TIMEZONE) {
+        return moscowDateFormatter.format(date)
+    }
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(date)
 }
 
 /**
- * Создает RFC 3339 строку с датой и временем
+ * Извлекает HH:mm в часовом поясе пользователя (Europe/Moscow) из ISO/RFC3339 строки даты
+ */
+export function extractTimeString(
+    isoString: string,
+    timeZone: string = DEFAULT_TIMEZONE,
+): string {
+    if (!isoString) return '09:00'
+    const date = new Date(isoString)
+    if (Number.isNaN(date.getTime())) {
+        const match = /T(\d{2}:\d{2})/.exec(isoString)
+        return match?.[1] ?? '09:00'
+    }
+    if (timeZone === DEFAULT_TIMEZONE) {
+        return moscowTimeFormatter.format(date)
+    }
+    return new Intl.DateTimeFormat('ru-RU', {
+        timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).format(date)
+}
+
+/**
+ * Создает RFC 3339 строку с датой и временем в московском часовом поясе (+03:00)
  */
 export function buildIsoDateTime(
     dateStr: string,
@@ -122,23 +160,13 @@ export function buildIsoDateTime(
     allDay?: boolean,
 ): string {
     if (allDay || !timeStr) {
-        // Для allDay событий или дедлайнов-дат начало дня
-        return `${dateStr}T00:00:00.000Z`
+        // Для all-day событий или дедлайнов-дат начало дня по Москве (00:00:00+03:00)
+        return `${dateStr}T00:00:00+03:00`
     }
     const [h, m] = timeStr.split(':')
     const hours = String(h ?? '00').padStart(2, '0')
     const minutes = String(m ?? '00').padStart(2, '0')
-    // Создаем дату в текущей локали и преобразуем в ISO с Z
-    const [year, month, day] = dateStr.split('-').map(Number)
-    const date = new Date(
-        year ?? 2026,
-        (month ?? 1) - 1,
-        day ?? 1,
-        Number(hours),
-        Number(minutes),
-        0,
-    )
-    return date.toISOString()
+    return `${dateStr}T${hours}:${minutes}:00+03:00`
 }
 
 /**

@@ -20,8 +20,10 @@ import type {
     UpdateNotePayload,
 } from '../types/api'
 import { TaktContext } from './takt-context-base'
+import { useToast } from './use-toast'
 
 export function TaktProvider({ children }: PropsWithChildren) {
+    const toast = useToast()
     const [events, setEvents] = useState<ResolvedEvent[]>([])
     const [deadlines, setDeadlines] = useState<ResolvedDeadline[]>([])
     const [masterDeadlines, setMasterDeadlines] = useState<DeadlineEntity[]>([])
@@ -139,6 +141,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
         async (payload: CreateEventPayload) => {
             try {
                 await api.events.create(payload)
+                toast.success('Событие добавлено')
                 await fetchEvents()
             } catch (err: unknown) {
                 const message =
@@ -146,16 +149,18 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при создании события'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchEvents],
+        [fetchEvents, toast],
     )
 
     const updateEvent = useCallback(
         async (id: number, payload: UpdateEventPayload) => {
             try {
                 await api.events.update(id, payload)
+                toast.success('Событие сохранено')
                 await fetchEvents()
             } catch (err: unknown) {
                 const message =
@@ -163,16 +168,18 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при обновлении события'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchEvents],
+        [fetchEvents, toast],
     )
 
     const cancelEvent = useCallback(
         async (id: number, payload: CancelEventPayload) => {
             try {
                 await api.events.cancel(id, payload)
+                toast.success('Событие отменено')
                 await fetchEvents()
             } catch (err: unknown) {
                 const message =
@@ -180,16 +187,18 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при отмене события'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchEvents],
+        [fetchEvents, toast],
     )
 
     const deleteEvent = useCallback(
         async (id: number) => {
             try {
                 await api.events.delete(id)
+                toast.success('Событие удалено')
                 await fetchEvents()
             } catch (err: unknown) {
                 const message =
@@ -197,10 +206,11 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при удалении события'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchEvents],
+        [fetchEvents, toast],
     )
 
     // --- Мутации дедлайнов ---
@@ -208,6 +218,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
         async (payload: CreateDeadlinePayload) => {
             try {
                 await api.deadlines.create(payload)
+                toast.success('Дедлайн добавлен')
                 await fetchDeadlines()
             } catch (err: unknown) {
                 const message =
@@ -215,16 +226,18 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при создании дедлайна'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchDeadlines],
+        [fetchDeadlines, toast],
     )
 
     const updateDeadline = useCallback(
         async (id: number, payload: UpdateDeadlinePayload) => {
             try {
                 await api.deadlines.update(id, payload)
+                toast.success('Дедлайн обновлен')
                 await fetchDeadlines()
             } catch (err: unknown) {
                 const message =
@@ -232,37 +245,82 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при обновлении дедлайна'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchDeadlines],
+        [fetchDeadlines, toast],
     )
 
     const toggleDeadline = useCallback(
         async (deadline: ResolvedDeadline) => {
+            const nextCompleted = !deadline.completed
+            const nowIso = new Date().toISOString()
+
+            // Оптимистичное обновление дедлайнов в интерфейсе
+            setDeadlines((prev) =>
+                prev.map((d) =>
+                    d.id === deadline.id &&
+                    d.recurrenceId === deadline.recurrenceId
+                        ? {
+                              ...d,
+                              completed: nextCompleted,
+                              completedAt: nextCompleted ? nowIso : null,
+                          }
+                        : d,
+                ),
+            )
+            setMasterDeadlines((prev) =>
+                prev.map((m) => {
+                    if (m.id !== deadline.id) return m
+                    if (!m.recurrence) {
+                        return {
+                            ...m,
+                            completedAt: nextCompleted ? nowIso : null,
+                        }
+                    }
+                    const completions = (m.completions || []).filter(
+                        (c) => c.recurrenceId !== deadline.recurrenceId,
+                    )
+                    if (nextCompleted && deadline.recurrenceId) {
+                        completions.push({
+                            recurrenceId: deadline.recurrenceId,
+                            completedAt: nowIso,
+                        })
+                    }
+                    return { ...m, completions }
+                }),
+            )
             try {
-                const nextCompleted = !deadline.completed
                 await api.deadlines.setCompletion(deadline.id, {
                     recurrenceId: deadline.recurrenceId ?? undefined,
                     completed: nextCompleted,
                 })
                 await fetchDeadlines()
+                toast.success(
+                    nextCompleted
+                        ? 'Дедлайн выполнен'
+                        : 'Дедлайн возвращен в активные',
+                )
             } catch (err: unknown) {
+                await fetchDeadlines()
                 const message =
                     err instanceof Error
                         ? err.message
                         : 'Ошибка при изменении статуса дедлайна'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchDeadlines],
+        [fetchDeadlines, toast],
     )
 
     const cancelDeadline = useCallback(
         async (id: number, payload: CancelDeadlinePayload) => {
             try {
                 await api.deadlines.cancel(id, payload)
+                toast.success('Дедлайн отменен')
                 await fetchDeadlines()
             } catch (err: unknown) {
                 const message =
@@ -270,16 +328,18 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при отмене дедлайна'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchDeadlines],
+        [fetchDeadlines, toast],
     )
 
     const deleteDeadline = useCallback(
         async (id: number) => {
             try {
                 await api.deadlines.delete(id)
+                toast.success('Дедлайн удален')
                 await fetchDeadlines()
             } catch (err: unknown) {
                 const message =
@@ -287,10 +347,11 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при удалении дедлайна'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchDeadlines],
+        [fetchDeadlines, toast],
     )
 
     // --- Мутации заметок ---
@@ -298,6 +359,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
         async (text: string) => {
             try {
                 await api.notes.create({ text })
+                toast.success('Заметка добавлена')
                 await fetchNotes()
             } catch (err: unknown) {
                 const message =
@@ -305,16 +367,18 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при создании заметки'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchNotes],
+        [fetchNotes, toast],
     )
 
     const updateNote = useCallback(
         async (id: number, payload: UpdateNotePayload) => {
             try {
                 await api.notes.update(id, payload)
+                toast.success('Заметка обновлена')
                 await fetchNotes()
             } catch (err: unknown) {
                 const message =
@@ -322,49 +386,78 @@ export function TaktProvider({ children }: PropsWithChildren) {
                         ? err.message
                         : 'Ошибка при обновлении заметки'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchNotes],
+        [fetchNotes, toast],
     )
 
     const toggleNote = useCallback(
         async (note: Note) => {
+            const isCompleted = note.completedAt !== null
+            const nextCompletedAt = isCompleted
+                ? null
+                : new Date().toISOString()
+
+            // Оптимистичное обновление заметок
+            setNotes((prev) =>
+                prev.map((n) =>
+                    n.id === note.id
+                        ? { ...n, completedAt: nextCompletedAt }
+                        : n,
+                ),
+            )
             try {
-                if (note.completedAt !== null) {
+                if (isCompleted) {
                     await api.notes.markUndone(note.id)
                 } else {
                     await api.notes.markDone(note.id)
                 }
                 await fetchNotes()
+                toast.success(
+                    isCompleted ? 'Заметка возвращена' : 'Заметка выполнена',
+                )
             } catch (err: unknown) {
+                await fetchNotes()
                 const message =
                     err instanceof Error
                         ? err.message
                         : 'Ошибка при изменении статуса заметки'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchNotes],
+        [fetchNotes, toast],
     )
 
     const deleteNote = useCallback(
         async (id: number) => {
+            setNotes((prev) =>
+                prev.map((n) =>
+                    n.id === id
+                        ? { ...n, completedAt: new Date().toISOString() }
+                        : n,
+                ),
+            )
+            toast.success('Заметка завершена')
+
             try {
-                // По API.md в notes нет DELETE эндпоинта: заметки помечаются как выполненные (markDone)
                 await api.notes.markDone(id)
                 await fetchNotes()
             } catch (err: unknown) {
+                await fetchNotes()
                 const message =
                     err instanceof Error
                         ? err.message
                         : 'Ошибка при завершении заметки'
                 setError(message)
+                toast.error(message)
                 throw err
             }
         },
-        [fetchNotes],
+        [fetchNotes, toast],
     )
 
     return (

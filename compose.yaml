@@ -16,5 +16,14 @@ services:
         volumes:
             - takt-data:/data
 
+    frontend:
+        build:
+            context: .
+            dockerfile: Dockerfile.frontend
+        image: ${TAKT_FRONTEND_IMAGE:-takt-frontend:latest}
+        restart: unless-stopped
+        ports:
+            - '${TAKT_FRONTEND_PORT:-3000}:3000'
+
 volumes:
     takt-data:
