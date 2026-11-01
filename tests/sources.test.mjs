@@ -304,6 +304,50 @@ test('recurrence expansion handles all supported calendar patterns', () => {
     )
 })
 
+test('unbounded recurrence expansion jumps to a distant requested range', () => {
+    const zone = 'Europe/Moscow'
+    const dates = (start, rule, from) =>
+        getRecurrenceOccurrences(
+            DateTime.fromISO(start, { zone }),
+            rule,
+            DateTime.fromISO(from, { zone }),
+            2,
+        ).map((date) => date.toFormat('yyyy-MM-dd HH:mm'))
+
+    assert.deepEqual(
+        dates(
+            '2000-01-01T09:00',
+            { frequency: 'daily' },
+            '2026-11-01T00:00',
+        ),
+        ['2026-11-01 09:00', '2026-11-02 09:00'],
+    )
+    assert.deepEqual(
+        dates(
+            '2000-01-03T09:00',
+            { frequency: 'weekly', weekdays: ['MO', 'WE'], interval: 2 },
+            '2026-11-01T00:00',
+        ),
+        ['2026-11-02 09:00', '2026-11-04 09:00'],
+    )
+    assert.deepEqual(
+        dates(
+            '2000-01-31T09:00',
+            { frequency: 'monthly-date', day: 31 },
+            '2026-11-01T00:00',
+        ),
+        ['2026-12-31 09:00', '2027-01-31 09:00'],
+    )
+    assert.deepEqual(
+        dates(
+            '2000-02-29T09:00',
+            { frequency: 'yearly' },
+            '2026-11-01T00:00',
+        ),
+        ['2028-02-29 09:00', '2032-02-29 09:00'],
+    )
+})
+
 test('deadline source expands a past recurring master into future occurrences', () => {
     const zone = 'Europe/Moscow'
     const start = DateTime.fromISO('2026-10-20T09:00', { zone })

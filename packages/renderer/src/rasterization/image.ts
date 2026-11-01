@@ -108,27 +108,32 @@ function sampleBilinear(
     const y1 = clamp(rawY0 + 1, 0, image.height - 1)
     const tx = clamp(x - rawX0, 0, 1)
     const ty = clamp(y - rawY0, 0, 1)
-    const samples = [
-        { x: x0, y: y0, weight: (1 - tx) * (1 - ty) },
-        { x: x1, y: y0, weight: tx * (1 - ty) },
-        { x: x0, y: y1, weight: (1 - tx) * ty },
-        { x: x1, y: y1, weight: tx * ty },
-    ]
+    const index00 = (y0 * image.width + x0) * 4
+    const index10 = (y0 * image.width + x1) * 4
+    const index01 = (y1 * image.width + x0) * 4
+    const index11 = (y1 * image.width + x1) * 4
+    const weight00 =
+        (1 - tx) * (1 - ty) * ((image.data[index00 + 3] ?? 0) / 255)
+    const weight10 = tx * (1 - ty) * ((image.data[index10 + 3] ?? 0) / 255)
+    const weight01 = (1 - tx) * ty * ((image.data[index01 + 3] ?? 0) / 255)
+    const weight11 = tx * ty * ((image.data[index11 + 3] ?? 0) / 255)
 
-    let alpha = 0
-    let red = 0
-    let green = 0
-    let blue = 0
-
-    for (const sample of samples) {
-        const index = (sample.y * image.width + sample.x) * 4
-        const sampleAlpha = (image.data[index + 3] ?? 0) / 255
-        const weight = sample.weight * sampleAlpha
-        alpha += weight
-        red += (image.data[index] ?? 0) * weight
-        green += (image.data[index + 1] ?? 0) * weight
-        blue += (image.data[index + 2] ?? 0) * weight
-    }
+    const alpha = weight00 + weight10 + weight01 + weight11
+    const red =
+        (image.data[index00] ?? 0) * weight00 +
+        (image.data[index10] ?? 0) * weight10 +
+        (image.data[index01] ?? 0) * weight01 +
+        (image.data[index11] ?? 0) * weight11
+    const green =
+        (image.data[index00 + 1] ?? 0) * weight00 +
+        (image.data[index10 + 1] ?? 0) * weight10 +
+        (image.data[index01 + 1] ?? 0) * weight01 +
+        (image.data[index11 + 1] ?? 0) * weight11
+    const blue =
+        (image.data[index00 + 2] ?? 0) * weight00 +
+        (image.data[index10 + 2] ?? 0) * weight10 +
+        (image.data[index01 + 2] ?? 0) * weight01 +
+        (image.data[index11 + 2] ?? 0) * weight11
 
     output[outputIndex] = alpha > 0 ? Math.round(red / alpha) : 0
     output[outputIndex + 1] = alpha > 0 ? Math.round(green / alpha) : 0
@@ -231,9 +236,10 @@ export function monochromizeImage(
     }
 
     const threshold = clamp(options.threshold, 0, 255)
-    const values = new Float32Array(pixelCount)
     const mask = new Uint8Array(pixelCount)
     const data = new Uint8Array(pixelCount)
+    const diffuseError = options.dithering === 'floyd-steinberg'
+    const values = diffuseError ? new Float32Array(pixelCount) : undefined
 
     for (let index = 0; index < pixelCount; index += 1) {
         const source = index * 4
@@ -253,14 +259,34 @@ export function monochromizeImage(
         const blue =
             (image.data[source + 2] ?? 0) * opacity +
             backgroundValue * (1 - opacity)
-        values[index] = getBrightness(red, green, blue, options.brightness)
+        const brightness = getBrightness(red, green, blue, options.brightness)
+        if (values !== undefined) {
+            values[index] = brightness
+            continue
+        }
+
+        let black: boolean
+        if (options.dithering === 'ordered') {
+            const x = index % image.width
+            const y = Math.floor(index / image.width)
+            const bayer = BAYER_4X4[(y & 3) * 4 + (x & 3)] ?? 0
+            black = brightness + (bayer - 7.5) * 12 < threshold
+        } else {
+            black = brightness < threshold
+        }
+        if (options.invert) black = !black
+        data[index] = black ? FramePixel.BLACK : FramePixel.WHITE
+    }
+
+    if (!diffuseError) {
+        return { width: image.width, height: image.height, data, mask }
     }
 
     const addError = (x: number, y: number, error: number) => {
         if (x < 0 || x >= image.width || y < 0 || y >= image.height) return
         const index = y * image.width + x
         if (mask[index] === 0) return
-        values[index] = (values[index] ?? 0) + error
+        values![index] = (values![index] ?? 0) + error
     }
 
     for (let y = 0; y < image.height; y += 1) {
@@ -268,28 +294,18 @@ export function monochromizeImage(
             const index = y * image.width + x
             if (mask[index] === 0) continue
 
-            const brightness = values[index] ?? 0
-            let black: boolean
+            const brightness = values![index] ?? 0
+            const quantized = brightness < threshold ? 0 : 255
+            let black = quantized === 0
+            const error = brightness - quantized
 
-            if (options.dithering === 'floyd-steinberg') {
-                const quantized = brightness < threshold ? 0 : 255
-                black = quantized === 0
-                const error = brightness - quantized
-
-                // Floyd–Steinberg, matching alg.js:
-                //             X    7/16
-                //     3/16   5/16  1/16
-                addError(x + 1, y, (error * 7) / 16)
-                addError(x - 1, y + 1, (error * 3) / 16)
-                addError(x, y + 1, (error * 5) / 16)
-                addError(x + 1, y + 1, error / 16)
-            } else if (options.dithering === 'ordered') {
-                const bayer = BAYER_4X4[(y & 3) * 4 + (x & 3)] ?? 0
-                const adjustment = (bayer - 7.5) * 12
-                black = brightness + adjustment < threshold
-            } else {
-                black = brightness < threshold
-            }
+            // Floyd–Steinberg, matching alg.js:
+            //             X    7/16
+            //     3/16   5/16  1/16
+            addError(x + 1, y, (error * 7) / 16)
+            addError(x - 1, y + 1, (error * 3) / 16)
+            addError(x, y + 1, (error * 5) / 16)
+            addError(x + 1, y + 1, error / 16)
 
             if (options.invert) black = !black
             data[index] = black ? FramePixel.BLACK : FramePixel.WHITE

@@ -5,14 +5,18 @@ export const exportEsp: FrameExporter<Uint8Array> = async (frame) => {
     const buffer = new Uint8Array(stride * frame.height)
 
     for (let y = 0; y < frame.height; y++) {
-        for (let x = 0; x < frame.width; x++) {
-            const index = y * frame.width + x
-            const byteIndex = y * stride + (x >> 3)
-            const bitIndex = 7 - (x & 7)
-
-            if (frame.buffer[index]) {
-                buffer[byteIndex]! |= 1 << bitIndex
+        const frameRowOffset = y * frame.width
+        const outputRowOffset = y * stride
+        for (let byte = 0; byte < stride; byte += 1) {
+            const firstX = byte << 3
+            const count = Math.min(8, frame.width - firstX)
+            let packed = 0
+            for (let bit = 0; bit < count; bit += 1) {
+                if (frame.buffer[frameRowOffset + firstX + bit]) {
+                    packed |= 0x80 >> bit
+                }
             }
+            buffer[outputRowOffset + byte] = packed
         }
     }
 

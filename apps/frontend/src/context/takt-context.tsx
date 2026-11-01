@@ -35,7 +35,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
     const [screenRevision, setScreenRevision] = useState(() => Date.now())
 
     const refreshScreen = useCallback(() => {
-        setScreenRevision(Date.now())
+        setScreenRevision((revision) => revision + 1)
     }, [])
 
     // Диапазон дат для occurrences (по умолчанию текущий год +/- 1 год)
@@ -115,7 +115,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
 
         const unsubscribe = api.screens.subscribe(
             () => {
-                setScreenRevision(Date.now())
+                setScreenRevision((revision) => revision + 1)
                 // При получении изменения экрана обновляем данные
                 void Promise.all([
                     fetchEvents(),

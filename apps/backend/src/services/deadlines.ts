@@ -488,8 +488,6 @@ export function getNearestDeadlineOccurrencesForScreen(
     })
 }
 
-const MAX_VISIBLE_OCCURRENCE_CANDIDATES = 8192
-
 /** Applies recurrence, exceptions, completions, and the deadline visibility
  * policy for the calendar screen. */
 export function getVisibleDeadlineOccurrencesForScreen(
@@ -514,6 +512,9 @@ export function getVisibleDeadlineOccurrencesForScreen(
     const visible = deadlines.flatMap((deadline) => {
         const deadlineExceptions =
             exceptionsByDeadline.get(deadline.id) ?? []
+        const deadlineCompletions =
+            completionsByDeadline.get(deadline.id) ?? []
+        const visibility = resolveVisibility(deadline)
         const earliest = deadlineExceptions.reduce(
             (value, exception) =>
                 exception.replacementDue !== null &&
@@ -522,40 +523,75 @@ export function getVisibleDeadlineOccurrencesForScreen(
                     : value,
             deadline.due,
         )
-        const resolved = resolveDeadlineOccurrences(
+        // Enough candidates to compensate for every completion/exception and
+        // still fill the screen. Previously this always expanded 8192 items
+        // per recurring deadline, even though the screen can show only `limit`.
+        const candidateLimit =
+            limit +
+            deadlineCompletions.length +
+            deadlineExceptions.length +
+            1
+        const today = now.setZone(deadline.timezone).startOf('day')
+        const historical = resolveDeadlineOccurrences(
             [deadline],
             deadlineExceptions,
-            completionsByDeadline.get(deadline.id) ?? [],
-            DateTime.fromJSDate(earliest).setZone(deadline.timezone),
-            MAX_VISIBLE_OCCURRENCE_CANDIDATES,
+            deadlineCompletions,
+            visibility.hide === 'on_complete'
+                ? DateTime.fromJSDate(earliest).setZone(deadline.timezone)
+                : today,
+            candidateLimit,
             true,
-        ).filter((occurrence) => {
+        )
+        // An on-complete series also needs its nearest current/future item even
+        // when the bounded historical batch is full of overdue occurrences.
+        const current =
+            visibility.hide === 'on_complete'
+                ? resolveDeadlineOccurrences(
+                      [deadline],
+                      deadlineExceptions,
+                      deadlineCompletions,
+                      today,
+                      candidateLimit,
+                      true,
+                  )
+                : []
+        const unique = new Map<string, ResolvedDeadline>()
+        for (const occurrence of [...historical, ...current]) {
+            unique.set(
+                `${occurrence.id}:${occurrence.recurrenceId?.getTime() ?? 'master'}`,
+                occurrence,
+            )
+        }
+        const resolved = [...unique.values()].filter((occurrence) => {
             if (occurrence.completed) return false
 
             const due = DateTime.fromJSDate(occurrence.due).setZone(
                 occurrence.timezone,
             )
-            const today = now.setZone(occurrence.timezone).startOf('day')
+            const occurrenceToday = now
+                .setZone(occurrence.timezone)
+                .startOf('day')
             const showFrom =
                 occurrence.visibility.show.type === 'always'
                     ? undefined
                     : due
                           .startOf('day')
                           .minus({ days: occurrence.visibility.show.days })
-            if (showFrom !== undefined && today < showFrom) return false
+            if (showFrom !== undefined && occurrenceToday < showFrom) {
+                return false
+            }
             return occurrence.visibility.hide === 'on_due'
-                ? today <= due.startOf('day')
+                ? occurrenceToday <= due.startOf('day')
                 : true
         })
 
         const sorted = resolved.sort(
             (left, right) => left.due.getTime() - right.due.getTime(),
         )
-        if (resolveVisibility(deadline).hide === 'on_due') {
+        if (visibility.hide === 'on_due') {
             return sorted.slice(0, 1)
         }
 
-        const today = now.setZone(deadline.timezone).startOf('day')
         const overdue = sorted.filter(
             ({ due }) =>
                 DateTime.fromJSDate(due)

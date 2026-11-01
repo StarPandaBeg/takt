@@ -56,16 +56,22 @@ function createScanlines(frame: Readonly<RenderedFrame>): Uint8Array {
         const rowOffset = y * scanlineLength
         scanlines[rowOffset] = 0 // PNG filter: None
 
-        for (let x = 0; x < frame.width; x += 1) {
-            const pixel = frame.buffer[y * frame.width + x]
-
-            // RenderedFrame: 0 = white, 1 = black.
-            // PNG grayscale: 1 = white, 0 = black.
-            if (pixel === FramePixel.WHITE) {
-                const byteOffset = rowOffset + 1 + (x >> 3)
-                scanlines[byteOffset] =
-                    (scanlines[byteOffset] ?? 0) | (1 << (7 - (x & 7)))
+        const frameRowOffset = y * frame.width
+        for (let byte = 0; byte < packedRowLength; byte += 1) {
+            const firstX = byte << 3
+            let packed = 0
+            const count = Math.min(8, frame.width - firstX)
+            for (let bit = 0; bit < count; bit += 1) {
+                // RenderedFrame: 0 = white, 1 = black.
+                // PNG grayscale: 1 = white, 0 = black.
+                if (
+                    frame.buffer[frameRowOffset + firstX + bit] ===
+                    FramePixel.WHITE
+                ) {
+                    packed |= 0x80 >> bit
+                }
             }
+            scanlines[rowOffset + 1 + byte] = packed
         }
     }
 
@@ -80,14 +86,20 @@ async function deflate(data: Uint8Array): Promise<Uint8Array> {
     return new Uint8Array(await new Response(compressed).arrayBuffer())
 }
 
+const CRC32_TABLE = new Uint32Array(256)
+for (let index = 0; index < CRC32_TABLE.length; index += 1) {
+    let value = index
+    for (let bit = 0; bit < 8; bit += 1) {
+        value = (value >>> 1) ^ (value & 1 ? 0xedb88320 : 0)
+    }
+    CRC32_TABLE[index] = value >>> 0
+}
+
 function crc32(data: Uint8Array): number {
     let crc = 0xffffffff
 
     for (const byte of data) {
-        crc ^= byte
-        for (let bit = 0; bit < 8; bit += 1) {
-            crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
-        }
+        crc = (crc >>> 8) ^ CRC32_TABLE[(crc ^ byte) & 0xff]!
     }
 
     return (crc ^ 0xffffffff) >>> 0

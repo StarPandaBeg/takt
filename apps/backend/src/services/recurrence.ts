@@ -184,12 +184,28 @@ function atStartTime(date: DateTime, start: DateTime): DateTime {
 function* recurrenceCandidates(
     start: DateTime,
     rule: Recurrence,
+    from?: DateTime,
 ): Generator<DateTime> {
     const interval = rule.interval ?? 1
+    // COUNT applies to the complete series, so its candidates must still be
+    // counted from the beginning. Unbounded rules can safely jump close to the
+    // requested range instead of walking through years of irrelevant dates.
+    const canSkip = rule.count === undefined && from !== undefined
+    const requested = from ?? start
 
     switch (rule.frequency) {
         case 'daily': {
-            for (let offset = 0; ; offset += interval) {
+            const elapsedDays = canSkip
+                ? requested.diff(start, 'days').days
+                : 0
+            let offset = Math.max(
+                0,
+                Math.floor(elapsedDays / interval) * interval,
+            )
+            while (offset > 0 && start.plus({ days: offset }) > requested) {
+                offset -= interval
+            }
+            for (; ; offset += interval) {
                 yield start.plus({ days: offset })
             }
         }
@@ -198,7 +214,14 @@ function* recurrenceCandidates(
                 .map((weekday) => weekdayNumbers.get(weekday)!)
                 .sort((left, right) => left - right)
             const firstWeek = start.startOf('week')
-            for (let offset = 0; ; offset += interval) {
+            const elapsedWeeks = canSkip
+                ? requested.startOf('week').diff(firstWeek, 'weeks').weeks
+                : 0
+            let offset = Math.max(
+                0,
+                Math.floor(elapsedWeeks / interval) * interval,
+            )
+            for (; ; offset += interval) {
                 const week = firstWeek.plus({ weeks: offset })
                 for (const weekday of weekdays) {
                     const occurrence = atStartTime(
@@ -211,7 +234,16 @@ function* recurrenceCandidates(
         }
         case 'monthly-date': {
             const firstMonth = start.startOf('month')
-            for (let offset = 0; ; offset += interval) {
+            const elapsedMonths = canSkip
+                ? (requested.year - firstMonth.year) * 12 +
+                  requested.month -
+                  firstMonth.month
+                : 0
+            let offset = Math.max(
+                0,
+                Math.floor(elapsedMonths / interval) * interval,
+            )
+            for (; ; offset += interval) {
                 const month = firstMonth.plus({ months: offset })
                 const occurrence = atStartTime(
                     month.set({ day: rule.day }),
@@ -229,7 +261,16 @@ function* recurrenceCandidates(
         case 'monthly-weekday': {
             const weekday = weekdayNumbers.get(rule.weekday)!
             const firstMonth = start.startOf('month')
-            for (let offset = 0; ; offset += interval) {
+            const elapsedMonths = canSkip
+                ? (requested.year - firstMonth.year) * 12 +
+                  requested.month -
+                  firstMonth.month
+                : 0
+            let offset = Math.max(
+                0,
+                Math.floor(elapsedMonths / interval) * interval,
+            )
+            for (; ; offset += interval) {
                 const month = firstMonth.plus({ months: offset })
                 let occurrence: DateTime
                 if (rule.occurrence === -1) {
@@ -254,7 +295,12 @@ function* recurrenceCandidates(
             }
         }
         case 'yearly': {
-            for (let offset = 0; ; offset += interval) {
+            const elapsedYears = canSkip ? requested.year - start.year : 0
+            let offset = Math.max(
+                0,
+                Math.floor(elapsedYears / interval) * interval,
+            )
+            for (; ; offset += interval) {
                 const occurrence = DateTime.fromObject(
                     {
                         year: start.year + offset,
@@ -295,7 +341,7 @@ export function isRecurrenceOccurrence(
             : DateTime.fromJSDate(rule.until).setZone(start.zone)
     let generated = 0
 
-    for (const occurrence of recurrenceCandidates(start, rule)) {
+    for (const occurrence of recurrenceCandidates(start, rule, target)) {
         generated += 1
         if (generated > MAX_EXPANSION_CANDIDATES) {
             throw new RangeError('Recurrence validation exceeded its limit')
@@ -324,7 +370,7 @@ export function getRecurrenceOccurrencesBetween(
             : DateTime.fromJSDate(rule.until).setZone(start.zone)
     let generated = 0
 
-    for (const occurrence of recurrenceCandidates(start, rule)) {
+    for (const occurrence of recurrenceCandidates(start, rule, from)) {
         generated += 1
         if (generated > MAX_EXPANSION_CANDIDATES) {
             throw new RangeError('Recurrence expansion exceeded its limit')
@@ -356,7 +402,7 @@ export function getRecurrenceOccurrences(
     let generated = 0
     let examined = 0
 
-    for (const occurrence of recurrenceCandidates(start, rule)) {
+    for (const occurrence of recurrenceCandidates(start, rule, from)) {
         examined += 1
         if (examined > MAX_EXPANSION_CANDIDATES) {
             throw new RangeError('Recurrence expansion exceeded its limit')

@@ -1,5 +1,5 @@
 import { RefreshCw, Tv } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 
 interface DevicePreviewCardProps {
@@ -16,33 +16,6 @@ export function DevicePreviewCard({
     const [isRefreshing, setIsRefreshing] = useState(false)
     const [imageUrl, setImageUrl] = useState<string | null>(null)
     const [loadError, setLoadError] = useState<string | null>(null)
-
-    // Загрузка изображения экрана с авторизацией через Blob
-    const loadImage = useCallback(async () => {
-        if (!isServerConnected) {
-            setImageUrl(null)
-            return
-        }
-
-        try {
-            const blob = await api.screens.getPngBlob('main')
-            const url = URL.createObjectURL(blob)
-
-            setImageUrl((prev) => {
-                if (prev) {
-                    URL.revokeObjectURL(prev)
-                }
-                return url
-            })
-            setLoadError(null)
-        } catch (err: unknown) {
-            setLoadError(
-                err instanceof Error
-                    ? err.message
-                    : 'Не удалось загрузить экран устройства',
-            )
-        }
-    }, [isServerConnected])
 
     useEffect(() => {
         let isCancelled = false
@@ -72,6 +45,9 @@ export function DevicePreviewCard({
                         : 'Не удалось загрузить экран устройства',
                 )
             })
+            .finally(() => {
+                if (!isCancelled) setIsRefreshing(false)
+            })
 
         return () => {
             isCancelled = true
@@ -90,9 +66,6 @@ export function DevicePreviewCard({
     const handleRefresh = () => {
         setIsRefreshing(true)
         onRefresh()
-        void loadImage().finally(() => {
-            setTimeout(() => setIsRefreshing(false), 400)
-        })
     }
 
     return (
