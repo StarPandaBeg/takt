@@ -9,6 +9,7 @@ import {
 } from '../lib/date'
 
 interface Props {
+    timezone: string
     month: Date
     selected: string
     eventDates?: Set<string>
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function MiniCalendar({
+    timezone,
     month,
     selected,
     eventDates,
@@ -62,7 +64,7 @@ export function MiniCalendar({
             <div className="mini-calendar__grid">
                 {getCalendarDays(month).map((date) => {
                     const iso = toIsoDate(date)
-                    const todayIso = getTodayIso()
+                    const todayIso = getTodayIso(timezone)
                     return (
                         <button
                             key={iso}

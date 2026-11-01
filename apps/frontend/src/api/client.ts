@@ -1,4 +1,5 @@
 import type {
+    ApplicationSettings,
     CancelDeadlinePayload,
     CancelEventPayload,
     CreateDeadlinePayload,
@@ -19,6 +20,7 @@ import type {
     UpdateDeadlinePayload,
     UpdateEventPayload,
     UpdateNotePayload,
+    UpdateSettingsPayload,
 } from '../types/api'
 
 export class ApiClientError extends Error {
@@ -113,6 +115,15 @@ function buildQuery(
 }
 
 export const api = {
+    settings: {
+        get: () => request<ApplicationSettings>('/api/settings'),
+        update: (payload: UpdateSettingsPayload) =>
+            request<ApplicationSettings>('/api/settings', {
+                method: 'PATCH',
+                body: JSON.stringify(payload),
+            }),
+    },
+
     // --- Notes ---
     notes: {
         list: (query: { limit?: number; withDone?: boolean } = {}) =>

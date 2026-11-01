@@ -2,7 +2,6 @@ import { Trash2, XCircle } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import {
     buildIsoDateTime,
-    DEFAULT_TIMEZONE,
     extractDateString,
     extractTimeString,
 } from '../../lib/date'
@@ -22,6 +21,7 @@ import { ScopeModal } from '../common/scope-modal'
 import { VisibilityEditor } from '../common/visibility-editor'
 
 interface DeadlineDialogProps {
+    timezone: string
     deadline?: ResolvedDeadline
     initialDate: string // YYYY-MM-DD
     onClose: () => void
@@ -32,6 +32,7 @@ interface DeadlineDialogProps {
 }
 
 export function DeadlineDialog({
+    timezone,
     deadline,
     initialDate,
     onClose,
@@ -46,13 +47,12 @@ export function DeadlineDialog({
     const [title, setTitle] = useState(deadline?.title ?? '')
     const [description, setDescription] = useState(deadline?.description ?? '')
     const [date, setDate] = useState(() =>
-        deadline ? extractDateString(deadline.due) : initialDate,
+        deadline ? extractDateString(deadline.due, timezone) : initialDate,
     )
     const [dueIsDate, setDueIsDate] = useState(deadline?.dueIsDate ?? true)
     const [time, setTime] = useState(() =>
-        deadline ? extractTimeString(deadline.due) : '18:00',
+        deadline ? extractTimeString(deadline.due, timezone) : '18:00',
     )
-    const timezone = deadline?.timezone ?? DEFAULT_TIMEZONE
     const [visibility, setVisibility] = useState<DeadlineVisibility>(() =>
         deadline?.visibility
             ? deadline.visibility
@@ -76,7 +76,7 @@ export function DeadlineDialog({
             return null
         }
         setFormError(null)
-        return buildIsoDateTime(date, time, dueIsDate)
+        return buildIsoDateTime(date, time, dueIsDate, timezone)
     }
 
     const handleSubmit = (e: FormEvent) => {

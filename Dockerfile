@@ -19,8 +19,7 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
-    DB_FILE_NAME=file:/data/takt.db \
-    DEFAULT_TIMEZONE=Europe/Moscow
+    DB_FILE_NAME=file:/data/takt.db
 
 WORKDIR /app
 

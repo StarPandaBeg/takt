@@ -18,6 +18,7 @@ import {
     getEventsRevision,
     getNotesRevision,
 } from './screen-revision.js'
+import { getApplicationTime } from './settings.js'
 
 interface DataSource<T> {
     load: () => Promise<T>
@@ -47,7 +48,11 @@ async function loadNotes(): Promise<Note[]> {
 async function loadEvents(now: DateTime): Promise<Event[]> {
     const from = now.startOf('day')
     const to = now.plus({ days: 1 }).startOf('day')
-    return (await getResolvedEvents({ from, to })).map(convertEvent)
+    const timezone = now.zoneName
+    if (timezone === null) throw new RangeError('Current time has no timezone')
+    return (await getResolvedEvents({ from, to })).map((event) =>
+        convertEvent(event, timezone),
+    )
 }
 
 async function loadDeadlines(now: DateTime): Promise<Deadline[]> {
@@ -76,29 +81,30 @@ export const sources: DataSources = {
         revision: async () => getNotesRevision(await loadNotes()),
     },
     events: {
-        load: async () => loadEvents(currentTime()),
+        load: async () => loadEvents(await currentTime()),
         revision: async () => {
-            const now = currentTime()
+            const now = await currentTime()
             return getEventsRevision(await loadEvents(now), now)
         },
     },
     deadlines: {
-        load: async () => loadDeadlines(currentTime()),
+        load: async () => loadDeadlines(await currentTime()),
         revision: async () => {
-            const now = currentTime()
+            const now = await currentTime()
             return getDeadlinesRevision(await loadDeadlines(now))
         },
     },
     today: {
-        load: () => Promise.resolve(currentTime()),
-        revision: () => Promise.resolve(getDayRevision(currentTime())),
+        load: currentTime,
+        revision: async () => {
+            const now = await currentTime()
+            return [now.zoneName, getDayRevision(now)]
+        },
     },
 }
 
-function currentTime(): DateTime {
-    return DateTime.now().setZone(
-        process.env.DEFAULT_TIMEZONE ?? 'Europe/Moscow',
-    )
+function currentTime(): Promise<DateTime> {
+    return getApplicationTime()
 }
 
 export function defineSceneContext<T extends object | void>(

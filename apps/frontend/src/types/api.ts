@@ -50,6 +50,14 @@ export type Recurrence =
 
 export type UpdateScope = 'series' | 'occurrence' | 'this_and_future'
 
+export interface ApplicationSettings {
+    timezone: string
+}
+
+export interface UpdateSettingsPayload {
+    timezone?: string
+}
+
 // --- Notes ---
 
 export interface Note {

@@ -12,6 +12,7 @@ import {
     serializeEventRecurrence,
     updateEvent,
 } from '#src/services/events.js'
+import { getApplicationTimezone, isValidTimezone } from '#src/services/settings.js'
 import {
     isRecurrenceOccurrence,
     parseRecurrence,
@@ -76,7 +77,15 @@ const fields = {
     description: z.string().nullable().optional(),
     start: z.coerce.date(),
     end: z.coerce.date().nullable().optional(),
-    timezone: z.string().trim().min(1).nullable().optional(),
+    timezone: z
+        .string()
+        .trim()
+        .min(1)
+        .refine(isValidTimezone, {
+            message: 'timezone must be a valid IANA time zone',
+        })
+        .nullable()
+        .optional(),
     allDay: z.boolean().optional(),
     recurrence: recurrenceSchema.nullable().optional(),
 }
@@ -187,7 +196,14 @@ export const eventsRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     fastify.post('/', async (request, reply) => {
-        const body = serializeEventRecurrence(createSchema.parse(request.body))
+        const input = createSchema.parse(request.body)
+        const body = serializeEventRecurrence({
+            ...input,
+            timezone:
+                input.timezone === undefined
+                    ? await getApplicationTimezone()
+                    : input.timezone,
+        })
         const id = await events.create(body)
         const event = await getEventEntity(id)
         if (event === undefined) {
@@ -258,7 +274,7 @@ export const eventsRoutes: FastifyPluginAsync = async (fastify) => {
             return reply.code(409).send({ message: 'Event is not recurring' })
         }
 
-        const zone = event.timezone ?? 'Europe/Moscow'
+        const zone = event.timezone ?? (await getApplicationTimezone())
         const start = DateTime.fromJSDate(event.start).setZone(zone)
         const occurrence = DateTime.fromJSDate(recurrenceId).setZone(zone)
         if (

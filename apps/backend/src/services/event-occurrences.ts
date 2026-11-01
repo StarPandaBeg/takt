@@ -18,8 +18,11 @@ export interface ResolvedEvent {
     readonly recurrenceId: Date | null
 }
 
-export const convertEvent = (event: ResolvedEvent): TemplateEvent => {
-    const zone = event.timezone ?? 'Europe/Moscow'
+export const convertEvent = (
+    event: ResolvedEvent,
+    applicationTimezone: string,
+): TemplateEvent => {
+    const zone = event.timezone ?? applicationTimezone
     return {
         text: event.title,
         start: DateTime.fromJSDate(event.start).setZone(zone),
@@ -45,6 +48,7 @@ export function getEventOccurrences(
     exceptions: readonly EventRecurrenceException[],
     from: DateTime,
     to: DateTime,
+    applicationTimezone = 'UTC',
 ): ResolvedEvent[] {
     const exceptionsByEvent = Map.groupBy(
         exceptions,
@@ -78,7 +82,7 @@ export function getEventOccurrences(
                     recurrenceId.getTime(),
                 ),
             )
-            const zone = event.timezone ?? 'Europe/Moscow'
+            const zone = event.timezone ?? applicationTimezone
             const start = DateTime.fromJSDate(event.start).setZone(zone)
             const duration =
                 event.end === null

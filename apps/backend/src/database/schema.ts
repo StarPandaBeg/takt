@@ -21,7 +21,7 @@ export const eventsTable = sqliteTable('events', {
     description: text(),
     start: int({ mode: 'timestamp_ms' }).notNull(),
     end: int({ mode: 'timestamp_ms' }),
-    timezone: text().default('Europe/Moscow'),
+    timezone: text(),
     allDay: int({ mode: 'boolean' }).notNull().default(false),
     recurrenceRule: text('recurrence_rule'),
     cancelledAt: int('cancelled_at', { mode: 'timestamp_ms' }),
@@ -72,7 +72,7 @@ export const deadlinesTable = sqliteTable('deadlines', {
     description: text(),
     due: int({ mode: 'timestamp_ms' }).notNull(),
     dueIsDate: int('due_is_date', { mode: 'boolean' }).notNull().default(false),
-    timezone: text().notNull().default('Europe/Moscow'),
+    timezone: text().notNull(),
     recurrenceRule: text('recurrence_rule'),
     completed: int({ mode: 'boolean' }).notNull().default(false),
     cancelledAt: int('cancelled_at', { mode: 'timestamp_ms' }),
@@ -151,6 +151,13 @@ export const versionsTable = sqliteTable('versions', {
 export type Version = InferSelectModel<typeof versionsTable>
 export type VersionInsert = InferInsertModel<typeof versionsTable>
 
+export const settingsTable = sqliteTable('settings', {
+    key: text().primaryKey(),
+    value: text().notNull(),
+    ...timestamps,
+})
+export type Settings = InferSelectModel<typeof settingsTable>
+
 export const relations = defineRelations({
     eventsTable,
     eventRecurrenceExceptionsTable,
@@ -159,4 +166,5 @@ export const relations = defineRelations({
     deadlineCompletionsTable,
     deadlineRecurrenceExceptionsTable,
     versionsTable,
+    settingsTable,
 })

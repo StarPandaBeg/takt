@@ -16,6 +16,7 @@ import {
     setDeadlineCompletion,
 } from '#src/services/deadlines.js'
 import { recurrenceSchema as domainRecurrenceSchema } from '#src/services/recurrence.js'
+import { getApplicationTimezone } from '#src/services/settings.js'
 
 const timezoneSchema = z
     .string()
@@ -52,7 +53,7 @@ export const createDeadlineInputSchema = z.object({
     timezone: timezoneSchema
         .optional()
         .describe(
-            'IANA timezone used to expand recurrence, for example Europe/Moscow. Defaults to Europe/Moscow',
+            'IANA timezone used to expand recurrence, for example Europe/Moscow. Defaults to the application timezone setting',
         ),
     recurrence: recurrenceSchema
         .nullable()
@@ -105,7 +106,7 @@ export const createDeadline: ToolCallback<
             description: input.description ?? null,
             due: new Date(input.due),
             dueIsDate: input.dueIsDate ?? false,
-            timezone: input.timezone ?? 'Europe/Moscow',
+            timezone: input.timezone ?? (await getApplicationTimezone()),
             completed: false,
             visibility: input.visibility ?? {
                 show: { type: 'always' },

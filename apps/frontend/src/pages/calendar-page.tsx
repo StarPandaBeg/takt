@@ -57,8 +57,8 @@ interface EventDraft {
     allDay: boolean
 }
 
-function timeFromDate(date: Date) {
-    return extractTimeString(date.toISOString())
+function timeFromDate(date: Date, timezone: string) {
+    return extractTimeString(date.toISOString(), timezone)
 }
 
 export function CalendarPage() {
@@ -66,6 +66,7 @@ export function CalendarPage() {
         events,
         deadlines,
         masterDeadlines,
+        settings,
         error,
         refreshAll,
         clearError,
@@ -80,7 +81,8 @@ export function CalendarPage() {
         deleteDeadline,
     } = useTakt()
 
-    const today = useMemo(() => getTodayIso(), [])
+    const timezone = settings.timezone
+    const today = useMemo(() => getTodayIso(timezone), [timezone])
     const calendarRef = useRef<CalendarRef>(null)
     const schedulePanelRef = useRef<HTMLElement>(null)
     const lastClickRef = useRef<{
@@ -203,7 +205,7 @@ export function CalendarPage() {
     // Преобразование событий и дедлайнов в формат FullCalendar
     const calendarEvents = useMemo(() => {
         const mappedEvents = events.map((event) => {
-            const dateStr = extractDateString(event.start)
+            const dateStr = extractDateString(event.start, timezone)
             return {
                 id: `event:${event.id}:${event.recurrenceId ?? 'master'}`,
                 title: event.title,
@@ -220,7 +222,7 @@ export function CalendarPage() {
         if (!showDeadlines) return mappedEvents
 
         const mappedDeadlines = deadlines.map((deadline) => {
-            const dateStr = extractDateString(deadline.due)
+            const dateStr = extractDateString(deadline.due, timezone)
             return {
                 id: `deadline:${deadline.id}:${deadline.recurrenceId ?? 'master'}`,
                 title: deadline.title,
@@ -238,20 +240,24 @@ export function CalendarPage() {
         })
 
         return [...mappedEvents, ...mappedDeadlines]
-    }, [events, deadlines, showDeadlines])
+    }, [events, deadlines, showDeadlines, timezone])
 
     // События и дедлайны выбранного дня
     const selectedEvents = useMemo(() => {
         return events
-            .filter((event) => extractDateString(event.start) === selectedDate)
+            .filter(
+                (event) =>
+                    extractDateString(event.start, timezone) === selectedDate,
+            )
             .sort((a, b) => a.start.localeCompare(b.start))
-    }, [events, selectedDate])
+    }, [events, selectedDate, timezone])
 
     const selectedDeadlines = useMemo(() => {
         return deadlines.filter(
-            (deadline) => extractDateString(deadline.due) === selectedDate,
+            (deadline) =>
+                extractDateString(deadline.due, timezone) === selectedDate,
         )
-    }, [deadlines, selectedDate])
+    }, [deadlines, selectedDate, timezone])
 
     // Группировка дедлайнов по сериям для вкладки списка дедлайнов
     const groupedDeadlines = useMemo(() => {
@@ -337,7 +343,7 @@ export function CalendarPage() {
                     Boolean(master.completedAt) || activeOccurrence.completed
                 const isOverdue =
                     !isComplete &&
-                    extractDateString(activeOccurrence.due) < today
+                    extractDateString(activeOccurrence.due, timezone) < today
 
                 items.push({
                     id: master.id,
@@ -358,10 +364,14 @@ export function CalendarPage() {
 
                 // Разделяем вхождения на просроченные невыполненные, будущие невыполненные и выполненные
                 const overdueUncompleted = occurrences.filter(
-                    (o) => !o.completed && extractDateString(o.due) < today,
+                    (o) =>
+                        !o.completed &&
+                        extractDateString(o.due, timezone) < today,
                 )
                 const upcomingUncompleted = occurrences.filter(
-                    (o) => !o.completed && extractDateString(o.due) >= today,
+                    (o) =>
+                        !o.completed &&
+                        extractDateString(o.due, timezone) >= today,
                 )
                 const completedOccurrences = occurrences.filter(
                     (o) => o.completed,
@@ -385,8 +395,9 @@ export function CalendarPage() {
                     // Если шаг за текущий период уже выполнен, а следующий срок еще не наступил
                     if (
                         lastCompleted &&
-                        extractDateString(lastCompleted.due) <= today &&
-                        extractDateString(nextUncompleted.due) > today
+                        extractDateString(lastCompleted.due, timezone) <=
+                            today &&
+                        extractDateString(nextUncompleted.due, timezone) > today
                     ) {
                         isComplete = true
                         activeOccurrence = lastCompleted
@@ -406,7 +417,7 @@ export function CalendarPage() {
 
                 const isOverdue =
                     !isComplete &&
-                    extractDateString(activeOccurrence.due) < today
+                    extractDateString(activeOccurrence.due, timezone) < today
 
                 // До 6 ближайших вхождений для раскрывающегося списка повторов
                 const activeIdx = occurrences.indexOf(activeOccurrence)
@@ -443,7 +454,7 @@ export function CalendarPage() {
         })
 
         return items
-    }, [masterDeadlines, deadlines, today])
+    }, [masterDeadlines, deadlines, today, timezone])
 
     // Фильтрация сгруппированных дедлайнов (строго по рассчитанному статусу выполнения)
     const filteredGroupedDeadlines = useMemo(() => {
@@ -644,6 +655,7 @@ export function CalendarPage() {
                         <div className="full-calendar-viewport">
                             <FullCalendar
                                 ref={calendarRef}
+                                timeZone={timezone}
                                 plugins={[
                                     dayGridPlugin,
                                     timeGridPlugin,
@@ -702,7 +714,10 @@ export function CalendarPage() {
                                             date,
                                             start: info.allDay
                                                 ? undefined
-                                                : timeFromDate(info.date),
+                                                : timeFromDate(
+                                                      info.date,
+                                                      timezone,
+                                                  ),
                                             allDay: info.allDay,
                                         })
                                     } else {
@@ -730,7 +745,10 @@ export function CalendarPage() {
                                         const raw =
                                             ext.rawDeadline as ResolvedDeadline
                                         setSelectedDate(
-                                            extractDateString(raw.due),
+                                            extractDateString(
+                                                raw.due,
+                                                timezone,
+                                            ),
                                         )
                                         setEditingDeadline(raw)
                                         return
@@ -739,7 +757,10 @@ export function CalendarPage() {
                                         const raw =
                                             ext.rawEvent as ResolvedEvent
                                         setSelectedDate(
-                                            extractDateString(raw.start),
+                                            extractDateString(
+                                                raw.start,
+                                                timezone,
+                                            ),
                                         )
                                         setEditingEvent(raw)
                                     }
@@ -838,7 +859,9 @@ export function CalendarPage() {
                                                 setEditingEvent(event)
                                             }
                                         >
-                                            <time>{eventTime(event)}</time>
+                                            <time>
+                                                {eventTime(event, timezone)}
+                                            </time>
                                             <strong>{event.title}</strong>
                                             {event.recurrenceId && (
                                                 <span
@@ -1122,6 +1145,7 @@ export function CalendarPage() {
                                                     item.activeOccurrence.due,
                                                     item.activeOccurrence
                                                         .dueIsDate,
+                                                    timezone,
                                                 )}
                                             </time>
                                             {inProcess && (
@@ -1195,6 +1219,7 @@ export function CalendarPage() {
                                                         !occDone &&
                                                         extractDateString(
                                                             occ.due,
+                                                            timezone,
                                                         ) < today
 
                                                     return (
@@ -1262,6 +1287,7 @@ export function CalendarPage() {
                                                                     {formatDeadlineDue(
                                                                         occ.due,
                                                                         occ.dueIsDate,
+                                                                        timezone,
                                                                     )}
                                                                 </time>
                                                                 {occInProcess && (
@@ -1315,11 +1341,15 @@ export function CalendarPage() {
             {/* Диалоги */}
             {(eventDraft || editingEvent) && (
                 <EventDialog
+                    timezone={timezone}
                     event={editingEvent ?? undefined}
                     initialDate={
                         eventDraft?.date ??
                         (editingEvent
-                            ? extractDateString(editingEvent.start)
+                            ? extractDateString(
+                                  editingEvent.start,
+                                  timezone,
+                              )
                             : selectedDate)
                     }
                     initialStart={eventDraft?.start}
@@ -1339,6 +1369,7 @@ export function CalendarPage() {
 
             {editingDeadline && (
                 <DeadlineDialog
+                    timezone={timezone}
                     deadline={
                         editingDeadline === 'new' ? undefined : editingDeadline
                     }

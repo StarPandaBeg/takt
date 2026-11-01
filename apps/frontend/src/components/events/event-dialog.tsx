@@ -2,7 +2,6 @@ import { Trash2, XCircle } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import {
     buildIsoDateTime,
-    DEFAULT_TIMEZONE,
     extractDateString,
     extractTimeString,
 } from '../../lib/date'
@@ -20,6 +19,7 @@ import { RecurrenceEditor } from '../common/recurrence-editor'
 import { ScopeModal } from '../common/scope-modal'
 
 interface EventDialogProps {
+    timezone: string
     event?: ResolvedEvent
     initialDate: string // YYYY-MM-DD
     initialStart?: string // HH:mm
@@ -33,6 +33,7 @@ interface EventDialogProps {
 }
 
 export function EventDialog({
+    timezone,
     event,
     initialDate,
     initialStart,
@@ -50,18 +51,21 @@ export function EventDialog({
     const [title, setTitle] = useState(event?.title ?? '')
     const [description, setDescription] = useState(event?.description ?? '')
     const [date, setDate] = useState(() =>
-        event ? extractDateString(event.start) : initialDate,
+        event ? extractDateString(event.start, timezone) : initialDate,
     )
     const [allDay, setAllDay] = useState(
         event?.allDay ?? initialAllDay ?? false,
     )
     const [start, setStart] = useState(() =>
-        event ? extractTimeString(event.start) : (initialStart ?? '10:00'),
+        event
+            ? extractTimeString(event.start, timezone)
+            : (initialStart ?? '10:00'),
     )
     const [end, setEnd] = useState(() =>
-        event && event.end ? extractTimeString(event.end) : (initialEnd ?? ''),
+        event && event.end
+            ? extractTimeString(event.end, timezone)
+            : (initialEnd ?? ''),
     )
-    const timezone = event?.timezone ?? DEFAULT_TIMEZONE
     const [recurrence, setRecurrence] = useState<Recurrence | null>(null)
 
     // Вторичные диалоги выбора scope и подтверждения действий
@@ -82,9 +86,11 @@ export function EventDialog({
             return null
         }
 
-        const startIso = buildIsoDateTime(date, start, allDay)
+        const startIso = buildIsoDateTime(date, start, allDay, timezone)
         const endIso =
-            !allDay && end ? buildIsoDateTime(date, end, false) : null
+            !allDay && end
+                ? buildIsoDateTime(date, end, false, timezone)
+                : null
 
         if (endIso && endIso < startIso) {
             setFormError('Время окончания не может быть раньше времени начала')

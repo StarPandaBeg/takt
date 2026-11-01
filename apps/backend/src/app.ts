@@ -2,6 +2,7 @@ import { deadlinesRoutes } from '#src/routes/deadlines.js'
 import { eventsRoutes } from '#src/routes/events.js'
 import { mcpRoutes } from '#src/routes/mcp.js'
 import { notesRoutes } from '#src/routes/notes.js'
+import { settingsRoutes } from '#src/routes/settings.js'
 import { screenRoutes } from '#src/routes/screens.js'
 import { getSceneHash, getSceneNames } from '#src/services/scene.js'
 import { ScreenChangeService } from '#src/services/screen-changes.js'
@@ -99,6 +100,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     app.register(notesRoutes, { prefix: '/api/notes' })
     app.register(eventsRoutes, { prefix: '/api/events' })
     app.register(deadlinesRoutes, { prefix: '/api/deadlines' })
+    app.register(settingsRoutes, { prefix: '/api/settings' })
     app.register(screenRoutes, { prefix: '/screens', changes: screenChanges })
 
     return app

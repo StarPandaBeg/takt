@@ -4,6 +4,7 @@ import type { EventFilters } from '#src/repository/events.js'
 import * as eventsRepository from '#src/repository/events.js'
 import { DateTime } from 'luxon'
 import { getEventOccurrences, type ResolvedEvent } from './event-occurrences.js'
+import { getApplicationTimezone } from './settings.js'
 import {
     getRecurrenceOccurrences,
     getRecurrenceOccurrencesBetween,
@@ -169,6 +170,7 @@ export async function getResolvedEvents(options: {
         exceptions,
         options.from,
         options.to,
+        await getApplicationTimezone(),
     )
     return options.limit === undefined
         ? occurrences
@@ -195,11 +197,15 @@ function assertValidInterval(start: Date, end: Date | null): void {
     }
 }
 
-function getRecurringEvent(event: Event, recurrenceId: Date) {
+function getRecurringEvent(
+    event: Event,
+    recurrenceId: Date,
+    applicationTimezone: string,
+) {
     if (event.recurrenceRule === null) {
         throw new RangeError('Event is not recurring')
     }
-    const zone = event.timezone ?? 'Europe/Moscow'
+    const zone = event.timezone ?? applicationTimezone
     const start = DateTime.fromJSDate(event.start).setZone(zone)
     const occurrence = DateTime.fromJSDate(recurrenceId).setZone(zone)
     const recurrence = parseRecurrence(event.recurrenceRule)
@@ -283,7 +289,11 @@ export async function updateEvent(options: {
             'recurrenceId is required for occurrence and this_and_future',
         )
     }
-    const recurring = getRecurringEvent(event, options.recurrenceId)
+    const recurring = getRecurringEvent(
+        event,
+        options.recurrenceId,
+        await getApplicationTimezone(),
+    )
 
     if (options.scope === 'occurrence') {
         if (options.changes.recurrence !== undefined) {
@@ -415,7 +425,11 @@ export async function cancelEvent(options: {
             'recurrenceId is required for occurrence and this_and_future',
         )
     }
-    const recurring = getRecurringEvent(event, options.recurrenceId)
+    const recurring = getRecurringEvent(
+        event,
+        options.recurrenceId,
+        await getApplicationTimezone(),
+    )
 
     if (options.scope === 'occurrence') {
         await eventExceptionsRepository.set(

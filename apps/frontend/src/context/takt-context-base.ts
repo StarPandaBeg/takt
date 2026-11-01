@@ -1,5 +1,6 @@
 import { createContext } from 'react'
 import type {
+    ApplicationSettings,
     CancelDeadlinePayload,
     CancelEventPayload,
     CreateDeadlinePayload,
@@ -19,6 +20,7 @@ export interface TaktContextValue {
     deadlines: ResolvedDeadline[]
     masterDeadlines: DeadlineEntity[]
     notes: Note[]
+    settings: ApplicationSettings
 
     // Состояния загрузки и ошибок
     isLoading: boolean

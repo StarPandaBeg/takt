@@ -9,6 +9,7 @@ import {
 import { serializeEventEntity } from '#src/mcp/util/serializers.js'
 import { getEventEntity, updateEvent } from '#src/services/events.js'
 import { recurrenceSchema as domainRecurrenceSchema } from '#src/services/recurrence.js'
+import { isValidTimezone } from '#src/services/settings.js'
 
 const changesSchema = z
     .object({
@@ -17,7 +18,15 @@ const changesSchema = z
         start: z.iso.datetime({ offset: true }).optional(),
         end: z.iso.datetime({ offset: true }).nullable().optional(),
         allDay: z.boolean().optional(),
-        timezone: z.string().trim().min(1).nullable().optional(),
+        timezone: z
+            .string()
+            .trim()
+            .min(1)
+            .refine(isValidTimezone, {
+                message: 'timezone must be a valid IANA time zone',
+            })
+            .nullable()
+            .optional(),
         recurrence: recurrenceSchema.nullable().optional(),
     })
     .refine((changes) => Object.keys(changes).length > 0, {

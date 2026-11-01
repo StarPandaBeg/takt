@@ -1,4 +1,4 @@
-export const DEFAULT_TIMEZONE = 'Europe/Moscow'
+import { Temporal } from 'temporal-polyfill'
 
 export const IANA_TIMEZONES = [
     { value: 'Europe/Moscow', label: 'Москва (UTC+3)' },
@@ -14,192 +14,118 @@ export const IANA_TIMEZONES = [
     { value: 'UTC', label: 'UTC' },
 ]
 
-const months = [
-    'Январь',
-    'Февраль',
-    'Март',
-    'Апрель',
-    'Май',
-    'Июнь',
-    'Июль',
-    'Август',
-    'Сентябрь',
-    'Октябрь',
-    'Ноябрь',
-    'Декабрь',
-]
-
-const genitiveMonths = [
-    'января',
-    'февраля',
-    'марта',
-    'апреля',
-    'мая',
-    'июня',
-    'июля',
-    'августа',
-    'сентября',
-    'октября',
-    'ноября',
-    'декабря',
-]
-
 export const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 
-const moscowDateFormatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: DEFAULT_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-})
+function plainDate(value: string): Temporal.PlainDate {
+    return Temporal.PlainDate.from(value.slice(0, 10))
+}
 
-const moscowTimeFormatter = new Intl.DateTimeFormat('ru-RU', {
-    timeZone: DEFAULT_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-})
+function dateToPlainDate(date: Date): Temporal.PlainDate {
+    return Temporal.PlainDate.from({
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        day: date.getDate(),
+    })
+}
 
-export function getTodayIso(): string {
-    return moscowDateFormatter.format(new Date())
+export function getTodayIso(timezone: string): string {
+    return Temporal.Now.zonedDateTimeISO(timezone).toPlainDate().toString()
 }
 
 export function toIsoDate(date: Date): string {
-    return moscowDateFormatter.format(date)
+    return dateToPlainDate(date).toString()
 }
 
 export function parseIsoDate(value: string): Date {
-    if (!value) return new Date()
-    const [year, month, day] = value.slice(0, 10).split('-').map(Number)
-    return new Date(year ?? 2026, (month ?? 1) - 1, day ?? 1, 12, 0, 0)
+    const date = plainDate(value)
+    return new Date(date.year, date.month - 1, date.day, 12)
 }
 
 export function formatMonth(date: Date): string {
-    return `${months[date.getMonth()]} ${date.getFullYear()}`
+    return dateToPlainDate(date).toLocaleString('ru-RU', {
+        month: 'long',
+        year: 'numeric',
+    })
 }
 
 export function formatLongDate(value: string): string {
-    const date = parseIsoDate(value)
-    const weekDay = new Intl.DateTimeFormat('ru-RU', {
+    return plainDate(value).toLocaleString('ru-RU', {
         weekday: 'long',
-    }).format(date)
-    return `${weekDay}, ${date.getDate()} ${genitiveMonths[date.getMonth()]}`
+        day: 'numeric',
+        month: 'long',
+    })
 }
 
 export function getCalendarDays(month: Date): Date[] {
-    const first = new Date(month.getFullYear(), month.getMonth(), 1, 12)
-    const start = new Date(
-        month.getFullYear(),
-        month.getMonth(),
-        1 - ((first.getDay() + 6) % 7),
-        12,
+    const first = dateToPlainDate(month).with({ day: 1 })
+    const start = first.subtract({ days: first.dayOfWeek - 1 })
+    return Array.from({ length: 42 }, (_, index) =>
+        parseIsoDate(start.add({ days: index }).toString()),
     )
-    return Array.from({ length: 42 }, (_, index) => {
-        const date = new Date(start)
-        date.setDate(start.getDate() + index)
-        return date
-    })
 }
 
-/**
- * Извлекает YYYY-MM-DD в часовом поясе пользователя (Europe/Moscow) из ISO/RFC3339 строки даты
- */
-export function extractDateString(
-    isoString: string,
-    timeZone: string = DEFAULT_TIMEZONE,
-): string {
-    if (!isoString) return getTodayIso()
-    if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
-        return isoString
-    }
-    const date = new Date(isoString)
-    if (Number.isNaN(date.getTime())) {
-        return isoString.slice(0, 10)
-    }
-    if (timeZone === DEFAULT_TIMEZONE) {
-        return moscowDateFormatter.format(date)
-    }
-    return new Intl.DateTimeFormat('en-CA', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).format(date)
+export function extractDateString(isoString: string, timezone: string): string {
+    if (!isoString) return getTodayIso(timezone)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) return isoString
+    return Temporal.Instant.from(isoString)
+        .toZonedDateTimeISO(timezone)
+        .toPlainDate()
+        .toString()
 }
 
-/**
- * Извлекает HH:mm в часовом поясе пользователя (Europe/Moscow) из ISO/RFC3339 строки даты
- */
-export function extractTimeString(
-    isoString: string,
-    timeZone: string = DEFAULT_TIMEZONE,
-): string {
+export function extractTimeString(isoString: string, timezone: string): string {
     if (!isoString) return '09:00'
-    const date = new Date(isoString)
-    if (Number.isNaN(date.getTime())) {
-        const match = /T(\d{2}:\d{2})/.exec(isoString)
-        return match?.[1] ?? '09:00'
-    }
-    if (timeZone === DEFAULT_TIMEZONE) {
-        return moscowTimeFormatter.format(date)
-    }
-    return new Intl.DateTimeFormat('ru-RU', {
-        timeZone,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-    }).format(date)
+    const time = Temporal.Instant.from(isoString)
+        .toZonedDateTimeISO(timezone)
+        .toPlainTime()
+    return `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`
 }
 
-/**
- * Создает RFC 3339 строку с датой и временем в московском часовом поясе (+03:00)
- */
+/** Converts application-local wall time to the UTC transport representation. */
 export function buildIsoDateTime(
-    dateStr: string,
-    timeStr?: string | null,
-    allDay?: boolean,
+    date: string,
+    time: string | null | undefined,
+    allDay: boolean | undefined,
+    timezone: string,
 ): string {
-    if (allDay || !timeStr) {
-        // Для all-day событий или дедлайнов-дат начало дня по Москве (00:00:00+03:00)
-        return `${dateStr}T00:00:00+03:00`
-    }
-    const [h, m] = timeStr.split(':')
-    const hours = String(h ?? '00').padStart(2, '0')
-    const minutes = String(m ?? '00').padStart(2, '0')
-    return `${dateStr}T${hours}:${minutes}:00+03:00`
+    const localTime = allDay || !time ? '00:00:00' : `${time}:00`
+    return Temporal.PlainDateTime.from(`${date}T${localTime}`)
+        .toZonedDateTime(timezone)
+        .toInstant()
+        .toString()
 }
 
-/**
- * Форматирует интервал времени для отображения события
- */
-export function eventTime(event: {
-    allDay: boolean
-    start: string
-    end?: string | null
-}): string {
+export function eventTime(
+    event: { allDay: boolean; start: string; end?: string | null },
+    timezone: string,
+): string {
     if (event.allDay) return 'Весь день'
-    const startTime = extractTimeString(event.start)
+    const startTime = extractTimeString(event.start, timezone)
     if (!event.end) return startTime
-    const endTime = extractTimeString(event.end)
-    return `${startTime} — ${endTime}`
+    return `${startTime} — ${extractTimeString(event.end, timezone)}`
 }
 
-/**
- * Форматирует срок для отображения дедлайна
- */
-export function formatDeadlineDue(due: string, dueIsDate: boolean): string {
-    const datePart = extractDateString(due)
-    const parsed = parseIsoDate(datePart)
-    const formattedDate = new Intl.DateTimeFormat('ru-RU', {
-        day: 'numeric',
-        month: 'short',
-    })
-        .format(parsed)
+export function formatDeadlineDue(
+    due: string,
+    dueIsDate: boolean,
+    timezone: string,
+): string {
+    const date = plainDate(extractDateString(due, timezone))
+    const formattedDate = date
+        .toLocaleString('ru-RU', { day: 'numeric', month: 'short' })
         .replace('.', '')
+    return dueIsDate
+        ? formattedDate
+        : `${formattedDate}, ${extractTimeString(due, timezone)}`
+}
 
-    if (dueIsDate) {
-        return formattedDate
+export function getOccurrenceRange(timezone: string): {
+    from: string
+    to: string
+} {
+    const today = Temporal.Now.zonedDateTimeISO(timezone)
+    return {
+        from: today.subtract({ years: 1 }).startOfDay().toInstant().toString(),
+        to: today.add({ years: 1 }).startOfDay().toInstant().toString(),
     }
-    const timePart = extractTimeString(due)
-    return `${formattedDate}, ${timePart}`
 }

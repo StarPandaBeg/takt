@@ -42,6 +42,7 @@ export function DashboardPage() {
         deadlines,
         masterDeadlines,
         notes,
+        settings,
         isLoading,
         error,
         isServerConnected,
@@ -62,7 +63,8 @@ export function DashboardPage() {
         toggleNote,
     } = useTakt()
 
-    const today = useMemo(() => getTodayIso(), [])
+    const timezone = settings.timezone
+    const today = useMemo(() => getTodayIso(timezone), [timezone])
     const [selectedDate, setSelectedDate] = useState(today)
     const [visibleMonth, setVisibleMonth] = useState(() => parseIsoDate(today))
     const [quickMenuOpen, setQuickMenuOpen] = useState(false)
@@ -74,14 +76,22 @@ export function DashboardPage() {
     // Фильтрация событий на выбранную дату
     const selectedEvents = useMemo(() => {
         return events
-            .filter((event) => extractDateString(event.start) === selectedDate)
+            .filter(
+                (event) =>
+                    extractDateString(event.start, timezone) === selectedDate,
+            )
             .sort((a, b) => a.start.localeCompare(b.start))
-    }, [events, selectedDate])
+    }, [events, selectedDate, timezone])
 
     // Дни с событиями для подсветки в календаре
     const eventDates = useMemo(
-        () => new Set(events.map((event) => extractDateString(event.start))),
-        [events],
+        () =>
+            new Set(
+                events.map((event) =>
+                    extractDateString(event.start, timezone),
+                ),
+            ),
+        [events, timezone],
     )
 
     // Отложенное завершение заметок на главной с возможностью отмены
@@ -264,6 +274,7 @@ export function DashboardPage() {
                                 </div>
                             </div>
                             <MiniCalendar
+                                timezone={timezone}
                                 month={visibleMonth}
                                 selected={selectedDate}
                                 eventDates={eventDates}
@@ -471,7 +482,7 @@ export function DashboardPage() {
                                             }
                                         >
                                             <span className="timeline-event__time">
-                                                {eventTime(event)}
+                                                {eventTime(event, timezone)}
                                             </span>
                                             <span className="timeline-event__content">
                                                 <strong>{event.title}</strong>
@@ -596,6 +607,7 @@ export function DashboardPage() {
                                                     {formatDeadlineDue(
                                                         deadline.due,
                                                         deadline.dueIsDate,
+                                                        timezone,
                                                     )}
                                                 </time>
                                                 {inProcess && (
@@ -650,6 +662,7 @@ export function DashboardPage() {
             {/* Диалоги создания и редактирования */}
             {(creating === 'event' || editingEvent) && (
                 <EventDialog
+                    timezone={timezone}
                     event={editingEvent ?? undefined}
                     initialDate={selectedDate}
                     onClose={() => {
@@ -665,6 +678,7 @@ export function DashboardPage() {
 
             {(creating === 'deadline' || editingDeadline) && (
                 <DeadlineDialog
+                    timezone={timezone}
                     deadline={editingDeadline ?? undefined}
                     initialDate={selectedDate}
                     onClose={() => {

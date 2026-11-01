@@ -14,6 +14,7 @@ import {
     setDeadlineCompletion,
     updateDeadline,
 } from '#src/services/deadlines.js'
+import { getApplicationTimezone, isValidTimezone } from '#src/services/settings.js'
 import {
     isRecurrenceOccurrence,
     parseRecurrence,
@@ -55,7 +56,7 @@ const fields = {
         .string()
         .trim()
         .min(1)
-        .refine((zone) => DateTime.local().setZone(zone).isValid, {
+        .refine(isValidTimezone, {
             message: 'timezone must be a valid IANA time zone',
         })
         .optional(),
@@ -163,6 +164,7 @@ export const deadlinesRoutes: FastifyPluginAsync = async (fastify) => {
         }
         const body = serializeDeadlineRecurrence({
             ...input,
+            timezone: input.timezone ?? (await getApplicationTimezone()),
             completed: false,
         })
         const id = await deadlines.create(body)

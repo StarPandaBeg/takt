@@ -1,4 +1,5 @@
 import {
+    Fragment,
     useCallback,
     useEffect,
     useRef,
@@ -6,7 +7,9 @@ import {
     type PropsWithChildren,
 } from 'react'
 import { api } from '../api/client'
+import { getOccurrenceRange } from '../lib/date'
 import type {
+    ApplicationSettings,
     CancelDeadlinePayload,
     CancelEventPayload,
     CreateDeadlinePayload,
@@ -28,6 +31,8 @@ export function TaktProvider({ children }: PropsWithChildren) {
     const [deadlines, setDeadlines] = useState<ResolvedDeadline[]>([])
     const [masterDeadlines, setMasterDeadlines] = useState<DeadlineEntity[]>([])
     const [notes, setNotes] = useState<Note[]>([])
+    const [settings, setSettings] = useState<ApplicationSettings | null>(null)
+    const timezoneRef = useRef('UTC')
 
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -38,11 +43,12 @@ export function TaktProvider({ children }: PropsWithChildren) {
         setScreenRevision((revision) => revision + 1)
     }, [])
 
-    // Диапазон дат для occurrences (по умолчанию текущий год +/- 1 год)
-    const dateRange = useRef({
-        from: '2026-01-01T00:00:00.000Z',
-        to: '2027-01-01T00:00:00.000Z',
-    })
+    const fetchSettings = useCallback(async () => {
+        const data = await api.settings.get()
+        timezoneRef.current = data.timezone
+        setSettings(data)
+        return data
+    }, [])
 
     const fetchNotes = useCallback(async () => {
         try {
@@ -56,9 +62,10 @@ export function TaktProvider({ children }: PropsWithChildren) {
 
     const fetchEvents = useCallback(async () => {
         try {
+            const dateRange = getOccurrenceRange(timezoneRef.current)
             const data = await api.events.listOccurrences({
-                from: dateRange.current.from,
-                to: dateRange.current.to,
+                from: dateRange.from,
+                to: dateRange.to,
                 limit: 512,
             })
             setEvents(data)
@@ -70,9 +77,10 @@ export function TaktProvider({ children }: PropsWithChildren) {
 
     const fetchDeadlines = useCallback(async () => {
         try {
+            const dateRange = getOccurrenceRange(timezoneRef.current)
             const [occurrences, masters] = await Promise.all([
                 api.deadlines.listOccurrences({
-                    from: dateRange.current.from,
+                    from: dateRange.from,
                     limit: 512,
                     withCompleted: true,
                 }),
@@ -92,6 +100,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
     const refreshAll = useCallback(async () => {
         setIsLoading(true)
         try {
+            await fetchSettings()
             await Promise.all([fetchEvents(), fetchDeadlines(), fetchNotes()])
             setIsServerConnected(true)
             setError(null)
@@ -105,7 +114,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
         } finally {
             setIsLoading(false)
         }
-    }, [fetchEvents, fetchDeadlines, fetchNotes])
+    }, [fetchSettings, fetchEvents, fetchDeadlines, fetchNotes])
 
     // Первоначальная загрузка и подписка на SSE
     useEffect(() => {
@@ -117,11 +126,17 @@ export function TaktProvider({ children }: PropsWithChildren) {
             () => {
                 setScreenRevision((revision) => revision + 1)
                 // При получении изменения экрана обновляем данные
-                void Promise.all([
-                    fetchEvents(),
-                    fetchDeadlines(),
-                    fetchNotes(),
-                ]).catch((err) => console.warn('SSE auto-refresh failed:', err))
+                void fetchSettings()
+                    .then(() =>
+                        Promise.all([
+                            fetchEvents(),
+                            fetchDeadlines(),
+                            fetchNotes(),
+                        ]),
+                    )
+                    .catch((err) =>
+                        console.warn('SSE auto-refresh failed:', err),
+                    )
             },
             () => {
                 // При ошибке соединения с SSE не паникуем, сервер может быть перезапущен
@@ -132,7 +147,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
             clearTimeout(timer)
             unsubscribe()
         }
-    }, [refreshAll, fetchEvents, fetchDeadlines, fetchNotes])
+    }, [refreshAll, fetchSettings, fetchEvents, fetchDeadlines, fetchNotes])
 
     const clearError = useCallback(() => setError(null), [])
 
@@ -460,6 +475,10 @@ export function TaktProvider({ children }: PropsWithChildren) {
         [fetchNotes, toast],
     )
 
+    if (settings === null) {
+        return error === null ? null : <div role="alert">{error}</div>
+    }
+
     return (
         <TaktContext.Provider
             value={{
@@ -467,6 +486,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
                 deadlines,
                 masterDeadlines,
                 notes,
+                settings,
                 isLoading,
                 error,
                 isServerConnected,
@@ -492,7 +512,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
                 deleteNote,
             }}
         >
-            {children}
+            <Fragment key={settings.timezone}>{children}</Fragment>
         </TaktContext.Provider>
     )
 }

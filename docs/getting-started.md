@@ -79,11 +79,12 @@ AUTH_TOKEN=replace-with-a-long-random-token docker compose up --build -d
 docker compose ps
 ```
 
-Backend будет доступен на `http://localhost:3011`. Порт хоста и timezone можно
-переопределить без изменения compose-файла:
+Backend будет доступен на `http://localhost:3011`. Порт хоста можно
+переопределить без изменения compose-файла; timezone меняется через
+`PATCH /api/settings`:
 
 ```bash
-AUTH_TOKEN=replace-me TAKT_PORT=8080 DEFAULT_TIMEZONE=Asia/Yekaterinburg docker compose up --build -d
+AUTH_TOKEN=replace-me TAKT_PORT=8080 docker compose up --build -d
 ```
 
 SQLite хранится в именованном томе `takt-data` и не теряется при пересоздании
@@ -130,7 +131,6 @@ public; для private-пакета предоставьте серверу от
 AUTH_TOKEN=replace-with-a-long-random-token
 TAKT_IMAGE=ghcr.io/starpandabeg/takt:v1.2.0
 TAKT_PORT=3011
-DEFAULT_TIMEZONE=Europe/Moscow
 ```
 
 Затем скачайте и запустите образ без локальной сборки:

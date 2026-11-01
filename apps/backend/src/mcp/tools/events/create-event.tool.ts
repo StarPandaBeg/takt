@@ -12,6 +12,10 @@ import {
     getEventEntity,
     serializeEventRecurrence,
 } from '#src/services/events.js'
+import {
+    getApplicationTimezone,
+    isValidTimezone,
+} from '#src/services/settings.js'
 
 // MCP принимает ISO-строки, а не JS Date
 export const createEventInputSchema = z
@@ -38,6 +42,9 @@ export const createEventInputSchema = z
             .string()
             .trim()
             .min(1)
+            .refine(isValidTimezone, {
+                message: 'timezone must be a valid IANA time zone',
+            })
             .nullable()
             .optional()
             .describe('IANA timezone, e.g. Europe/Moscow'),
@@ -69,6 +76,10 @@ export const createEvent: ToolCallback<typeof createEventInputSchema> = async (
 ) => {
     const record = serializeEventRecurrence({
         ...input,
+        timezone:
+            input.timezone === undefined
+                ? await getApplicationTimezone()
+                : input.timezone,
         start: new Date(input.start),
         end: input.end ? new Date(input.end) : null,
         recurrence: input.recurrence

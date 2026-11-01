@@ -14,7 +14,6 @@ import { pathToFileURL } from 'node:url'
 
 const databaseRoot = mkdtempSync(join(tmpdir(), 'takt-database-'))
 process.env.DB_FILE_NAME = `file:${join(databaseRoot, 'test.db')}`
-process.env.DEFAULT_TIMEZONE = 'Europe/Moscow'
 
 const databaseClient = createClient({ url: process.env.DB_FILE_NAME })
 for (const migration of [
@@ -27,6 +26,8 @@ for (const migration of [
     '../apps/backend/drizzle/20261027075110_damp_cannonball/migration.sql',
     '../apps/backend/drizzle/20261027094633_yellow_grim_reaper/migration.sql',
     '../apps/backend/drizzle/20261027103323_parched_kinsey_walden/migration.sql',
+    '../apps/backend/drizzle/20261101190606_application_settings/migration.sql',
+    '../apps/backend/drizzle/20261101191043_key_value_settings/migration.sql',
 ]) {
     const sql = readFileSync(new URL(migration, import.meta.url), 'utf8')
     await databaseClient.executeMultiple(
@@ -101,6 +102,41 @@ test('backend exposes a health check', async () => {
 
         assert.equal(response.statusCode, 200)
         assert.deepEqual(response.json(), { status: 'ok' })
+    } finally {
+        await app.close()
+    }
+})
+
+test('application settings expose and update the IANA timezone', async () => {
+    const app = buildApp({ logger: false })
+    try {
+        const initial = await app.inject({
+            method: 'GET',
+            url: '/api/settings',
+        })
+        assert.equal(initial.statusCode, 200)
+        assert.deepEqual(initial.json(), { timezone: 'Europe/Moscow' })
+
+        const updated = await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { timezone: 'Asia/Yekaterinburg' },
+        })
+        assert.equal(updated.statusCode, 200)
+        assert.deepEqual(updated.json(), { timezone: 'Asia/Yekaterinburg' })
+
+        const invalid = await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { timezone: 'Mars/Olympus' },
+        })
+        assert.equal(invalid.statusCode, 400)
+
+        await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { timezone: 'Europe/Moscow' },
+        })
     } finally {
         await app.close()
     }
