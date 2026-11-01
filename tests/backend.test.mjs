@@ -175,6 +175,47 @@ test('MCP note create and update return the complete entity', async () => {
     )
 })
 
+test('HTTP note mutations return the complete MCP-compatible entity', async () => {
+    const app = buildApp({ logger: false })
+
+    try {
+        let response = await app.inject({
+            method: 'POST',
+            url: '/api/notes',
+            payload: { text: 'HTTP note' },
+        })
+        assert.equal(response.statusCode, 201, response.body)
+        const id = response.json().id
+        assert.deepEqual(response.json(), {
+            id,
+            text: 'HTTP note',
+            completedAt: null,
+        })
+
+        response = await app.inject({
+            method: 'PUT',
+            url: `/api/notes/${id}`,
+            payload: {
+                text: 'Updated HTTP note',
+                completedAt: '2026-11-01T09:00:00.000Z',
+            },
+        })
+        assert.deepEqual(response.json(), {
+            id,
+            text: 'Updated HTTP note',
+            completedAt: '2026-11-01T09:00:00.000Z',
+        })
+        response = await app.inject({
+            method: 'PUT',
+            url: `/api/notes/${id}`,
+            payload: { completedAt: null },
+        })
+        assert.equal(response.json().completedAt, null)
+    } finally {
+        await app.close()
+    }
+})
+
 test('backend serves the rendered frame as PNG', async () => {
     const app = buildApp({ logger: false })
 
@@ -541,6 +582,196 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
     })
     assert.deepEqual(found.structuredContent, [])
     await cancelDeadlineTool({ id, scope: 'series' })
+})
+
+test('HTTP deadline API matches MCP update, completion, search, and cancellation scopes', async () => {
+    const app = buildApp({ logger: false })
+    const createdIds = []
+
+    try {
+        let response = await app.inject({
+            method: 'POST',
+            url: '/api/deadlines',
+            payload: {
+                title: 'HTTP recurring deadline',
+                due: '2026-11-02T18:00:00+03:00',
+                timezone: 'Europe/Moscow',
+                recurrence: { frequency: 'daily', count: 4 },
+            },
+        })
+        assert.equal(response.statusCode, 201, response.body)
+        const id = response.json().id
+        createdIds.push(id)
+        assert.deepEqual(response.json().recurrence, {
+            frequency: 'daily',
+            count: 4,
+        })
+
+        response = await app.inject({
+            method: 'PUT',
+            url: `/api/deadlines/${id}`,
+            payload: {
+                scope: 'occurrence',
+                recurrenceId: '2026-11-03T15:00:00.000Z',
+                changes: { title: 'Only this deadline' },
+            },
+        })
+        assert.equal(response.statusCode, 200, response.body)
+        assert.equal(response.json().exceptions[0].title, 'Only this deadline')
+
+        response = await app.inject({
+            method: 'GET',
+            url: '/api/deadlines/occurrences?from=2026-11-03T00:00:00%2B03:00',
+        })
+        assert.equal(
+            response.json().find((deadline) => deadline.id === id).title,
+            'Only this deadline',
+        )
+
+        response = await app.inject({
+            method: 'PUT',
+            url: `/api/deadlines/${id}/completion`,
+            payload: {
+                recurrenceId: '2026-11-03T15:00:00.000Z',
+                completed: true,
+            },
+        })
+        assert.deepEqual(response.json(), { id })
+        response = await app.inject({
+            method: 'GET',
+            url: '/api/deadlines/occurrences?from=2026-11-03T00:00:00%2B03:00&withCompleted=true',
+        })
+        assert.equal(
+            response
+                .json()
+                .find(
+                    (deadline) =>
+                        deadline.recurrenceId === '2026-11-03T15:00:00.000Z',
+                ).completed,
+            true,
+        )
+
+        response = await app.inject({
+            method: 'PUT',
+            url: `/api/deadlines/${id}`,
+            payload: {
+                scope: 'this_and_future',
+                recurrenceId: '2026-11-04T15:00:00.000Z',
+                changes: { title: 'Future HTTP deadlines' },
+            },
+        })
+        const futureId = response.json().id
+        createdIds.push(futureId)
+        assert.notEqual(futureId, id)
+        response = await app.inject({
+            method: 'GET',
+            url: '/api/deadlines?query=Future%20HTTP&withCompleted=true',
+        })
+        assert.deepEqual(
+            response.json().map((deadline) => deadline.id),
+            [futureId],
+        )
+
+        response = await app.inject({
+            method: 'POST',
+            url: `/api/deadlines/${futureId}/cancel`,
+            payload: { scope: 'series' },
+        })
+        assert.deepEqual(response.json(), { id: futureId })
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/deadlines/${futureId}`,
+        })
+        assert.match(response.json().cancelledAt, /Z$/)
+    } finally {
+        for (const id of createdIds) {
+            await app.inject({
+                method: 'DELETE',
+                url: `/api/deadlines/${id}`,
+            })
+        }
+        await app.close()
+    }
+})
+
+test('HTTP event API matches MCP update, search, and cancellation scopes', async () => {
+    const app = buildApp({ logger: false })
+    const createdIds = []
+
+    try {
+        let response = await app.inject({
+            method: 'POST',
+            url: '/api/events',
+            payload: {
+                title: 'HTTP recurring event',
+                start: '2026-11-02T10:00:00+03:00',
+                end: '2026-11-02T11:00:00+03:00',
+                timezone: 'Europe/Moscow',
+                recurrence: { frequency: 'daily', count: 4 },
+            },
+        })
+        assert.equal(response.statusCode, 201, response.body)
+        const id = response.json().id
+        createdIds.push(id)
+        assert.equal(response.json().title, 'HTTP recurring event')
+
+        response = await app.inject({
+            method: 'PUT',
+            url: `/api/events/${id}`,
+            payload: {
+                scope: 'occurrence',
+                recurrenceId: '2026-11-03T07:00:00.000Z',
+                changes: { title: 'Only this event', end: null },
+            },
+        })
+        assert.equal(response.statusCode, 200, response.body)
+        assert.equal(response.json().exceptions[0].title, 'Only this event')
+
+        response = await app.inject({
+            method: 'GET',
+            url: '/api/events/occurrences?from=2026-11-03T00:00:00%2B03:00&to=2026-11-04T00:00:00%2B03:00',
+        })
+        assert.equal(response.json()[0].title, 'Only this event')
+        assert.equal(response.json()[0].end, null)
+
+        response = await app.inject({
+            method: 'PUT',
+            url: `/api/events/${id}`,
+            payload: {
+                scope: 'this_and_future',
+                recurrenceId: '2026-11-04T07:00:00.000Z',
+                changes: { title: 'Future HTTP events' },
+            },
+        })
+        const futureId = response.json().id
+        createdIds.push(futureId)
+        assert.notEqual(futureId, id)
+        response = await app.inject({
+            method: 'GET',
+            url: '/api/events/search?query=Future%20HTTP',
+        })
+        assert.deepEqual(
+            response.json().map((event) => event.id),
+            [futureId],
+        )
+
+        response = await app.inject({
+            method: 'POST',
+            url: `/api/events/${futureId}/cancel`,
+            payload: { scope: 'series' },
+        })
+        assert.deepEqual(response.json(), { id: futureId })
+        response = await app.inject({
+            method: 'GET',
+            url: `/api/events/${futureId}`,
+        })
+        assert.match(response.json().cancelledAt, /Z$/)
+    } finally {
+        for (const id of createdIds) {
+            await app.inject({ method: 'DELETE', url: `/api/events/${id}` })
+        }
+        await app.close()
+    }
 })
 
 test('event API cancels and reschedules one recurring occurrence', async () => {

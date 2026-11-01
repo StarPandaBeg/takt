@@ -1,3 +1,4 @@
+import { serializeNote } from '#src/mcp/util/serializers.js'
 import * as notes from '#src/repository/notes.js'
 import type { FastifyPluginAsync } from 'fastify'
 import * as z from 'zod'
@@ -11,33 +12,53 @@ const idSchema = z.object({
 })
 
 const createSchema = z.object({
-    text: z.coerce.string().min(1),
+    text: z.string().min(1).max(256),
 })
-const editSchema = z.object({
-    text: z.coerce.string().min(1).optional(),
-})
+const editSchema = z
+    .object({
+        text: z.string().min(1).max(256).optional(),
+        completedAt: z.coerce.date().nullable().optional(),
+    })
+    .refine(
+        ({ text, completedAt }) =>
+            text !== undefined || completedAt !== undefined,
+        {
+            message: 'at least one field must be provided',
+        },
+    )
 
 export const notesRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get('/', async (req) => {
         const filters = getAllQuerySchema.parse(req.query)
-        return await notes.getFiltered(filters)
+        return (await notes.getFiltered(filters)).map(serializeNote)
     })
 
     fastify.get('/:id', async (req) => {
         const { id } = idSchema.parse(req.params)
-        return await notes.get(id)
+        const note = await notes.get(id)
+        return note === undefined ? null : serializeNote(note)
     })
 
     fastify.post('/', async (req, reply) => {
         const body = createSchema.parse(req.body)
         const id = await notes.create(body)
-        return reply.code(201).send({ success: true, id })
+        const note = await notes.get(id)
+        if (note === undefined) {
+            throw new Error(`Created note ${id} could not be read back`)
+        }
+        return reply.code(201).send(serializeNote(note))
     })
 
     fastify.put('/:id', async (req) => {
         const { id } = idSchema.parse(req.params)
-        const body = editSchema.parse(req.body)
-        await notes.edit(id, body)
+        const { text, completedAt } = editSchema.parse(req.body)
+        if (text !== undefined) await notes.edit(id, { text })
+        if (completedAt !== undefined) {
+            await notes.markDoneAt(id, completedAt)
+        }
+        const note = await notes.get(id)
+        if (note === undefined) throw new RangeError('Note not found')
+        return serializeNote(note)
     })
 
     fastify.post('/:id/markDone', async (req, reply) => {

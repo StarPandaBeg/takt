@@ -1,11 +1,18 @@
+import {
+    serializeDeadlineEntity,
+    serializeResolvedDeadline,
+} from '#src/mcp/util/serializers.js'
 import * as deadlineExceptions from '#src/repository/deadline-recurrence-exceptions.js'
 import * as deadlines from '#src/repository/deadlines.js'
 import {
+    cancelDeadline,
     deadlineVisibilitySchema,
     getDeadlineEntities,
     getDeadlineEntity,
+    getResolvedDeadlines,
     serializeDeadlineRecurrence,
     setDeadlineCompletion,
+    updateDeadline,
 } from '#src/services/deadlines.js'
 import {
     isRecurrenceOccurrence,
@@ -22,8 +29,20 @@ const idSchema = z.object({
 const occurrenceParamsSchema = idSchema.extend({
     recurrenceId: z.coerce.date(),
 })
-const listSchema = z.object({
-    from: z.coerce.date().optional(),
+const listSchema = z
+    .object({
+        from: z.coerce.date().optional(),
+        to: z.coerce.date().optional(),
+        query: z.string().trim().min(1).optional(),
+        limit: z.coerce.number().int().positive().max(8192).optional(),
+        withCompleted: z.stringbool().default(false),
+    })
+    .refine(
+        ({ from, to }) => from === undefined || to === undefined || to > from,
+        { message: 'to must be later than from', path: ['to'] },
+    )
+const occurrenceListSchema = z.object({
+    from: z.coerce.date(),
     limit: z.coerce.number().int().positive().max(8192).optional(),
     withCompleted: z.stringbool().default(false),
 })
@@ -45,7 +64,65 @@ const fields = {
     completed: z.boolean().optional(),
 }
 const createSchema = z.object(fields)
-const editSchema = createSchema.partial()
+const editSchema = createSchema
+    .omit({ completed: true })
+    .partial()
+    .refine((changes) => Object.keys(changes).length > 0, {
+        message: 'changes must contain at least one field',
+    })
+const legacyEditSchema = createSchema
+    .partial()
+    .refine((changes) => Object.keys(changes).length > 0, {
+        message: 'changes must contain at least one field',
+    })
+const scopedUpdateSchema = z
+    .object({
+        scope: z.enum(['series', 'occurrence', 'this_and_future']),
+        recurrenceId: z.coerce.date().optional(),
+        changes: editSchema,
+    })
+    .superRefine(({ scope, recurrenceId, changes }, context) => {
+        if (scope !== 'series' && recurrenceId === undefined) {
+            context.addIssue({
+                code: 'custom',
+                path: ['recurrenceId'],
+                message:
+                    'recurrenceId is required for occurrence and this_and_future',
+            })
+        }
+        if (
+            scope === 'occurrence' &&
+            (changes.recurrence !== undefined ||
+                changes.visibility !== undefined)
+        ) {
+            context.addIssue({
+                code: 'custom',
+                path: ['changes', 'recurrence'],
+                message:
+                    'recurrence and visibility cannot be changed for a single occurrence',
+            })
+        }
+    })
+const updateSchema = z.union([scopedUpdateSchema, legacyEditSchema])
+const cancellationSchema = z
+    .object({
+        scope: z.enum(['series', 'occurrence', 'this_and_future']),
+        recurrenceId: z.coerce.date().optional(),
+    })
+    .superRefine(({ scope, recurrenceId }, context) => {
+        if (scope !== 'series' && recurrenceId === undefined) {
+            context.addIssue({
+                code: 'custom',
+                path: ['recurrenceId'],
+                message:
+                    'recurrenceId is required for occurrence and this_and_future',
+            })
+        }
+    })
+const completionSchema = z.object({
+    recurrenceId: z.coerce.date().optional(),
+    completed: z.boolean(),
+})
 const occurrenceExceptionSchema = z.discriminatedUnion('status', [
     z.object({ status: z.literal('cancelled') }),
     z.object({ status: z.literal('rescheduled'), due: z.coerce.date() }),
@@ -53,12 +130,27 @@ const occurrenceExceptionSchema = z.discriminatedUnion('status', [
 
 export const deadlinesRoutes: FastifyPluginAsync = async (fastify) => {
     fastify.get('/', async (request) => {
-        return await getDeadlineEntities(listSchema.parse(request.query))
+        const filters = listSchema.parse(request.query)
+        return (await getDeadlineEntities(filters)).map(serializeDeadlineEntity)
+    })
+
+    fastify.get('/occurrences', async (request) => {
+        const { from, limit, withCompleted } = occurrenceListSchema.parse(
+            request.query,
+        )
+        return (
+            await getResolvedDeadlines({
+                from: DateTime.fromJSDate(from),
+                limit,
+                withCompleted,
+            })
+        ).map(serializeResolvedDeadline)
     })
 
     fastify.get('/:id', async (request) => {
         const { id } = idSchema.parse(request.params)
-        return await getDeadlineEntity(id)
+        const deadline = await getDeadlineEntity(id)
+        return deadline === undefined ? null : serializeDeadlineEntity(deadline)
     })
 
     fastify.post('/', async (request, reply) => {
@@ -77,16 +169,86 @@ export const deadlinesRoutes: FastifyPluginAsync = async (fastify) => {
         if (completed === true) {
             await setDeadlineCompletion({ id, completed: true })
         }
-        return reply.code(201).send({ success: true, id })
+        const deadline = await getDeadlineEntity(id)
+        if (deadline === undefined) {
+            throw new Error(`Created deadline ${id} could not be read back`)
+        }
+        return reply.code(201).send(serializeDeadlineEntity(deadline))
     })
 
     fastify.put('/:id', async (request) => {
         const { id } = idSchema.parse(request.params)
-        const { completed, ...body } = editSchema.parse(request.body)
-        await deadlines.edit(id, serializeDeadlineRecurrence(body))
-        if (completed !== undefined) {
-            await setDeadlineCompletion({ id, completed })
+        const input = updateSchema.parse(request.body)
+        const scoped =
+            'changes' in input
+                ? input
+                : {
+                      scope: 'series' as const,
+                      recurrenceId: undefined,
+                      changes: input,
+                      completed: input.completed,
+                  }
+        const { changes } = scoped
+        const deadlineId = await updateDeadline({
+            id,
+            scope: scoped.scope,
+            ...(scoped.recurrenceId === undefined
+                ? {}
+                : { recurrenceId: scoped.recurrenceId }),
+            changes: {
+                ...(changes.title === undefined
+                    ? {}
+                    : { title: changes.title }),
+                ...(changes.description === undefined
+                    ? {}
+                    : { description: changes.description }),
+                ...(changes.due === undefined ? {} : { due: changes.due }),
+                ...(changes.dueIsDate === undefined
+                    ? {}
+                    : { dueIsDate: changes.dueIsDate }),
+                ...(changes.timezone === undefined
+                    ? {}
+                    : { timezone: changes.timezone }),
+                ...(changes.recurrence === undefined
+                    ? {}
+                    : { recurrence: changes.recurrence }),
+                ...(changes.visibility === undefined
+                    ? {}
+                    : { visibility: changes.visibility }),
+            },
+        })
+        const deadline = await getDeadlineEntity(deadlineId)
+        if (deadline === undefined) {
+            throw new Error(
+                `Updated deadline ${deadlineId} could not be read back`,
+            )
         }
+        if ('completed' in scoped && scoped.completed !== undefined) {
+            await setDeadlineCompletion({
+                id: deadlineId,
+                completed: scoped.completed,
+            })
+            const completedDeadline = await getDeadlineEntity(deadlineId)
+            if (completedDeadline === undefined) {
+                throw new Error(
+                    `Updated deadline ${deadlineId} could not be read back`,
+                )
+            }
+            return serializeDeadlineEntity(completedDeadline)
+        }
+        return serializeDeadlineEntity(deadline)
+    })
+
+    fastify.post('/:id/cancel', async (request) => {
+        const { id } = idSchema.parse(request.params)
+        const input = cancellationSchema.parse(request.body)
+        return { id: await cancelDeadline({ id, ...input }) }
+    })
+
+    fastify.put('/:id/completion', async (request) => {
+        const { id } = idSchema.parse(request.params)
+        const input = completionSchema.parse(request.body)
+        return { id: await setDeadlineCompletion({ id, ...input }) }
     })
 
     fastify.put('/:id/occurrences/:recurrenceId', async (request, reply) => {

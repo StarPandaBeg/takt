@@ -1,0 +1,63 @@
+import { createContext } from 'react'
+import type {
+    CancelDeadlinePayload,
+    CancelEventPayload,
+    CreateDeadlinePayload,
+    CreateEventPayload,
+    DeadlineEntity,
+    Note,
+    ResolvedDeadline,
+    ResolvedEvent,
+    UpdateDeadlinePayload,
+    UpdateEventPayload,
+    UpdateNotePayload,
+} from '../types/api'
+
+export interface TaktContextValue {
+    // Данные
+    events: ResolvedEvent[]
+    deadlines: ResolvedDeadline[]
+    masterDeadlines: DeadlineEntity[]
+    notes: Note[]
+
+    // Состояния загрузки и ошибок
+    isLoading: boolean
+    error: string | null
+    isServerConnected: boolean
+    screenRevision: number
+
+    // Методы обновления
+    refreshAll: () => Promise<void>
+    refreshEvents: () => Promise<void>
+    refreshDeadlines: () => Promise<void>
+    refreshNotes: () => Promise<void>
+    refreshScreen: () => void
+    clearError: () => void
+
+    // Мутации событий
+    createEvent: (payload: CreateEventPayload) => Promise<void>
+    updateEvent: (id: number, payload: UpdateEventPayload) => Promise<void>
+    cancelEvent: (id: number, payload: CancelEventPayload) => Promise<void>
+    deleteEvent: (id: number) => Promise<void>
+
+    // Мутации дедлайнов
+    createDeadline: (payload: CreateDeadlinePayload) => Promise<void>
+    updateDeadline: (
+        id: number,
+        payload: UpdateDeadlinePayload,
+    ) => Promise<void>
+    toggleDeadline: (deadline: ResolvedDeadline) => Promise<void>
+    cancelDeadline: (
+        id: number,
+        payload: CancelDeadlinePayload,
+    ) => Promise<void>
+    deleteDeadline: (id: number) => Promise<void>
+
+    // Мутации заметок
+    createNote: (text: string) => Promise<void>
+    updateNote: (id: number, payload: UpdateNotePayload) => Promise<void>
+    toggleNote: (note: Note) => Promise<void>
+    deleteNote: (id: number) => Promise<void>
+}
+
+export const TaktContext = createContext<TaktContextValue | null>(null)

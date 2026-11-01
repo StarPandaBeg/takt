@@ -1,0 +1,1073 @@
+import FullCalendar, { type CalendarRef } from '@fullcalendar/react'
+import dayGridPlugin from '@fullcalendar/react/daygrid'
+import interactionPlugin from '@fullcalendar/react/interaction'
+import ruLocale from '@fullcalendar/react/locales/ru'
+import classicThemePlugin from '@fullcalendar/react/themes/classic'
+import timeGridPlugin from '@fullcalendar/react/timegrid'
+import {
+    Check,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
+    ChevronUp,
+    Plus,
+    Repeat,
+    Trash2,
+} from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+
+import { ConfirmDialog } from '../components/common/confirm-dialog'
+import { ErrorBanner } from '../components/common/error-banner'
+import { DeadlineDialog } from '../components/deadlines/deadline-dialog'
+import { EventDialog } from '../components/events/event-dialog'
+import { PageHeader } from '../components/page-header'
+import {
+    eventTime,
+    extractDateString,
+    formatDeadlineDue,
+    formatLongDate,
+    formatMonth,
+    getTodayIso,
+    parseIsoDate,
+    toIsoDate,
+} from '../lib/date'
+import { formatRecurrenceRule } from '../lib/recurrence-format'
+import type {
+    DeadlineEntity,
+    ResolvedDeadline,
+    ResolvedEvent,
+} from '../types/api'
+import { useTakt } from '../use-app'
+
+type Section = 'calendar' | 'deadlines'
+type DeadlineFilter = 'all' | 'active' | 'completed'
+type CalendarView = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay'
+
+interface EventDraft {
+    date: string
+    start?: string
+    end?: string
+    allDay: boolean
+}
+
+function timeFromDate(date: Date) {
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+export function CalendarPage() {
+    const {
+        events,
+        deadlines,
+        masterDeadlines,
+        error,
+        refreshAll,
+        clearError,
+        createEvent,
+        updateEvent,
+        cancelEvent,
+        deleteEvent,
+        createDeadline,
+        updateDeadline,
+        toggleDeadline,
+        cancelDeadline,
+        deleteDeadline,
+    } = useTakt()
+
+    const today = useMemo(() => getTodayIso(), [])
+    const calendarRef = useRef<CalendarRef>(null)
+    const schedulePanelRef = useRef<HTMLElement>(null)
+    const [params] = useSearchParams()
+    const initialDate = params.get('date') ?? today
+    const [selectedDate, setSelectedDate] = useState(initialDate)
+    const [calendarTitle, setCalendarTitle] = useState(() =>
+        formatMonth(parseIsoDate(initialDate)),
+    )
+    const [calendarView, setCalendarView] =
+        useState<CalendarView>('dayGridMonth')
+    const sectionParam = params.get('section')
+    const [userSection, setUserSection] = useState<Section | null>(null)
+    const section: Section =
+        userSection ?? (sectionParam === 'deadlines' ? 'deadlines' : 'calendar')
+    const setSection = (next: Section) => setUserSection(next)
+
+    const [showDeadlines, setShowDeadlines] = useState(true)
+    const [deadlineFilter, setDeadlineFilter] = useState<DeadlineFilter>('all')
+    const [expandedSeriesIds, setExpandedSeriesIds] = useState<Set<number>>(
+        () => new Set(),
+    )
+
+    const toggleSeriesExpand = (id: number) => {
+        setExpandedSeriesIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) {
+                next.delete(id)
+            } else {
+                next.add(id)
+            }
+            return next
+        })
+    }
+
+    const [editingEvent, setEditingEvent] = useState<ResolvedEvent | null>(null)
+    const [eventDraft, setEventDraft] = useState<EventDraft | null>(null)
+    const [editingDeadline, setEditingDeadline] = useState<
+        ResolvedDeadline | 'new' | null
+    >(null)
+    const [deletingEventId, setDeletingEventId] = useState<number | null>(null)
+
+    // Преобразование событий и дедлайнов в формат FullCalendar
+    const calendarEvents = useMemo(() => {
+        const mappedEvents = events.map((event) => {
+            const dateStr = extractDateString(event.start)
+            return {
+                id: `event:${event.id}:${event.recurrenceId ?? 'master'}`,
+                title: event.title,
+                start: event.allDay ? dateStr : event.start,
+                ...(event.end && !event.allDay ? { end: event.end } : {}),
+                allDay: event.allDay,
+                extendedProps: {
+                    kind: 'event' as const,
+                    rawEvent: event,
+                },
+            }
+        })
+
+        if (!showDeadlines) return mappedEvents
+
+        const mappedDeadlines = deadlines.map((deadline) => {
+            const dateStr = extractDateString(deadline.due)
+            return {
+                id: `deadline:${deadline.id}:${deadline.recurrenceId ?? 'master'}`,
+                title: deadline.title,
+                start: deadline.dueIsDate ? dateStr : deadline.due,
+                allDay: deadline.dueIsDate,
+                classNames: [
+                    'deadline-calendar-event',
+                    ...(deadline.completed ? ['is-complete'] : []),
+                ],
+                extendedProps: {
+                    kind: 'deadline' as const,
+                    rawDeadline: deadline,
+                },
+            }
+        })
+
+        return [...mappedEvents, ...mappedDeadlines]
+    }, [events, deadlines, showDeadlines])
+
+    // События и дедлайны выбранного дня
+    const selectedEvents = useMemo(() => {
+        return events
+            .filter((event) => extractDateString(event.start) === selectedDate)
+            .sort((a, b) => a.start.localeCompare(b.start))
+    }, [events, selectedDate])
+
+    const selectedDeadlines = useMemo(() => {
+        return deadlines.filter(
+            (deadline) => extractDateString(deadline.due) === selectedDate,
+        )
+    }, [deadlines, selectedDate])
+
+    // Группировка дедлайнов по сериям для вкладки списка дедлайнов
+    const groupedDeadlines = useMemo(() => {
+        const masterMap = new Map<number, DeadlineEntity>()
+        for (const m of masterDeadlines) {
+            masterMap.set(m.id, m)
+        }
+
+        // Если в occurrences есть дедлайн, не присутствующий в masterMap (фоллбэк)
+        for (const d of deadlines) {
+            if (!masterMap.has(d.id)) {
+                masterMap.set(d.id, {
+                    id: d.id,
+                    title: d.title,
+                    description: d.description,
+                    due: d.due,
+                    dueIsDate: d.dueIsDate,
+                    timezone: d.timezone,
+                    cancelledAt: null,
+                    createdAt: d.due,
+                    updatedAt: d.due,
+                    recurrence: null,
+                    visibility: d.visibility,
+                    completedAt: d.completed ? (d.completedAt ?? d.due) : null,
+                    completions: [],
+                    exceptions: [],
+                })
+            }
+        }
+
+        const items: Array<{
+            id: number
+            type: 'single' | 'series'
+            title: string
+            description: string | null
+            ruleText: string | null
+            isOverdue: boolean
+            isComplete: boolean
+            activeOccurrence: ResolvedDeadline
+            masterAsResolved: ResolvedDeadline
+            upcomingOccurrences: ResolvedDeadline[]
+            totalOccurrencesCount: number
+        }> = []
+
+        for (const master of masterMap.values()) {
+            if (master.cancelledAt) continue
+
+            // Исключенные (отмененные пользователем) вхождения
+            const cancelledRecurrenceIds = new Set(
+                (master.exceptions || [])
+                    .filter((e) => e.status === 'cancelled')
+                    .map((e) => e.recurrenceId),
+            )
+
+            // Валидные вхождения (исключая отмененные)
+            const occurrences = deadlines
+                .filter((d) => d.id === master.id)
+                .filter(
+                    (d) =>
+                        !d.recurrenceId ||
+                        !cancelledRecurrenceIds.has(d.recurrenceId),
+                )
+                .sort((a, b) => a.due.localeCompare(b.due))
+
+            const masterAsResolved: ResolvedDeadline = {
+                id: master.id,
+                title: master.title,
+                description: master.description,
+                due: master.due,
+                dueIsDate: master.dueIsDate,
+                timezone: master.timezone,
+                completed: Boolean(master.completedAt),
+                completedAt: master.completedAt,
+                recurrenceId: null,
+                visibility: master.visibility,
+            }
+
+            const isSeries = Boolean(master.recurrence)
+
+            if (!isSeries) {
+                const activeOccurrence = occurrences[0] ?? masterAsResolved
+                const isComplete =
+                    Boolean(master.completedAt) || activeOccurrence.completed
+                const isOverdue =
+                    !isComplete &&
+                    extractDateString(activeOccurrence.due) < today
+
+                items.push({
+                    id: master.id,
+                    type: 'single',
+                    title: activeOccurrence.title || master.title,
+                    description:
+                        activeOccurrence.description ?? master.description,
+                    ruleText: null,
+                    isOverdue,
+                    isComplete,
+                    activeOccurrence,
+                    masterAsResolved,
+                    upcomingOccurrences: [],
+                    totalOccurrencesCount: 1,
+                })
+            } else {
+                const ruleText = formatRecurrenceRule(master.recurrence)
+
+                // Разделяем вхождения на просроченные невыполненные, будущие невыполненные и выполненные
+                const overdueUncompleted = occurrences.filter(
+                    (o) => !o.completed && extractDateString(o.due) < today,
+                )
+                const upcomingUncompleted = occurrences.filter(
+                    (o) => !o.completed && extractDateString(o.due) >= today,
+                )
+                const completedOccurrences = occurrences.filter(
+                    (o) => o.completed,
+                )
+                const lastCompleted =
+                    completedOccurrences.length > 0
+                        ? completedOccurrences[completedOccurrences.length - 1]
+                        : null
+
+                let isComplete: boolean
+                let activeOccurrence: ResolvedDeadline
+
+                if (overdueUncompleted.length > 0) {
+                    // 1. Приоритет: есть просроченные невыполненные долги
+                    activeOccurrence = overdueUncompleted[0]
+                    isComplete = false
+                } else if (upcomingUncompleted.length > 0) {
+                    // 2. Есть невыполненные вхождения на сегодня или в будущем
+                    const nextUncompleted = upcomingUncompleted[0]
+
+                    // Если шаг за текущий период уже выполнен, а следующий срок еще не наступил
+                    if (
+                        lastCompleted &&
+                        extractDateString(lastCompleted.due) <= today &&
+                        extractDateString(nextUncompleted.due) > today
+                    ) {
+                        isComplete = true
+                        activeOccurrence = lastCompleted
+                    } else {
+                        isComplete = false
+                        activeOccurrence = nextUncompleted
+                    }
+                } else if (lastCompleted) {
+                    // 3. Все запланированные вхождения серии выполнены
+                    activeOccurrence = lastCompleted
+                    isComplete = true
+                } else {
+                    // 4. Фоллбэк
+                    activeOccurrence = masterAsResolved
+                    isComplete = Boolean(master.completedAt)
+                }
+
+                const isOverdue =
+                    !isComplete &&
+                    extractDateString(activeOccurrence.due) < today
+
+                // До 6 ближайших вхождений для раскрывающегося списка повторов
+                const activeIdx = occurrences.indexOf(activeOccurrence)
+                const startIdx = Math.max(0, activeIdx)
+                const upcomingOccurrences = occurrences.slice(
+                    startIdx,
+                    startIdx + 6,
+                )
+
+                items.push({
+                    id: master.id,
+                    type: 'series',
+                    title: master.title,
+                    description: master.description,
+                    ruleText,
+                    isOverdue,
+                    isComplete,
+                    activeOccurrence,
+                    masterAsResolved,
+                    upcomingOccurrences,
+                    totalOccurrencesCount: occurrences.length,
+                })
+            }
+        }
+
+        // Сортировка: сначала активные (невыполненные), затем выполненные
+        items.sort((a, b) => {
+            const aDone = a.isComplete || a.activeOccurrence.completed
+            const bDone = b.isComplete || b.activeOccurrence.completed
+            if (aDone !== bDone) {
+                return aDone ? 1 : -1
+            }
+            return a.activeOccurrence.due.localeCompare(b.activeOccurrence.due)
+        })
+
+        return items
+    }, [masterDeadlines, deadlines, today])
+
+    // Фильтрация сгруппированных дедлайнов (строго по рассчитанному статусу выполнения)
+    const filteredGroupedDeadlines = useMemo(() => {
+        return groupedDeadlines.filter((item) => {
+            const isDone = item.isComplete || item.activeOccurrence.completed
+            if (deadlineFilter === 'active') {
+                return !isDone
+            }
+            if (deadlineFilter === 'completed') {
+                return isDone
+            }
+            return true
+        })
+    }, [groupedDeadlines, deadlineFilter])
+
+    // Точные счётчики дедлайнов (строго соответствуют количеству элементов в каждом фильтре)
+    const deadlineCounts = useMemo(() => {
+        let all = 0
+        let active = 0
+        let completed = 0
+
+        for (const item of groupedDeadlines) {
+            all += 1
+            const isDone = item.isComplete || item.activeOccurrence.completed
+            if (isDone) {
+                completed += 1
+            } else {
+                active += 1
+            }
+        }
+
+        return { all, active, completed }
+    }, [groupedDeadlines])
+
+    const openEventDraft = (draft: EventDraft) => {
+        setSelectedDate(draft.date)
+        setEditingEvent(null)
+        setEventDraft(draft)
+    }
+
+    const moveCalendar = (direction: 'prev' | 'next') => {
+        const calendarApi = calendarRef.current?.getApi()
+        if (!calendarApi) return
+        calendarApi[direction]()
+        setSelectedDate(toIsoDate(calendarApi.getDate()))
+    }
+
+    const goToday = () => {
+        const calendarApi = calendarRef.current?.getApi()
+        calendarApi?.today()
+        setSelectedDate(today)
+    }
+
+    const changeView = (view: CalendarView) => {
+        calendarRef.current?.getApi().changeView(view, selectedDate)
+        setCalendarView(view)
+    }
+
+    return (
+        <div
+            className={`page calendar-page ${section === 'calendar' ? 'is-calendar-view' : 'is-deadlines-view'}`}
+        >
+            <PageHeader eyebrow="" title="Календарь" />
+
+            {error && (
+                <ErrorBanner
+                    message={error}
+                    onRetry={() => {
+                        void refreshAll()
+                    }}
+                    onDismiss={clearError}
+                />
+            )}
+
+            <div className="calendar-section-tabs" role="tablist">
+                <button
+                    className={section === 'calendar' ? 'is-active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={section === 'calendar'}
+                    onClick={() => setSection('calendar')}
+                >
+                    Календарь
+                </button>
+                <button
+                    className={section === 'deadlines' ? 'is-active' : ''}
+                    type="button"
+                    role="tab"
+                    aria-selected={section === 'deadlines'}
+                    onClick={() => setSection('deadlines')}
+                >
+                    Все дедлайны ({deadlineCounts.all})
+                </button>
+            </div>
+
+            {section === 'calendar' ? (
+                <section className="calendar-workspace">
+                    <div className="calendar-main-column">
+                        <header className="calendar-controls">
+                            <div className="calendar-controls__nav">
+                                <button
+                                    className="icon-button"
+                                    type="button"
+                                    onClick={() => moveCalendar('prev')}
+                                    aria-label="Предыдущий период"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <button
+                                    className="icon-button"
+                                    type="button"
+                                    onClick={() => moveCalendar('next')}
+                                    aria-label="Следующий период"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                                <button
+                                    className="button button--quiet button--small"
+                                    type="button"
+                                    onClick={goToday}
+                                >
+                                    Сегодня
+                                </button>
+                            </div>
+                            <h2>{calendarTitle}</h2>
+                            <div className="calendar-controls__right">
+                                <label className="deadline-visibility">
+                                    <input
+                                        type="checkbox"
+                                        checked={showDeadlines}
+                                        onChange={(event) =>
+                                            setShowDeadlines(
+                                                event.target.checked,
+                                            )
+                                        }
+                                    />
+                                    Дедлайны
+                                </label>
+                                <div
+                                    className="view-switcher"
+                                    role="group"
+                                    aria-label="Режим календаря"
+                                >
+                                    {(
+                                        [
+                                            ['dayGridMonth', 'Месяц'],
+                                            ['timeGridWeek', 'Неделя'],
+                                            ['timeGridDay', 'День'],
+                                        ] as const
+                                    ).map(([view, label]) => (
+                                        <button
+                                            key={view}
+                                            className={
+                                                calendarView === view
+                                                    ? 'is-active'
+                                                    : ''
+                                            }
+                                            type="button"
+                                            onClick={() => changeView(view)}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </header>
+
+                        <div className="full-calendar-viewport">
+                            <FullCalendar
+                                ref={calendarRef}
+                                plugins={[
+                                    dayGridPlugin,
+                                    timeGridPlugin,
+                                    interactionPlugin,
+                                    classicThemePlugin,
+                                ]}
+                                locale={ruLocale}
+                                initialView="dayGridMonth"
+                                initialDate={initialDate}
+                                headerToolbar={false}
+                                firstDay={1}
+                                height="100%"
+                                expandRows
+                                dayMaxEvents={3}
+                                moreLinkText={(count) => `+ ещё ${count}`}
+                                selectable
+                                selectMirror
+                                nowIndicator
+                                allDayText="Весь день"
+                                slotMinTime="07:00:00"
+                                slotMaxTime="23:00:00"
+                                slotDuration="00:30:00"
+                                events={calendarEvents}
+                                datesSet={(info) => {
+                                    setCalendarTitle(info.view.title)
+                                    setCalendarView(
+                                        info.view.type as CalendarView,
+                                    )
+                                }}
+                                dayCellClass={(info) =>
+                                    toIsoDate(info.date) === selectedDate
+                                        ? 'is-selected-day'
+                                        : ''
+                                }
+                                dayHeaderClass={(info) =>
+                                    toIsoDate(info.date) === selectedDate
+                                        ? 'is-selected-day'
+                                        : ''
+                                }
+                                dateClick={(info) => {
+                                    const date = info.dateStr.slice(0, 10)
+                                    setSelectedDate(date)
+                                    if (!info.allDay) {
+                                        openEventDraft({
+                                            date,
+                                            start: timeFromDate(info.date),
+                                            allDay: false,
+                                        })
+                                    }
+                                    if (
+                                        typeof window !== 'undefined' &&
+                                        window.innerWidth <= 820 &&
+                                        schedulePanelRef.current
+                                    ) {
+                                        schedulePanelRef.current.scrollIntoView(
+                                            {
+                                                behavior: 'smooth',
+                                                block: 'nearest',
+                                            },
+                                        )
+                                    }
+                                }}
+                                select={(info) => {
+                                    const date = toIsoDate(info.start)
+                                    setSelectedDate(date)
+                                    if (!info.allDay) {
+                                        openEventDraft({
+                                            date,
+                                            start: timeFromDate(info.start),
+                                            end: timeFromDate(info.end),
+                                            allDay: false,
+                                        })
+                                    }
+                                }}
+                                eventClick={(info) => {
+                                    const ext = info.event.extendedProps
+                                    if (ext.kind === 'deadline') {
+                                        const raw =
+                                            ext.rawDeadline as ResolvedDeadline
+                                        setSelectedDate(
+                                            extractDateString(raw.due),
+                                        )
+                                        setEditingDeadline(raw)
+                                        return
+                                    }
+                                    if (ext.kind === 'event') {
+                                        const raw =
+                                            ext.rawEvent as ResolvedEvent
+                                        setSelectedDate(
+                                            extractDateString(raw.start),
+                                        )
+                                        setEditingEvent(raw)
+                                    }
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    <aside
+                        ref={schedulePanelRef}
+                        className="selected-day-panel"
+                    >
+                        <header className="selected-day-panel__header">
+                            <div>
+                                <span>Выбранный день</span>
+                                <h2>{formatLongDate(selectedDate)}</h2>
+                            </div>
+                            <button
+                                className="icon-button icon-button--ink"
+                                type="button"
+                                onClick={() =>
+                                    openEventDraft({
+                                        date: selectedDate,
+                                        allDay: false,
+                                    })
+                                }
+                                aria-label="Добавить событие"
+                                title="Добавить событие"
+                            >
+                                <Plus size={19} />
+                            </button>
+                        </header>
+                        <div className="selected-day-panel__content">
+                            {selectedEvents.map((event) => (
+                                <div
+                                    className="selected-day-event"
+                                    key={`${event.id}-${event.recurrenceId ?? 'master'}`}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditingEvent(event)}
+                                    >
+                                        <time>{eventTime(event)}</time>
+                                        <strong>{event.title}</strong>
+                                        {event.recurrenceId && (
+                                            <span
+                                                className="event-repeat-tag"
+                                                title="Повторяющееся событие"
+                                            >
+                                                <Repeat size={12} />
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        className="icon-button icon-button--danger"
+                                        type="button"
+                                        onClick={() =>
+                                            setDeletingEventId(event.id)
+                                        }
+                                        aria-label={`Удалить «${event.title}»`}
+                                        title="Удалить событие"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            ))}
+                            {!selectedEvents.length && (
+                                <div className="compact-empty">
+                                    <p>Событий нет.</p>
+                                    <button
+                                        className="text-link"
+                                        type="button"
+                                        onClick={() =>
+                                            openEventDraft({
+                                                date: selectedDate,
+                                                allDay: false,
+                                            })
+                                        }
+                                    >
+                                        Добавить событие
+                                    </button>
+                                </div>
+                            )}
+
+                            {selectedDeadlines.length > 0 && (
+                                <div className="selected-day-deadlines">
+                                    <h3>Дедлайны на этот день</h3>
+                                    {selectedDeadlines.map((deadline) => (
+                                        <div
+                                            className={
+                                                deadline.completed
+                                                    ? 'is-complete'
+                                                    : ''
+                                            }
+                                            key={`${deadline.id}-${deadline.recurrenceId ?? 'master'}`}
+                                        >
+                                            <button
+                                                className="deadline__check"
+                                                type="button"
+                                                onClick={() => {
+                                                    void toggleDeadline(
+                                                        deadline,
+                                                    )
+                                                }}
+                                                aria-label={`Изменить статус «${deadline.title}»`}
+                                            >
+                                                {deadline.completed && (
+                                                    <Check size={15} />
+                                                )}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setEditingDeadline(deadline)
+                                                }
+                                            >
+                                                {deadline.title}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </aside>
+                </section>
+            ) : (
+                <section className="all-deadlines">
+                    <div className="all-deadlines__toolbar">
+                        <div
+                            className="deadline-filters"
+                            role="group"
+                            aria-label="Фильтр дедлайнов"
+                        >
+                            {(['all', 'active', 'completed'] as const).map(
+                                (filter) => (
+                                    <button
+                                        key={filter}
+                                        className={
+                                            deadlineFilter === filter
+                                                ? 'is-active'
+                                                : ''
+                                        }
+                                        type="button"
+                                        onClick={() =>
+                                            setDeadlineFilter(filter)
+                                        }
+                                    >
+                                        {filter === 'all'
+                                            ? `Все (${deadlineCounts.all})`
+                                            : filter === 'active'
+                                              ? `Активные (${deadlineCounts.active})`
+                                              : `Выполненные (${deadlineCounts.completed})`}
+                                    </button>
+                                ),
+                            )}
+                        </div>
+                        <button
+                            className="button button--primary"
+                            type="button"
+                            onClick={() => setEditingDeadline('new')}
+                        >
+                            <Plus size={16} /> Новый дедлайн
+                        </button>
+                    </div>
+
+                    <div className="all-deadlines__list">
+                        {filteredGroupedDeadlines.map((item) => {
+                            const isSeries = item.type === 'series'
+                            const isExpanded = expandedSeriesIds.has(item.id)
+                            const isItemDone =
+                                item.isComplete ||
+                                item.activeOccurrence.completed
+
+                            return (
+                                <div
+                                    className={`deadline-item${isItemDone ? ' is-complete' : ''}`}
+                                    key={`deadline-${item.id}`}
+                                >
+                                    <div className="deadline-item__main">
+                                        <button
+                                            className="deadline__check"
+                                            type="button"
+                                            onClick={() => {
+                                                void toggleDeadline(
+                                                    item.activeOccurrence,
+                                                )
+                                            }}
+                                            aria-label={`Отметить «${item.title}»`}
+                                            title={
+                                                isItemDone
+                                                    ? 'Срок выполнен'
+                                                    : 'Отметить выполненным'
+                                            }
+                                        >
+                                            {isItemDone && <Check size={15} />}
+                                        </button>
+
+                                        <button
+                                            className="deadline-item__content"
+                                            type="button"
+                                            onClick={() => {
+                                                setEditingDeadline(
+                                                    isSeries
+                                                        ? item.masterAsResolved
+                                                        : item.activeOccurrence,
+                                                )
+                                            }}
+                                            title={
+                                                isSeries
+                                                    ? 'Нажмите, чтобы настроить серию дедлайна'
+                                                    : 'Редактировать дедлайн'
+                                            }
+                                        >
+                                            <div className="deadline-item__title-row">
+                                                <strong className="deadline-item__title">
+                                                    {item.title}
+                                                </strong>
+                                                {isSeries && item.ruleText && (
+                                                    <span className="deadline-badge deadline-badge--recurrence">
+                                                        <Repeat size={12} />
+                                                        {item.ruleText}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {item.description && (
+                                                <span className="deadline-item__desc">
+                                                    {item.description}
+                                                </span>
+                                            )}
+                                        </button>
+
+                                        <div className="deadline-item__params">
+                                            {item.isOverdue && (
+                                                <span className="deadline-badge deadline-badge--warning">
+                                                    Просрочен
+                                                </span>
+                                            )}
+                                            {item.activeOccurrence.visibility &&
+                                                item.activeOccurrence.visibility
+                                                    .hide === 'on_complete' && (
+                                                    <span
+                                                        className="deadline-badge"
+                                                        title="Остается на экране до подтверждения выполнения"
+                                                    >
+                                                        До выполнения
+                                                    </span>
+                                                )}
+                                            {item.activeOccurrence.visibility &&
+                                                item.activeOccurrence.visibility
+                                                    .show.type === 'before' && (
+                                                    <span
+                                                        className="deadline-badge"
+                                                        title={`Появляется на экране за ${item.activeOccurrence.visibility.show.days} дн. до срока`}
+                                                    >
+                                                        Показ за{' '}
+                                                        {
+                                                            item
+                                                                .activeOccurrence
+                                                                .visibility.show
+                                                                .days
+                                                        }{' '}
+                                                        дн.
+                                                    </span>
+                                                )}
+                                            <time className="deadline-item__due">
+                                                {formatDeadlineDue(
+                                                    item.activeOccurrence.due,
+                                                    item.activeOccurrence
+                                                        .dueIsDate,
+                                                )}
+                                            </time>
+                                        </div>
+
+                                        {isSeries ? (
+                                            <button
+                                                className="deadline-item__toggle-btn"
+                                                type="button"
+                                                onClick={() =>
+                                                    toggleSeriesExpand(item.id)
+                                                }
+                                                aria-expanded={isExpanded}
+                                                title="Показать повторы серии"
+                                            >
+                                                {isExpanded ? (
+                                                    <>
+                                                        <span>Скрыть</span>
+                                                        <ChevronUp size={14} />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span>
+                                                            Повторы (
+                                                            {
+                                                                item
+                                                                    .upcomingOccurrences
+                                                                    .length
+                                                            }
+                                                            )
+                                                        </span>
+                                                        <ChevronDown
+                                                            size={14}
+                                                        />
+                                                    </>
+                                                )}
+                                            </button>
+                                        ) : (
+                                            <div style={{ width: 84 }} />
+                                        )}
+                                    </div>
+
+                                    {/* Раскрывающийся список отдельных повторов для серии */}
+                                    {isSeries && isExpanded && (
+                                        <div className="deadline-item__sublist">
+                                            {item.upcomingOccurrences.map(
+                                                (occ) => {
+                                                    const isOccOverdue =
+                                                        !occ.completed &&
+                                                        extractDateString(
+                                                            occ.due,
+                                                        ) < today
+
+                                                    return (
+                                                        <div
+                                                            className={`deadline-subitem${occ.completed ? ' is-complete' : ''}`}
+                                                            key={`occ-${occ.id}-${occ.recurrenceId ?? occ.due}`}
+                                                        >
+                                                            <button
+                                                                className="deadline__check"
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    void toggleDeadline(
+                                                                        occ,
+                                                                    )
+                                                                }}
+                                                                aria-label={`Отметить срок на ${occ.due}`}
+                                                            >
+                                                                {occ.completed && (
+                                                                    <Check
+                                                                        size={
+                                                                            14
+                                                                        }
+                                                                    />
+                                                                )}
+                                                            </button>
+
+                                                            <button
+                                                                className="deadline-subitem__btn"
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setEditingDeadline(
+                                                                        occ,
+                                                                    )
+                                                                }
+                                                                title="Редактировать это конкретное вхождение"
+                                                            >
+                                                                <strong>
+                                                                    {occ.title}
+                                                                </strong>
+                                                                {isOccOverdue && (
+                                                                    <span className="deadline-badge deadline-badge--warning">
+                                                                        Просрочен
+                                                                    </span>
+                                                                )}
+                                                            </button>
+
+                                                            <time>
+                                                                {formatDeadlineDue(
+                                                                    occ.due,
+                                                                    occ.dueIsDate,
+                                                                )}
+                                                            </time>
+                                                        </div>
+                                                    )
+                                                },
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                        {!filteredGroupedDeadlines.length && (
+                            <div className="compact-empty">
+                                <p>В этом списке пока нет дедлайнов.</p>
+                                <button
+                                    className="text-link"
+                                    type="button"
+                                    onClick={() => setEditingDeadline('new')}
+                                >
+                                    Создать новый дедлайн
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+
+            {/* Диалоги */}
+            {(eventDraft || editingEvent) && (
+                <EventDialog
+                    event={editingEvent ?? undefined}
+                    initialDate={
+                        eventDraft?.date ??
+                        (editingEvent
+                            ? extractDateString(editingEvent.start)
+                            : selectedDate)
+                    }
+                    initialStart={eventDraft?.start}
+                    initialEnd={eventDraft?.end}
+                    initialAllDay={eventDraft?.allDay}
+                    onClose={() => {
+                        setEventDraft(null)
+                        setEditingEvent(null)
+                    }}
+                    onCreate={createEvent}
+                    onUpdate={updateEvent}
+                    onCancel={cancelEvent}
+                    onDelete={deleteEvent}
+                />
+            )}
+
+            {editingDeadline && (
+                <DeadlineDialog
+                    deadline={
+                        editingDeadline === 'new' ? undefined : editingDeadline
+                    }
+                    initialDate={selectedDate}
+                    onClose={() => setEditingDeadline(null)}
+                    onCreate={createDeadline}
+                    onUpdate={updateDeadline}
+                    onCancel={cancelDeadline}
+                    onDelete={deleteDeadline}
+                />
+            )}
+
+            {deletingEventId !== null && (
+                <ConfirmDialog
+                    title="Удалить событие"
+                    message="Удалить это событие из базы данных?"
+                    confirmLabel="Удалить"
+                    onConfirm={() => {
+                        void (async () => {
+                            await deleteEvent(deletingEventId)
+                            setDeletingEventId(null)
+                        })()
+                    }}
+                    onClose={() => setDeletingEventId(null)}
+                />
+            )}
+        </div>
+    )
+}

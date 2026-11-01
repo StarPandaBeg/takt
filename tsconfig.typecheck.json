@@ -27,8 +27,8 @@
         "skipLibCheck": true
     },
     "include": [
-        "apps/*/src/**/*.ts",
-        "apps/*/src/**/*.tsx",
+        "apps/backend/src/**/*.ts",
+        "apps/backend/src/**/*.tsx",
         "packages/*/src/**/*.ts",
         "packages/*/src/**/*.tsx",
         "tests/**/*.ts"

@@ -9,19 +9,19 @@
         "build:incremental": "tsc --build",
         "build:clean": "tsc --build --clean",
         "rebuild": "npm run build:clean && npm run build",
-        "typecheck": "tsc --project tsconfig.typecheck.json",
+        "typecheck": "tsc --project tsconfig.typecheck.json && npm run typecheck --workspace=@takt/frontend",
         "start": "npm run start --workspace=@takt/backend",
         "dev": "npm run build && concurrently --kill-others --names build,backend --prefix-colors cyan,green \"npm:dev:build\" \"npm:dev:backend\"",
         "dev:build": "tsc --build --watch --preserveWatchOutput",
         "dev:backend": "npm run dev --workspace=@takt/backend",
-        "lint": "eslint .",
+        "lint": "eslint . && npm run lint --workspace=@takt/frontend",
         "test": "npm run build && node --test tests/*.test.mjs"
     },
     "author": "StarPanda",
     "license": "MIT",
     "workspaces": [
         "packages/*",
-        "apps/backend"
+        "apps/*"
     ],
     "devDependencies": {
         "@eslint/js": "^10.0.1",
