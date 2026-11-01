@@ -19,20 +19,24 @@ export function useDelayedNoteCompletion({
         () => new Set(),
     )
     const timersRef = useRef<
-        Map<number, { timer: NodeJS.Timeout; note: Note }>
+        Map<
+            number,
+            {
+                timer: NodeJS.Timeout
+                completedNote: Note
+                completion: Promise<void>
+            }
+        >
     >(new Map())
 
-    // Очистка при размонтировании: если были таймеры, мгновенно завершаем их
+    // The mutation has already been sent; unmounting only closes the undo UI.
     useEffect(() => {
         const timers = timersRef.current
         return () => {
-            timers.forEach(({ timer, note }) => {
-                clearTimeout(timer)
-                void onComplete(note)
-            })
+            timers.forEach(({ timer }) => clearTimeout(timer))
             timers.clear()
         }
-    }, [onComplete])
+    }, [])
 
     const isCompleting = useCallback(
         (id: number) => completingIds.has(id),
@@ -64,33 +68,52 @@ export function useDelayedNoteCompletion({
         [onComplete, onRevert],
     )
 
+    const handleCancelCompletion = useCallback(
+        (note: Note) => {
+            const id = note.id
+            const pending = timersRef.current.get(id)
+            if (pending === undefined) return
+
+            clearTimeout(pending.timer)
+            timersRef.current.delete(id)
+            setCompletingIds((prev) => {
+                const next = new Set(prev)
+                next.delete(id)
+                return next
+            })
+
+            // Serialize the compensating mutation after completion so a fast
+            // undo cannot be reordered ahead of the original request.
+            void pending.completion
+                .then(() => executeComplete(pending.completedNote, true))
+                .catch(() => undefined)
+        },
+        [executeComplete],
+    )
+
     const handleToggleNote = useCallback(
         (note: Note) => {
             const id = note.id
 
             // Если заметка уже была выполнена в БД — сразу возвращаем её в активные
             if (note.completedAt !== null) {
-                void executeComplete(note, true)
+                void executeComplete(note, true).catch(() => undefined)
                 return
             }
 
-            // Если заметка сейчас в процессе отложенного завершения — отменяем
+            // A second click during the undo window reverts the saved change.
             if (timersRef.current.has(id)) {
-                const item = timersRef.current.get(id)
-                if (item) {
-                    clearTimeout(item.timer)
-                    timersRef.current.delete(id)
-                }
-                setCompletingIds((prev) => {
-                    const next = new Set(prev)
-                    next.delete(id)
-                    return next
-                })
+                handleCancelCompletion(note)
                 return
             }
 
-            // Иначе инициируем отложенное завершение
+            // Persist immediately and keep only the undo affordance delayed.
             setCompletingIds((prev) => new Set(prev).add(id))
+            const completedNote: Note = {
+                ...note,
+                completedAt: new Date().toISOString(),
+            }
+            const completion = executeComplete(note, false)
 
             const timer = setTimeout(() => {
                 timersRef.current.delete(id)
@@ -99,29 +122,27 @@ export function useDelayedNoteCompletion({
                     next.delete(id)
                     return next
                 })
-                void executeComplete(note, false)
             }, delayMs)
 
-            timersRef.current.set(id, { timer, note })
-        },
-        [delayMs, executeComplete],
-    )
-
-    const handleCancelCompletion = useCallback((note: Note) => {
-        const id = note.id
-        if (timersRef.current.has(id)) {
-            const item = timersRef.current.get(id)
-            if (item) {
-                clearTimeout(item.timer)
-                timersRef.current.delete(id)
-            }
-            setCompletingIds((prev) => {
-                const next = new Set(prev)
-                next.delete(id)
-                return next
+            timersRef.current.set(id, {
+                timer,
+                completedNote,
+                completion,
             })
-        }
-    }, [])
+            void completion.catch(() => {
+                const pending = timersRef.current.get(id)
+                if (pending?.completion !== completion) return
+                clearTimeout(pending.timer)
+                timersRef.current.delete(id)
+                setCompletingIds((prev) => {
+                    const next = new Set(prev)
+                    next.delete(id)
+                    return next
+                })
+            })
+        },
+        [delayMs, executeComplete, handleCancelCompletion],
+    )
 
     return {
         isCompleting,

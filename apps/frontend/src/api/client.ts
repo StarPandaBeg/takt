@@ -140,11 +140,13 @@ export const api = {
         markDone: (id: number) =>
             request<void>(`/api/notes/${id}/markDone`, {
                 method: 'POST',
+                keepalive: true,
             }),
 
         markUndone: (id: number) =>
             request<void>(`/api/notes/${id}/markUndone`, {
                 method: 'POST',
+                keepalive: true,
             }),
     },
 
@@ -236,6 +238,7 @@ export const api = {
             request<{ id: number }>(`/api/deadlines/${id}/completion`, {
                 method: 'PUT',
                 body: JSON.stringify(payload),
+                keepalive: true,
             }),
 
         cancel: (id: number, payload: CancelDeadlinePayload) =>

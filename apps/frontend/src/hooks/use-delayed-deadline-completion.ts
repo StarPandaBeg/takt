@@ -21,20 +21,24 @@ export function useDelayedDeadlineCompletion({
         () => new Set(),
     )
     const timersRef = useRef<
-        Map<string, { timer: NodeJS.Timeout; deadline: ResolvedDeadline }>
+        Map<
+            string,
+            {
+                timer: NodeJS.Timeout
+                completedDeadline: ResolvedDeadline
+                completion: Promise<void>
+            }
+        >
     >(new Map())
 
-    // Очистка при размонтировании: если были таймеры, мгновенно завершаем их
+    // The mutation has already been sent; unmounting only closes the undo UI.
     useEffect(() => {
         const timers = timersRef.current
         return () => {
-            timers.forEach(({ timer, deadline }) => {
-                clearTimeout(timer)
-                void onComplete(deadline)
-            })
+            timers.forEach(({ timer }) => clearTimeout(timer))
             timers.clear()
         }
-    }, [onComplete])
+    }, [])
 
     const isCompleting = useCallback(
         (deadlineOrKey: ResolvedDeadline | string) => {
@@ -75,33 +79,49 @@ export function useDelayedDeadlineCompletion({
         [onComplete],
     )
 
+    const handleCancelCompletion = useCallback(
+        (deadline: ResolvedDeadline) => {
+            const key = getDeadlineKey(deadline)
+            const pending = timersRef.current.get(key)
+            if (pending === undefined) return
+
+            clearTimeout(pending.timer)
+            timersRef.current.delete(key)
+            setCompletingKeys((prev) => {
+                const next = new Set(prev)
+                next.delete(key)
+                return next
+            })
+
+            void pending.completion
+                .then(() => executeComplete(pending.completedDeadline))
+                .catch(() => undefined)
+        },
+        [executeComplete],
+    )
+
     const handleToggleDeadline = useCallback(
         (deadline: ResolvedDeadline) => {
             const key = getDeadlineKey(deadline)
 
             // Если дедлайн уже был выполнен — сразу возвращаем в активные с лоадером
             if (deadline.completed) {
-                void executeComplete(deadline)
+                void executeComplete(deadline).catch(() => undefined)
                 return
             }
 
-            // Если дедлайн сейчас в процессе отложенного завершения — отменяем
             if (timersRef.current.has(key)) {
-                const item = timersRef.current.get(key)
-                if (item) {
-                    clearTimeout(item.timer)
-                    timersRef.current.delete(key)
-                }
-                setCompletingKeys((prev) => {
-                    const next = new Set(prev)
-                    next.delete(key)
-                    return next
-                })
+                handleCancelCompletion(deadline)
                 return
             }
 
-            // Иначе инициируем отложенное завершение
             setCompletingKeys((prev) => new Set(prev).add(key))
+            const completedDeadline: ResolvedDeadline = {
+                ...deadline,
+                completed: true,
+                completedAt: new Date().toISOString(),
+            }
+            const completion = executeComplete(deadline)
 
             const timer = setTimeout(() => {
                 timersRef.current.delete(key)
@@ -110,29 +130,27 @@ export function useDelayedDeadlineCompletion({
                     next.delete(key)
                     return next
                 })
-                void executeComplete(deadline)
             }, delayMs)
 
-            timersRef.current.set(key, { timer, deadline })
-        },
-        [delayMs, executeComplete],
-    )
-
-    const handleCancelCompletion = useCallback((deadline: ResolvedDeadline) => {
-        const key = getDeadlineKey(deadline)
-        if (timersRef.current.has(key)) {
-            const item = timersRef.current.get(key)
-            if (item) {
-                clearTimeout(item.timer)
-                timersRef.current.delete(key)
-            }
-            setCompletingKeys((prev) => {
-                const next = new Set(prev)
-                next.delete(key)
-                return next
+            timersRef.current.set(key, {
+                timer,
+                completedDeadline,
+                completion,
             })
-        }
-    }, [])
+            void completion.catch(() => {
+                const pending = timersRef.current.get(key)
+                if (pending?.completion !== completion) return
+                clearTimeout(pending.timer)
+                timersRef.current.delete(key)
+                setCompletingKeys((prev) => {
+                    const next = new Set(prev)
+                    next.delete(key)
+                    return next
+                })
+            })
+        },
+        [delayMs, executeComplete, handleCancelCompletion],
+    )
 
     return {
         isCompleting,

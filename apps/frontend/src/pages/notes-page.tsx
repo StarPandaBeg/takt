@@ -28,7 +28,7 @@ export function NotesPage() {
     const [inlineEditText, setInlineEditText] = useState('')
     const [submitting, setSubmitting] = useState(false)
 
-    // Отложенное завершение с возможностью отмены
+    // Мгновенное сохранение с коротким окном для отмены
     const { isCompleting, handleToggleNote, handleCancelCompletion } =
         useDelayedNoteCompletion({
             onComplete: toggleNote,
@@ -37,12 +37,16 @@ export function NotesPage() {
 
     const filteredNotes = useMemo(() => {
         return notes.filter((note) => {
-            // Если заметка в процессе скрытия, во вкладке 'active' мы её пока еще показываем (с зачеркиванием)
-            if (filter === 'active') return note.completedAt === null
-            if (filter === 'completed') return note.completedAt !== null
+            // Keep the just-completed note in place while undo is available.
+            if (filter === 'active') {
+                return note.completedAt === null || isCompleting(note.id)
+            }
+            if (filter === 'completed') {
+                return note.completedAt !== null && !isCompleting(note.id)
+            }
             return true
         })
-    }, [notes, filter])
+    }, [notes, filter, isCompleting])
 
     const handleCreate = async (e: FormEvent) => {
         e.preventDefault()
