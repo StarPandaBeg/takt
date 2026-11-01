@@ -31,9 +31,11 @@ jobs:
                     - name: backend
                       file: ./Dockerfile
                       cache-scope: takt-linux-amd64
+                      build_args: ''
                     - name: frontend
                       file: ./Dockerfile.frontend
                       cache-scope: takt-frontend-linux-amd64
+                      build_args: VITE_COMMIT_SHA=${{ github.sha }}
         steps:
             - name: Check out repository
               uses: actions/checkout@v7
@@ -50,6 +52,7 @@ jobs:
                   file: ${{ matrix.app.file }}
                   platforms: linux/amd64
                   push: false
+                  build-args: ${{ matrix.app.build_args }}
                   cache-from: type=gha,scope=${{ matrix.app.cache-scope }}-pr-${{ github.event.pull_request.number }}
                   cache-to: type=gha,mode=max,scope=${{ matrix.app.cache-scope }}-pr-${{ github.event.pull_request.number }}
 
@@ -67,10 +70,12 @@ jobs:
                       file: ./Dockerfile
                       image-suffix: ''
                       cache-scope: takt-linux-amd64
+                      build_args: ''
                     - name: frontend
                       file: ./Dockerfile.frontend
                       image-suffix: -frontend
                       cache-scope: takt-frontend-linux-amd64
+                      build_args: VITE_COMMIT_SHA=${{ github.sha }}
         steps:
             - name: Check out repository
               uses: actions/checkout@v7
@@ -110,7 +115,42 @@ jobs:
                   file: ${{ matrix.app.file }}
                   platforms: linux/amd64
                   push: true
+                  build-args: ${{ matrix.app.build_args }}
                   tags: ${{ steps.metadata.outputs.tags }}
                   labels: ${{ steps.metadata.outputs.labels }}
                   cache-from: type=gha,scope=${{ matrix.app.cache-scope }}
                   cache-to: type=gha,mode=max,scope=${{ matrix.app.cache-scope }}
+
+    deploy:
+        name: Deploy to production
+        needs: publish
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        environment: production
+        permissions:
+            contents: read
+
+        steps:
+            - name: Configure SSH
+              env:
+                  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                  SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+              shell: bash
+              run: |
+                  mkdir -p ~/.ssh
+                  chmod 700 ~/.ssh
+                  printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+                  chmod 600 ~/.ssh/id_ed25519
+                  printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+                  chmod 600 ~/.ssh/known_hosts
+
+            - name: Deploy Docker containers
+              env:
+                  SSH_HOST: ${{ secrets.SSH_HOST }}
+                  SSH_USER: ${{ secrets.SSH_USER }}
+              shell: bash
+              run: |
+                  ssh -o BatchMode=yes \
+                    -o StrictHostKeyChecking=yes \
+                    "$SSH_USER@$SSH_HOST" \
+                    'cd /opt/takt && docker compose pull && docker compose up -d'

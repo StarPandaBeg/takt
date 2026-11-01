@@ -65,6 +65,23 @@ select:focus-visible {
     min-height: 100vh;
 }
 
+.build-commit {
+    position: fixed;
+    z-index: 50;
+    right: 8px;
+    bottom: 6px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    background: rgb(250 250 247 / 72%);
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 9px;
+    line-height: 1.2;
+    opacity: 0.72;
+    cursor: default;
+    user-select: all;
+}
+
 .sidebar {
     position: fixed;
     z-index: 20;
@@ -2243,6 +2260,9 @@ h2 {
     }
     .mobile-nav__item.is-active {
         color: var(--accent);
+    }
+    .build-commit {
+        bottom: 64px;
     }
     .full-calendar-section {
         margin-right: -14px;

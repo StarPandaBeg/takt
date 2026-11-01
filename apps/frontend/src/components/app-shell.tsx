@@ -7,6 +7,9 @@ const navigation = [
     { to: '/notes', label: 'Заметки', icon: NotebookPen, end: false },
 ]
 
+const commitSha = (import.meta.env.VITE_COMMIT_SHA || 'dev').trim()
+const shortCommitSha = commitSha === 'dev' ? commitSha : commitSha.slice(0, 7)
+
 export function AppShell() {
     return (
         <div className="app-shell">
@@ -65,6 +68,13 @@ export function AppShell() {
                     </NavLink>
                 ))}
             </nav>
+            <div
+                className="build-commit"
+                title={`Commit сборки: ${commitSha}`}
+                aria-label={`Commit сборки: ${commitSha}`}
+            >
+                commit {shortCommitSha}
+            </div>
         </div>
     )
 }
