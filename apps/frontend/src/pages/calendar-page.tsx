@@ -787,15 +787,17 @@ export function CalendarPage() {
                                 eventDrop={(info) => {
                                     void moveCalendarEntry(info)
                                 }}
-                                eventContent={(info) =>
-                                    isMobileCalendar ? (
-                                        <span
-                                            className="mobile-calendar-dot"
-                                            aria-label={info.event.title}
-                                            title={info.event.title}
-                                        />
-                                    ) : undefined
-                                }
+                                {...(isMobileCalendar
+                                    ? {
+                                          eventContent: (info) => (
+                                              <span
+                                                  className="mobile-calendar-dot"
+                                                  aria-label={info.event.title}
+                                                  title={info.event.title}
+                                              />
+                                          ),
+                                      }
+                                    : {})}
                                 datesSet={(info) => {
                                     setCalendarTitle(info.view.title)
                                     setCalendarView(
