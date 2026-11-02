@@ -27,6 +27,7 @@ import { DeadlineDialog } from '../components/deadlines/deadline-dialog'
 import { EventDialog } from '../components/events/event-dialog'
 import { PageHeader } from '../components/page-header'
 import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
+import { useApplicationToday } from '../hooks/use-application-today'
 import {
     buildIsoDateTime,
     eventTime,
@@ -112,7 +113,6 @@ export function CalendarPage() {
         getMobileCalendarSnapshot,
         () => false,
     )
-    const today = useMemo(() => getTodayIso(timezone), [timezone])
     const calendarRef = useRef<CalendarRef>(null)
     const schedulePanelRef = useRef<HTMLElement>(null)
     const lastClickRef = useRef<{
@@ -120,13 +120,24 @@ export function CalendarPage() {
         timestamp: number
     } | null>(null)
     const [params] = useSearchParams()
-    const initialDate = params.get('date') ?? today
+    const initialToday = getTodayIso(timezone)
+    const initialDate = params.get('date') ?? initialToday
     const [selectedDate, setSelectedDate] = useState(initialDate)
     const [calendarTitle, setCalendarTitle] = useState(() =>
         formatMonth(parseIsoDate(initialDate)),
     )
     const [calendarView, setCalendarView] =
         useState<CalendarView>('dayGridMonth')
+    const today = useApplicationToday(
+        timezone,
+        (nextToday, previousToday) => {
+            if (selectedDate === previousToday) {
+                setSelectedDate(nextToday)
+                calendarRef.current?.getApi().gotoDate(nextToday)
+            }
+            void refreshAll()
+        },
+    )
     const sectionParam = params.get('section')
     const [userSection, setUserSection] = useState<Section | null>(null)
     const section: Section =
@@ -770,6 +781,7 @@ export function CalendarPage() {
                                 locale={ruLocale}
                                 initialView="dayGridMonth"
                                 initialDate={initialDate}
+                                now={today}
                                 headerToolbar={false}
                                 firstDay={1}
                                 height="100%"

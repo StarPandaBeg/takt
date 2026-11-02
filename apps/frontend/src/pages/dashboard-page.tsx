@@ -24,6 +24,7 @@ import { NoteDialog } from '../components/notes/note-dialog'
 import { PageHeader } from '../components/page-header'
 import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
 import { useDelayedNoteCompletion } from '../hooks/use-delayed-note-completion'
+import { useApplicationToday } from '../hooks/use-application-today'
 import {
     eventTime,
     extractDateString,
@@ -64,9 +65,21 @@ export function DashboardPage() {
     } = useTakt()
 
     const timezone = settings.timezone
-    const today = useMemo(() => getTodayIso(timezone), [timezone])
-    const [selectedDate, setSelectedDate] = useState(today)
-    const [visibleMonth, setVisibleMonth] = useState(() => parseIsoDate(today))
+    const initialToday = getTodayIso(timezone)
+    const [selectedDate, setSelectedDate] = useState(initialToday)
+    const [visibleMonth, setVisibleMonth] = useState(() =>
+        parseIsoDate(initialToday),
+    )
+    const today = useApplicationToday(
+        timezone,
+        (nextToday, previousToday) => {
+            if (selectedDate === previousToday) {
+                setSelectedDate(nextToday)
+                setVisibleMonth(parseIsoDate(nextToday))
+            }
+            void refreshAll()
+        },
+    )
     const [quickMenuOpen, setQuickMenuOpen] = useState(false)
     const [creating, setCreating] = useState<CreateKind | null>(null)
     const [editingEvent, setEditingEvent] = useState<ResolvedEvent | null>(null)
@@ -274,7 +287,7 @@ export function DashboardPage() {
                                 </div>
                             </div>
                             <MiniCalendar
-                                timezone={timezone}
+                                today={today}
                                 month={visibleMonth}
                                 selected={selectedDate}
                                 eventDates={eventDates}

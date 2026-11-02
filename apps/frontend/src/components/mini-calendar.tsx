@@ -3,13 +3,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
     formatMonth,
     getCalendarDays,
-    getTodayIso,
     toIsoDate,
     weekDays,
 } from '../lib/date'
 
 interface Props {
-    timezone: string
+    today: string
     month: Date
     selected: string
     eventDates?: Set<string>
@@ -19,7 +18,7 @@ interface Props {
 }
 
 export function MiniCalendar({
-    timezone,
+    today,
     month,
     selected,
     eventDates,
@@ -64,11 +63,10 @@ export function MiniCalendar({
             <div className="mini-calendar__grid">
                 {getCalendarDays(month).map((date) => {
                     const iso = toIsoDate(date)
-                    const todayIso = getTodayIso(timezone)
                     return (
                         <button
                             key={iso}
-                            className={`mini-calendar__day${iso === selected ? ' is-selected' : ''}${iso === todayIso ? ' is-today' : ''}${date.getMonth() !== month.getMonth() ? ' is-outside' : ''}${eventDates?.has(iso) ? ' has-events' : ''}`}
+                            className={`mini-calendar__day${iso === selected ? ' is-selected' : ''}${iso === today ? ' is-today' : ''}${date.getMonth() !== month.getMonth() ? ' is-outside' : ''}${eventDates?.has(iso) ? ' has-events' : ''}`}
                             type="button"
                             onClick={() => onSelect(iso)}
                             aria-label={date.toLocaleDateString('ru-RU')}
