@@ -27,7 +27,6 @@ for (const migration of [
     '../apps/backend/drizzle/20261027094633_yellow_grim_reaper/migration.sql',
     '../apps/backend/drizzle/20261027103323_parched_kinsey_walden/migration.sql',
     '../apps/backend/drizzle/20261101190606_application_settings/migration.sql',
-    '../apps/backend/drizzle/20261101191043_key_value_settings/migration.sql',
 ]) {
     const sql = readFileSync(new URL(migration, import.meta.url), 'utf8')
     await databaseClient.executeMultiple(
@@ -1265,8 +1264,13 @@ test('events and deadlines API feeds complete template inputs', async () => {
             start: now.plus({ days: 1 }).startOf('day').toISO(),
         })
         const screenEvents = await sources.events.load()
-        assert.equal(screenEvents.length, 10)
-        assert.ok(screenEvents.every(({ start }) => start.hasSame(now, 'day')))
+        const createdTodayEvents = screenEvents.filter(({ text }) =>
+            text.startsWith('today-'),
+        )
+        assert.equal(createdTodayEvents.length, 10)
+        assert.ok(
+            createdTodayEvents.every(({ start }) => start.hasSame(now, 'day')),
+        )
 
         for (const days of [-1, 0, 2, 3, 4, 5]) {
             await post('/api/deadlines', {

@@ -1531,6 +1531,15 @@ h2 {
     opacity: 0.55;
     text-decoration: line-through;
 }
+@media (min-width: 821px) {
+    .full-calendar-viewport .fc-event {
+        cursor: grab;
+    }
+}
+.full-calendar-viewport .fc-event-dragging,
+.full-calendar-viewport .fc-event-start-resizable {
+    cursor: grabbing;
+}
 .full-calendar-viewport .is-selected-day {
     background-color: #f3e9e5 !important;
 }
@@ -2162,12 +2171,14 @@ h2 {
 }
 
 @media (max-width: 820px) {
-    .calendar-page {
+    .calendar-page.is-calendar-view {
         height: auto;
+        min-height: 100vh;
         overflow: visible;
     }
     .calendar-workspace {
         min-height: 0;
+        flex: 0 0 auto;
         grid-template-columns: 1fr !important;
         overflow: visible;
     }
@@ -2178,12 +2189,54 @@ h2 {
         height: 720px;
     }
     .selected-day-panel {
+        width: 100% !important;
         min-height: 360px;
         border-top: 1px solid var(--line);
         border-left: 0;
     }
     .selected-day-panel__content {
-        max-height: 420px;
+        max-height: none;
+        overflow: visible;
+    }
+    .calendar-controls .view-switcher {
+        display: none;
+    }
+    .full-calendar-viewport .fc-daygrid-day-events {
+        display: flex;
+        min-height: 14px;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        justify-content: center;
+        gap: 3px;
+        padding: 1px 3px 4px;
+    }
+    .full-calendar-viewport .fc-daygrid-event-harness {
+        position: static !important;
+        display: block;
+        flex: 0 0 auto;
+        margin: 0 !important;
+    }
+    .full-calendar-viewport .fc-daygrid-event {
+        width: 7px;
+        height: 7px;
+        min-height: 7px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: var(--accent);
+        pointer-events: none;
+    }
+    .full-calendar-viewport .fc-daygrid-event.deadline-calendar-event {
+        background: #758873;
+    }
+    .full-calendar-viewport .mobile-calendar-dot {
+        display: block;
+        width: 7px;
+        height: 7px;
+    }
+    .full-calendar-viewport .fc-daygrid-day-bottom {
+        flex-basis: 100%;
     }
 }
 

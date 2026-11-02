@@ -18,7 +18,7 @@ import {
     Trash2,
     Undo2,
 } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { ConfirmDialog } from '../components/common/confirm-dialog'
@@ -28,6 +28,7 @@ import { EventDialog } from '../components/events/event-dialog'
 import { PageHeader } from '../components/page-header'
 import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
 import {
+    buildIsoDateTime,
     eventTime,
     extractDateString,
     extractTimeString,
@@ -61,6 +62,30 @@ function timeFromDate(date: Date, timezone: string) {
     return extractTimeString(date.toISOString(), timezone)
 }
 
+const mobileCalendarQuery = '(max-width: 820px)'
+
+function subscribeToMobileCalendar(
+    onStoreChange: () => void,
+): () => void {
+    const media = window.matchMedia(mobileCalendarQuery)
+    media.addEventListener('change', onStoreChange)
+    return () => media.removeEventListener('change', onStoreChange)
+}
+
+function getMobileCalendarSnapshot(): boolean {
+    return window.matchMedia(mobileCalendarQuery).matches
+}
+
+function calendarDateTimeToUtc(
+    value: string,
+    allDay: boolean,
+    timezone: string,
+): string {
+    const date = value.slice(0, 10)
+    const time = allDay ? null : value.slice(11, 16)
+    return buildIsoDateTime(date, time, allDay, timezone)
+}
+
 export function CalendarPage() {
     const {
         events,
@@ -82,6 +107,11 @@ export function CalendarPage() {
     } = useTakt()
 
     const timezone = settings.timezone
+    const isMobileCalendar = useSyncExternalStore(
+        subscribeToMobileCalendar,
+        getMobileCalendarSnapshot,
+        () => false,
+    )
     const today = useMemo(() => getTodayIso(timezone), [timezone])
     const calendarRef = useRef<CalendarRef>(null)
     const schedulePanelRef = useRef<HTMLElement>(null)
@@ -200,6 +230,81 @@ export function CalendarPage() {
     const goToToday = () => {
         setSelectedDate(today)
         calendarRef.current?.getApi().gotoDate(today)
+    }
+
+    const scrollToSelectedDay = () => {
+        schedulePanelRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        })
+    }
+
+    const moveCalendarEntry = async (info: {
+        event: {
+            allDay: boolean
+            startStr: string
+            endStr: string
+            extendedProps: Record<string, unknown>
+        }
+        revert: () => void
+    }) => {
+        if (isMobileCalendar) {
+            info.revert()
+            return
+        }
+
+        const { event } = info
+        const start = calendarDateTimeToUtc(
+            event.startStr,
+            event.allDay,
+            timezone,
+        )
+        const ext = event.extendedProps
+
+        try {
+            if (ext.kind === 'event') {
+                const raw = ext.rawEvent as ResolvedEvent
+                const scope = raw.recurrenceId ? 'occurrence' : 'series'
+                await updateEvent(raw.id, {
+                    scope,
+                    ...(raw.recurrenceId
+                        ? { recurrenceId: raw.recurrenceId }
+                        : {}),
+                    changes: {
+                        start,
+                        end:
+                            raw.end === null || event.endStr.length === 0
+                                ? null
+                                : calendarDateTimeToUtc(
+                                      event.endStr,
+                                      event.allDay,
+                                      timezone,
+                                  ),
+                        allDay: event.allDay,
+                        timezone,
+                    },
+                })
+                return
+            }
+
+            if (ext.kind === 'deadline') {
+                const raw = ext.rawDeadline as ResolvedDeadline
+                const scope = raw.recurrenceId ? 'occurrence' : 'series'
+                await updateDeadline(raw.id, {
+                    scope,
+                    ...(raw.recurrenceId
+                        ? { recurrenceId: raw.recurrenceId }
+                        : {}),
+                    changes: {
+                        due: start,
+                        dueIsDate: event.allDay,
+                        timezone,
+                    },
+                })
+            }
+        } catch {
+            info.revert()
+        }
     }
 
     // Преобразование событий и дедлайнов в формат FullCalendar
@@ -669,7 +774,7 @@ export function CalendarPage() {
                                 firstDay={1}
                                 height="100%"
                                 expandRows
-                                dayMaxEvents={3}
+                                dayMaxEvents={isMobileCalendar ? false : 3}
                                 moreLinkText={(count) => `+ ещё ${count}`}
                                 nowIndicator
                                 allDayText="Весь день"
@@ -677,6 +782,20 @@ export function CalendarPage() {
                                 slotMaxTime="23:00:00"
                                 slotDuration="00:30:00"
                                 events={calendarEvents}
+                                eventStartEditable={!isMobileCalendar}
+                                eventDurationEditable={false}
+                                eventDrop={(info) => {
+                                    void moveCalendarEntry(info)
+                                }}
+                                eventContent={(info) =>
+                                    isMobileCalendar ? (
+                                        <span
+                                            className="mobile-calendar-dot"
+                                            aria-label={info.event.title}
+                                            title={info.event.title}
+                                        />
+                                    ) : undefined
+                                }
                                 datesSet={(info) => {
                                     setCalendarTitle(info.view.title)
                                     setCalendarView(
@@ -708,7 +827,7 @@ export function CalendarPage() {
                                                 lastClickRef.current.timestamp <
                                                 350)
 
-                                    if (isDoubleClick) {
+                                    if (isDoubleClick && !isMobileCalendar) {
                                         lastClickRef.current = null
                                         openEventDraft({
                                             date,
@@ -726,21 +845,28 @@ export function CalendarPage() {
                                             timestamp: now,
                                         }
                                         if (
-                                            typeof window !== 'undefined' &&
-                                            window.innerWidth <= 820 &&
+                                            isMobileCalendar &&
                                             schedulePanelRef.current
                                         ) {
-                                            schedulePanelRef.current.scrollIntoView(
-                                                {
-                                                    behavior: 'smooth',
-                                                    block: 'nearest',
-                                                },
-                                            )
+                                            scrollToSelectedDay()
                                         }
                                     }
                                 }}
                                 eventClick={(info) => {
                                     const ext = info.event.extendedProps
+                                    if (isMobileCalendar) {
+                                        const raw =
+                                            ext.kind === 'deadline'
+                                                ? (ext.rawDeadline as ResolvedDeadline)
+                                                      .due
+                                                : (ext.rawEvent as ResolvedEvent)
+                                                      .start
+                                        setSelectedDate(
+                                            extractDateString(raw, timezone),
+                                        )
+                                        scrollToSelectedDay()
+                                        return
+                                    }
                                     if (ext.kind === 'deadline') {
                                         const raw =
                                             ext.rawDeadline as ResolvedDeadline
