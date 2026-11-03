@@ -1,5 +1,7 @@
 import * as z from 'zod'
 
+import { deadlineIdSchema, eventIdSchema, noteIdSchema } from './ids.js'
+
 const weekdayValues = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as const
 const weekdaySchema = z
     .enum(weekdayValues)
@@ -116,7 +118,7 @@ export const eventOccurrenceExceptionSchema = z
     .describe('Recurring-event occurrence override')
 
 export const eventEntitySchema = z.object({
-    id: z.int(),
+    id: eventIdSchema,
     title: z.string(),
     description: z.string().nullable(),
     start: z.iso.datetime({ offset: true }).describe('ISO 8601'),
@@ -137,7 +139,7 @@ export const eventEntitySchema = z.object({
 })
 
 export const resolvedEventSchema = z.object({
-    id: z.int(),
+    id: eventIdSchema,
     title: z.string(),
     description: z.string().nullable(),
     start: z.iso.datetime({ offset: true }).describe('ISO 8601'),
@@ -227,7 +229,7 @@ export const deadlineCompletionSchema = z.object({
 })
 
 export const deadlineEntitySchema = z.object({
-    id: z.int().positive(),
+    id: deadlineIdSchema,
     title: z.string(),
     description: z.string().nullable(),
     due: z.iso
@@ -262,7 +264,7 @@ export const deadlineEntitySchema = z.object({
 })
 
 export const resolvedDeadlineSchema = z.object({
-    id: z.int().positive(),
+    id: deadlineIdSchema,
     title: z.string(),
     description: z.string().nullable(),
     due: z.iso.datetime({ offset: true }).describe('ISO 8601'),
@@ -283,7 +285,7 @@ export const resolvedDeadlineSchema = z.object({
 })
 
 export const noteSchema = z.object({
-    id: z.int(),
+    id: noteIdSchema,
     text: z.string(),
     completedAt: z.iso
         .datetime({ offset: true })

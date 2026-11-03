@@ -8,7 +8,7 @@ import {
     deadlineVisibilitySchema,
     recurrenceSchema,
 } from '#src/mcp/util/objects.js'
-import { serializeDeadlineEntity } from '#src/mcp/util/serializers.js'
+import { serializeMcpDeadlineEntity } from '#src/mcp/util/serializers.js'
 import * as deadlines from '#src/repository/deadlines.js'
 import {
     getDeadlineEntity,
@@ -106,5 +106,5 @@ export const createDeadline: ToolCallback<
     if (deadline === undefined) {
         throw new Error(`Created deadline ${id} could not be read back`)
     }
-    return toToolResponse(serializeDeadlineEntity(deadline))
+    return toToolResponse(serializeMcpDeadlineEntity(deadline))
 }

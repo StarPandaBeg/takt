@@ -1,12 +1,13 @@
 import { toToolResponse } from '#src/mcp/util/helpers.js'
+import { eventIdSchema, parseEventId } from '#src/mcp/util/ids.js'
 import { eventEntitySchema } from '#src/mcp/util/objects.js'
-import { serializeEventEntity } from '#src/mcp/util/serializers.js'
+import { serializeMcpEventEntity } from '#src/mcp/util/serializers.js'
 import { getEventEntity } from '#src/services/events.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
 export const getEventInputSchema = z.object({
-    id: z.int().positive(),
+    id: eventIdSchema,
 })
 
 export const getEventOutputSchema = eventEntitySchema.nullable()
@@ -14,8 +15,8 @@ export const getEventOutputSchema = eventEntitySchema.nullable()
 export const getEvent: ToolCallback<typeof getEventInputSchema> = async ({
     id,
 }) => {
-    const event = await getEventEntity(id)
+    const event = await getEventEntity(parseEventId(id))
     return toToolResponse(
-        event === undefined ? null : serializeEventEntity(event),
+        event === undefined ? null : serializeMcpEventEntity(event),
     )
 }

@@ -1,6 +1,6 @@
 import { toToolResponse } from '#src/mcp/util/helpers.js'
 import { noteSchema } from '#src/mcp/util/objects.js'
-import { serializeNote } from '#src/mcp/util/serializers.js'
+import { serializeMcpNote } from '#src/mcp/util/serializers.js'
 import * as notesRepository from '#src/repository/notes.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
@@ -20,6 +20,6 @@ export const listNotes: ToolCallback<typeof listNotesInputSchema> = async ({
     withDone,
 }) => {
     const notes = await notesRepository.getFiltered({ limit, withDone })
-    const result = notes.map(serializeNote)
+    const result = notes.map(serializeMcpNote)
     return toToolResponse(result)
 }

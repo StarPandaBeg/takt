@@ -3,12 +3,13 @@ import { DateTime } from 'luxon'
 import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
+import { deadlineIdSchema, parseDeadlineId } from '#src/mcp/util/ids.js'
 import {
     deadlineEntitySchema,
     deadlineVisibilitySchema,
     recurrenceSchema,
 } from '#src/mcp/util/objects.js'
-import { serializeDeadlineEntity } from '#src/mcp/util/serializers.js'
+import { serializeMcpDeadlineEntity } from '#src/mcp/util/serializers.js'
 import {
     getDeadlineEntity,
     updateDeadline,
@@ -68,7 +69,7 @@ const changesSchema = z
 
 export const updateDeadlineInputSchema = z
     .object({
-        id: z.int().positive(),
+        id: deadlineIdSchema,
         scope: z
             .enum(['series', 'occurrence', 'this_and_future'])
             .describe(
@@ -141,7 +142,7 @@ export const updateDeadlineTool: ToolCallback<
               }),
     }
     const deadlineId = await updateDeadline({
-        id,
+        id: parseDeadlineId(id),
         scope,
         recurrenceId:
             recurrenceId === undefined ? undefined : new Date(recurrenceId),
@@ -151,5 +152,5 @@ export const updateDeadlineTool: ToolCallback<
     if (deadline === undefined) {
         throw new Error(`Updated deadline ${deadlineId} could not be read back`)
     }
-    return toToolResponse(serializeDeadlineEntity(deadline))
+    return toToolResponse(serializeMcpDeadlineEntity(deadline))
 }

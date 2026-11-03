@@ -2,11 +2,12 @@ import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
+import { eventIdSchema, parseEventId } from '#src/mcp/util/ids.js'
 import {
     eventEntitySchema,
     recurrenceSchema,
 } from '#src/mcp/util/objects.js'
-import { serializeEventEntity } from '#src/mcp/util/serializers.js'
+import { serializeMcpEventEntity } from '#src/mcp/util/serializers.js'
 import { getEventEntity, updateEvent } from '#src/services/events.js'
 import { recurrenceSchema as domainRecurrenceSchema } from '#src/services/recurrence.js'
 import { isValidTimezone } from '#src/services/settings.js'
@@ -52,7 +53,7 @@ const changesSchema = z
 
 export const updateEventInputSchema = z
     .object({
-        id: z.int().positive(),
+        id: eventIdSchema,
         scope: z
             .enum(['series', 'occurrence', 'this_and_future'])
             .describe(
@@ -122,7 +123,7 @@ export const updateEventTool: ToolCallback<
               }),
     }
     const eventId = await updateEvent({
-        id,
+        id: parseEventId(id),
         scope,
         recurrenceId:
             recurrenceId === undefined ? undefined : new Date(recurrenceId),
@@ -132,5 +133,5 @@ export const updateEventTool: ToolCallback<
     if (event === undefined) {
         throw new Error(`Updated event ${eventId} could not be read back`)
     }
-    return toToolResponse(serializeEventEntity(event))
+    return toToolResponse(serializeMcpEventEntity(event))
 }

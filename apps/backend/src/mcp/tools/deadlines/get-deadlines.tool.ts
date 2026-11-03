@@ -4,7 +4,7 @@ import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
 import { resolvedDeadlineSchema } from '#src/mcp/util/objects.js'
-import { serializeResolvedDeadline } from '#src/mcp/util/serializers.js'
+import { serializeMcpResolvedDeadline } from '#src/mcp/util/serializers.js'
 import { getResolvedDeadlines } from '#src/services/deadlines.js'
 
 export const getDeadlinesInputSchema = z.object({
@@ -36,5 +36,5 @@ export const getDeadlines: ToolCallback<
         limit,
         withCompleted,
     })
-    return toToolResponse(deadlines.map(serializeResolvedDeadline))
+    return toToolResponse(deadlines.map(serializeMcpResolvedDeadline))
 }

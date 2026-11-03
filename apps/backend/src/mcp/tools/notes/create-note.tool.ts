@@ -1,6 +1,6 @@
 import { toToolResponse } from '#src/mcp/util/helpers.js'
 import { noteSchema } from '#src/mcp/util/objects.js'
-import { serializeNote } from '#src/mcp/util/serializers.js'
+import { serializeMcpNote } from '#src/mcp/util/serializers.js'
 import * as notesRepository from '#src/repository/notes.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
@@ -18,5 +18,5 @@ export const createNote: ToolCallback<typeof createNoteInputSchema> = async ({
     if (note === undefined) {
         throw new Error(`Created note ${id} could not be read back`)
     }
-    return toToolResponse(serializeNote(note))
+    return toToolResponse(serializeMcpNote(note))
 }

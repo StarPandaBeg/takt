@@ -1,6 +1,6 @@
 import { toToolResponse } from '#src/mcp/util/helpers.js'
 import { resolvedEventSchema } from '#src/mcp/util/objects.js'
-import { serializeResolvedEvent } from '#src/mcp/util/serializers.js'
+import { serializeMcpResolvedEvent } from '#src/mcp/util/serializers.js'
 import { getResolvedEvents } from '#src/services/events.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import { DateTime } from 'luxon'
@@ -32,7 +32,7 @@ export const getEvents: ToolCallback<typeof getEventsInputSchema> = async ({
         to: DateTime.fromISO(end, { setZone: true }),
         limit,
     })
-    const result = events.map(serializeResolvedEvent)
+    const result = events.map(serializeMcpResolvedEvent)
 
     return toToolResponse(result)
 }

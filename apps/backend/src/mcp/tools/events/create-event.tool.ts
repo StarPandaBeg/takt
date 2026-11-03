@@ -6,7 +6,7 @@ import {
     eventEntitySchema,
     recurrenceSchema,
 } from '#src/mcp/util/objects.js'
-import { serializeEventEntity } from '#src/mcp/util/serializers.js'
+import { serializeMcpEventEntity } from '#src/mcp/util/serializers.js'
 import * as events from '#src/repository/events.js'
 import {
     getEventEntity,
@@ -85,5 +85,5 @@ export const createEvent: ToolCallback<typeof createEventInputSchema> = async (
     if (event === undefined) {
         throw new Error(`Created event ${id} could not be read back`)
     }
-    return toToolResponse(serializeEventEntity(event))
+    return toToolResponse(serializeMcpEventEntity(event))
 }

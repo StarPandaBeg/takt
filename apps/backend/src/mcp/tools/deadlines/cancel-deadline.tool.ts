@@ -3,10 +3,15 @@ import * as z from 'zod'
 
 import { cancelDeadline } from '#src/services/deadlines.js'
 import { toToolResponse } from '#src/mcp/util/helpers.js'
+import {
+    deadlineIdSchema,
+    formatDeadlineId,
+    parseDeadlineId,
+} from '#src/mcp/util/ids.js'
 
 export const cancelDeadlineInputSchema = z
     .object({
-        id: z.int().positive(),
+        id: deadlineIdSchema,
         scope: z
             .enum(['series', 'occurrence', 'this_and_future'])
             .describe(
@@ -31,17 +36,17 @@ export const cancelDeadlineInputSchema = z
     })
 
 export const cancelDeadlineOutputSchema = z.object({
-    id: z.int().positive(),
+    id: deadlineIdSchema,
 })
 
 export const cancelDeadlineTool: ToolCallback<
     typeof cancelDeadlineInputSchema
 > = async ({ id, scope, recurrenceId }) => {
     const deadlineId = await cancelDeadline({
-        id,
+        id: parseDeadlineId(id),
         scope,
         recurrenceId:
             recurrenceId === undefined ? undefined : new Date(recurrenceId),
     })
-    return toToolResponse({ id: deadlineId })
+    return toToolResponse({ id: formatDeadlineId(deadlineId) })
 }

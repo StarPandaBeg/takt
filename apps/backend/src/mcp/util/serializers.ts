@@ -6,6 +6,8 @@ import type {
 import type { EventEntity, ResolvedEvent } from '#src/services/events.js'
 import type { Recurrence } from '#src/services/recurrence.js'
 
+import { formatDeadlineId, formatEventId, formatNoteId } from './ids.js'
+
 function serializeRecurrence(recurrence: Recurrence | null) {
     if (recurrence === null || recurrence.until === undefined) {
         return recurrence
@@ -96,4 +98,30 @@ export function serializeNote(note: Note) {
         text: note.text,
         completedAt: note.completed_at?.toISOString() ?? null,
     }
+}
+
+export function serializeMcpEventEntity(event: EventEntity) {
+    return { ...serializeEventEntity(event), id: formatEventId(event.id) }
+}
+
+export function serializeMcpResolvedEvent(event: ResolvedEvent) {
+    return { ...serializeResolvedEvent(event), id: formatEventId(event.id) }
+}
+
+export function serializeMcpDeadlineEntity(deadline: DeadlineEntity) {
+    return {
+        ...serializeDeadlineEntity(deadline),
+        id: formatDeadlineId(deadline.id),
+    }
+}
+
+export function serializeMcpResolvedDeadline(deadline: ResolvedDeadline) {
+    return {
+        ...serializeResolvedDeadline(deadline),
+        id: formatDeadlineId(deadline.id),
+    }
+}
+
+export function serializeMcpNote(note: Note) {
+    return { ...serializeNote(note), id: formatNoteId(note.id) }
 }

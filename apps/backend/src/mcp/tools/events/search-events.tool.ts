@@ -1,6 +1,6 @@
 import { toToolResponse } from '#src/mcp/util/helpers.js'
 import { eventEntitySchema } from '#src/mcp/util/objects.js'
-import { serializeEventEntity } from '#src/mcp/util/serializers.js'
+import { serializeMcpEventEntity } from '#src/mcp/util/serializers.js'
 import { getEventEntities } from '#src/services/events.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
@@ -40,5 +40,5 @@ export const searchEvents: ToolCallback<
         query,
         limit,
     })
-    return toToolResponse(events.map(serializeEventEntity))
+    return toToolResponse(events.map(serializeMcpEventEntity))
 }

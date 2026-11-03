@@ -88,9 +88,27 @@ const { getNote } =
     await import('../apps/backend/dist/mcp/tools/notes/get-note.tool.js')
 const { updateNote } =
     await import('../apps/backend/dist/mcp/tools/notes/update-note.tool.js')
+const { deadlineIdSchema, eventIdSchema, noteIdSchema } =
+    await import('../apps/backend/dist/mcp/util/ids.js')
 
 test.after(() => {
     rmSync(databaseRoot, { recursive: true, force: true })
+})
+
+test('MCP entity IDs require the matching lowercase prefix', async () => {
+    assert.equal(eventIdSchema.parse('event:123'), 'event:123')
+    assert.equal(deadlineIdSchema.parse('deadline:456'), 'deadline:456')
+    assert.equal(noteIdSchema.parse('note:789'), 'note:789')
+
+    assert.equal(eventIdSchema.safeParse('deadline:123').success, false)
+    assert.equal(deadlineIdSchema.safeParse('note:456').success, false)
+    assert.equal(noteIdSchema.safeParse('event:789').success, false)
+    assert.equal(eventIdSchema.safeParse('Event:123').success, false)
+    assert.equal(eventIdSchema.safeParse('event:0').success, false)
+
+    await assert.rejects(getEvent({ id: 'deadline:123' }))
+    await assert.rejects(getDeadline({ id: 'note:456' }))
+    await assert.rejects(getNote({ id: 'event:789' }))
 })
 
 test('backend exposes a health check', async () => {
@@ -826,6 +844,7 @@ test('event API cancels and reschedules one recurring occurrence', async () => {
         })
         assert.equal(created.statusCode, 201, created.body)
         const id = created.json().id
+        const mcpId = `event:${id}`
         const recurrenceId = '2026-10-27T07:00:00.000Z'
         const occurrenceUrl = `/api/events/${id}/occurrences/${encodeURIComponent(recurrenceId)}`
 
@@ -890,9 +909,11 @@ test('event API cancels and reschedules one recurring occurrence', async () => {
             start: '2026-10-27T00:00:00+03:00',
             end: '2026-10-28T00:00:00+03:00',
         })
-        assert.deepEqual(mcpOccurrences.structuredContent, [expectedOccurrence])
+        assert.deepEqual(mcpOccurrences.structuredContent, [
+            { ...expectedOccurrence, id: mcpId },
+        ])
 
-        const mcpMaster = await getEvent({ id })
+        const mcpMaster = await getEvent({ id: mcpId })
         assert.deepEqual(mcpMaster.structuredContent.recurrence, {
             frequency: 'daily',
             count: 3,
@@ -913,7 +934,7 @@ test('event API cancels and reschedules one recurring occurrence', async () => {
             limit: 1,
         })
         assert.equal(searchResult.structuredContent.length, 1)
-        assert.equal(searchResult.structuredContent[0].id, id)
+        assert.equal(searchResult.structuredContent[0].id, mcpId)
         assert.equal(
             searchResult.structuredContent[0].start,
             '2026-10-26T07:00:00.000Z',
@@ -1023,9 +1044,10 @@ test('MCP update_event updates one occurrence and splits this and future', async
         })
         assert.equal(created.statusCode, 201, created.body)
         const id = created.json().id
+        const mcpId = `event:${id}`
 
         let result = await updateEventTool({
-            id,
+            id: mcpId,
             scope: 'occurrence',
             recurrenceId: '2026-11-03T07:00:00.000Z',
             changes: {
@@ -1037,7 +1059,7 @@ test('MCP update_event updates one occurrence and splits this and future', async
                 timezone: null,
             },
         })
-        let master = await getEvent({ id })
+        let master = await getEvent({ id: mcpId })
         assert.deepEqual(result.structuredContent, master.structuredContent)
         assert.deepEqual(master.structuredContent.exceptions, [
             {
@@ -1059,7 +1081,7 @@ test('MCP update_event updates one occurrence and splits this and future', async
         assert.equal(occurrence.structuredContent[0].end, null)
 
         await updateEventTool({
-            id,
+            id: mcpId,
             scope: 'occurrence',
             recurrenceId: '2026-11-03T07:00:00.000Z',
             changes: { title: 'Dentist follow-up' },
@@ -1075,7 +1097,7 @@ test('MCP update_event updates one occurrence and splits this and future', async
         assert.equal(updatedOccurrence.structuredContent[0].end, null)
 
         result = await updateEventTool({
-            id,
+            id: mcpId,
             scope: 'this_and_future',
             recurrenceId: '2026-11-04T07:00:00.000Z',
             changes: {
@@ -1084,9 +1106,9 @@ test('MCP update_event updates one occurrence and splits this and future', async
             },
         })
         const futureId = result.structuredContent.id
-        assert.notEqual(futureId, id)
+        assert.notEqual(futureId, mcpId)
 
-        master = await getEvent({ id })
+        master = await getEvent({ id: mcpId })
         assert.deepEqual(master.structuredContent.recurrence, {
             frequency: 'daily',
             count: 2,
@@ -1125,14 +1147,15 @@ test('MCP cancel_event cancels one occurrence, this and future, and a series', a
         })
         assert.equal(created.statusCode, 201, created.body)
         const id = created.json().id
+        const mcpId = `event:${id}`
 
         let result = await cancelEventTool({
-            id,
+            id: mcpId,
             scope: 'occurrence',
             recurrenceId: '2026-11-10T07:00:00.000Z',
         })
-        assert.deepEqual(result.structuredContent, { id })
-        let master = await getEvent({ id })
+        assert.deepEqual(result.structuredContent, { id: mcpId })
+        let master = await getEvent({ id: mcpId })
         assert.equal(master.structuredContent.cancelledAt, null)
         assert.deepEqual(master.structuredContent.exceptions, [
             {
@@ -1147,12 +1170,12 @@ test('MCP cancel_event cancels one occurrence, this and future, and a series', a
         assert.deepEqual(occurrences.structuredContent, [])
 
         result = await cancelEventTool({
-            id,
+            id: mcpId,
             scope: 'this_and_future',
             recurrenceId: '2026-11-11T07:00:00.000Z',
         })
-        assert.deepEqual(result.structuredContent, { id })
-        master = await getEvent({ id })
+        assert.deepEqual(result.structuredContent, { id: mcpId })
+        master = await getEvent({ id: mcpId })
         assert.deepEqual(master.structuredContent.recurrence, {
             frequency: 'daily',
             count: 2,
@@ -1164,9 +1187,9 @@ test('MCP cancel_event cancels one occurrence, this and future, and a series', a
         })
         assert.deepEqual(occurrences.structuredContent, [])
 
-        result = await cancelEventTool({ id, scope: 'series' })
-        assert.deepEqual(result.structuredContent, { id })
-        master = await getEvent({ id })
+        result = await cancelEventTool({ id: mcpId, scope: 'series' })
+        assert.deepEqual(result.structuredContent, { id: mcpId })
+        master = await getEvent({ id: mcpId })
         assert.match(master.structuredContent.cancelledAt, /Z$/)
         const found = await searchEvents({ query: 'Cancelable series' })
         assert.deepEqual(found.structuredContent, [])

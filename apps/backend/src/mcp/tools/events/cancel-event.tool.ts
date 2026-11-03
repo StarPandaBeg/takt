@@ -2,11 +2,16 @@ import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
+import {
+    eventIdSchema,
+    formatEventId,
+    parseEventId,
+} from '#src/mcp/util/ids.js'
 import { cancelEvent } from '#src/services/events.js'
 
 export const cancelEventInputSchema = z
     .object({
-        id: z.int().positive(),
+        id: eventIdSchema,
         scope: z
             .enum(['series', 'occurrence', 'this_and_future'])
             .describe(
@@ -31,17 +36,17 @@ export const cancelEventInputSchema = z
     })
 
 export const cancelEventOutputSchema = z.object({
-    id: z.int().positive(),
+    id: eventIdSchema,
 })
 
 export const cancelEventTool: ToolCallback<
     typeof cancelEventInputSchema
 > = async ({ id, scope, recurrenceId }) => {
     const eventId = await cancelEvent({
-        id,
+        id: parseEventId(id),
         scope,
         recurrenceId:
             recurrenceId === undefined ? undefined : new Date(recurrenceId),
     })
-    return toToolResponse({ id: eventId })
+    return toToolResponse({ id: formatEventId(eventId) })
 }
