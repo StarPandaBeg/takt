@@ -1,6 +1,6 @@
 import { db } from '#src/database/index.js'
 import { notesTable, type Note, type NoteInsert } from '#src/database/schema.js'
-import { eq, isNull } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull } from 'drizzle-orm'
 
 export const getAll = async (): Promise<Note[]> => {
     return await db.query.notesTable.findMany()
@@ -9,12 +9,20 @@ export const getAll = async (): Promise<Note[]> => {
 export const getFiltered = async (filters: {
     limit?: number | undefined
     withDone?: boolean | undefined
+    afterId?: number | undefined
 }): Promise<Note[]> => {
     let query = db.select().from(notesTable).$dynamic()
 
-    if (!filters.withDone) {
-        query = query.where(isNull(notesTable.completed_at))
+    const where = and(
+        filters.withDone ? undefined : isNull(notesTable.completed_at),
+        filters.afterId === undefined
+            ? undefined
+            : gt(notesTable.id, filters.afterId),
+    )
+    if (where !== undefined) {
+        query = query.where(where)
     }
+    query = query.orderBy(asc(notesTable.id))
     if (filters.limit !== undefined) {
         query = query.limit(filters.limit)
     }

@@ -8,9 +8,9 @@ application service, что HTTP API и источники экранов, по�
 
 ## `get_events`
 
-Возвращает фактические экземпляры событий в полуоткрытом диапазоне
-`[start, end)`. Инструмент сам разворачивает повторения, исключает отменённые
-экземпляры и применяет переносы.
+Возвращает события в полуоткрытом диапазоне `[start, end)`. Инструмент
+разворачивает повторения, применяет исключения и группирует экземпляры с
+одинаковыми эффективными полями.
 
 Вход:
 
@@ -18,22 +18,24 @@ application service, что HTTP API и источники экранов, по�
 interface GetEventsInput {
     start: string // ISO 8601 с offset, inclusive
     end: string // ISO 8601 с offset, exclusive
-    limit?: number // integer 1..8192
+    limit?: number // экземпляры до группировки, 1..64, default 32
 }
 ```
 
 Выход — массив:
 
 ```ts
-interface ResolvedEvent {
-    id: number // ID исходного master-события
+interface ResolvedEventGroup {
+    id: `event:${number}`
     title: string
     description: string | null
-    start: string // фактическое время после переноса
-    end: string | null
     timezone: string | null
     allDay: boolean
-    recurrenceId: string | null
+    occurrences: Array<{
+        start: string // ISO 8601, фактическое время после переноса
+        end: string | null // ISO 8601
+        recurrenceId: string | null // ISO 8601
+    }>
 }
 ```
 
@@ -44,9 +46,9 @@ interface ResolvedEvent {
 
 ## `get_event`
 
-Получает сохранённую сущность события по её положительному целочисленному
-`id`. Возвращает master с `recurrence` и полным массивом `exceptions`; если
-событие отсутствует, возвращает `null`.
+Получает сохранённую сущность события по `id` вида `event:<number>`. Возвращает
+master с `recurrence` и полным массивом `exceptions`; если событие отсутствует,
+возвращает `null`.
 
 Этот инструмент нужен для просмотра и последующего редактирования самой серии.
 В отличие от `get_events`, он не материализует отдельные экземпляры.
@@ -61,7 +63,7 @@ interface SearchEventsInput {
     from?: string // inclusive граница master start
     to?: string // exclusive граница master start
     query?: string // подстрока в title или description
-    limit?: number // integer 1..8192
+    limit?: number // integer 1..64, default 32
 }
 ```
 
@@ -157,26 +159,30 @@ interface CancelEventInput {
 
 ### `get_deadlines`
 
-Возвращает фактические экземпляры дедлайнов начиная с inclusive-границы
-`from`. Повторения и occurrence overrides уже применены.
+Возвращает дедлайны в полуоткрытом диапазоне `[from, to)`. Повторения и
+исключения уже применены, экземпляры с одинаковыми эффективными полями
+сгруппированы.
 
 ```ts
 interface GetDeadlinesInput {
-    from: string
-    limit?: number // 1..8192, default 128
+    from: string // ISO 8601, inclusive
+    to: string // ISO 8601, exclusive
+    limit?: number // экземпляры до группировки, 1..64, default 32
     withCompleted?: boolean // default false
 }
 ```
 
-Каждый результат содержит ID master, эффективные `title`, `description`,
-`due`, `dueIsDate`, `timezone`, `completed` и исходный `recurrenceId` либо
-`null` для одиночного дедлайна.
+Каждая группа содержит ID master, эффективные `title`, `description`,
+`dueIsDate`, `timezone` и `visibility`. В `occurrences` находятся `due`,
+`completed`, `completedAt` и исходный `recurrenceId`; даты имеют формат
+ISO 8601.
 
 ### `search_deadlines`
 
 Ищет активные master-записи без раскрытия повторений. Поддерживает optional
-`from`, `to`, `query`, `limit` и `withCompleted`. Временные границы относятся к
-исходному `due` master, `query` ищет подстроку в title и description.
+`from`, `to`, `query`, `limit` (1..64, по умолчанию 32) и `withCompleted`.
+Временные границы относятся к исходному `due` master, `query` ищет подстроку
+в title и description.
 
 ### `create_deadline`
 
@@ -234,7 +240,10 @@ interface SetDeadlineCompletionInput {
 
 ## Инструменты заметок
 
-- `get_note` возвращает заметку по ID, а `get_notes` — список заметок.
+- `get_note` возвращает заметку по ID, а `get_notes` — страницу с полями
+  `notes` и `nextCursor`. Для следующей страницы передайте `nextCursor` как
+  `cursor` с тем же `withDone`; `null` означает конец списка. Размер страницы —
+  32 по умолчанию и не более 64.
 - `create_note` создаёт заметку и возвращает её полную сущность в формате
   `get_note`, включая `id`, `text` и `completedAt`.
 - `update_note` изменяет текст и/или `completedAt` и также возвращает полную

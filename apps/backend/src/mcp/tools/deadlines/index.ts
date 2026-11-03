@@ -40,7 +40,8 @@ export function registerDeadlineTools(server: McpServer) {
         'get_deadline',
         {
             title: 'Get Deadline',
-            description: 'Get a deadline master by ID, including recurrence data.',
+            description:
+                'Get a deadline master by ID, including recurrence data.',
             inputSchema: getDeadlineInputSchema,
             outputSchema: getDeadlineOutputSchema,
             annotations: {
@@ -57,7 +58,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Get Deadlines',
             description:
-                'Get occurrences in a time range. Recurrence and overrides are applied.',
+                'Get deadlines in a time range, with resolved occurrences grouped by effective fields.',
             inputSchema: getDeadlinesInputSchema,
             outputSchema: getDeadlinesOutputSchema,
             annotations: {
@@ -90,8 +91,7 @@ export function registerDeadlineTools(server: McpServer) {
         'create_deadline',
         {
             title: 'Create Deadline',
-            description:
-                'Create a one-time or recurring deadline.',
+            description: 'Create a one-time or recurring deadline.',
             inputSchema: createDeadlineInputSchema,
             outputSchema: createDeadlineOutputSchema,
             annotations: {
@@ -141,8 +141,7 @@ export function registerDeadlineTools(server: McpServer) {
         'set_deadline_completion',
         {
             title: 'Set Deadline Completion',
-            description:
-                'Complete or reopen a deadline occurrence.',
+            description: 'Complete or reopen a deadline occurrence.',
             inputSchema: setDeadlineCompletionInputSchema,
             outputSchema: setDeadlineCompletionOutputSchema,
             annotations: {

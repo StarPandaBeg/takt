@@ -25,7 +25,8 @@ export function registerNoteTools(server: McpServer) {
         'get_notes',
         {
             title: 'Get Notes',
-            description: 'List notes; active only by default.',
+            description:
+                'List a page of notes; active only by default. Continue with nextCursor.',
             inputSchema: listNotesInputSchema,
             outputSchema: listNotesOutputSchema,
             annotations: {

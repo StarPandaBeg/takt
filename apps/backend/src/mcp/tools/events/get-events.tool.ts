@@ -1,6 +1,6 @@
 import { toToolResponse } from '#src/mcp/util/helpers.js'
-import { resolvedEventSchema } from '#src/mcp/util/objects.js'
-import { serializeMcpResolvedEvent } from '#src/mcp/util/serializers.js'
+import { groupedResolvedEventSchema } from '#src/mcp/util/objects.js'
+import { serializeMcpGroupedEvents } from '#src/mcp/util/serializers.js'
 import { getResolvedEvents } from '#src/services/events.js'
 import type { ToolCallback } from '@modelcontextprotocol/server'
 import { DateTime } from 'luxon'
@@ -14,13 +14,18 @@ export const getEventsInputSchema = z
         end: z.iso
             .datetime({ offset: true })
             .describe('ISO 8601 exclusive range end'),
-        limit: z.int().positive().max(64).optional(),
+        limit: z
+            .int()
+            .positive()
+            .max(64)
+            .optional()
+            .describe('Occurrences before grouping; defaults to 32'),
     })
     .refine(({ start, end }) => new Date(end) > new Date(start), {
         message: 'end must be later than start',
         path: ['end'],
     })
-export const getEventsOutputSchema = z.array(resolvedEventSchema)
+export const getEventsOutputSchema = z.array(groupedResolvedEventSchema)
 
 export const getEvents: ToolCallback<typeof getEventsInputSchema> = async ({
     start,
@@ -32,7 +37,7 @@ export const getEvents: ToolCallback<typeof getEventsInputSchema> = async ({
         to: DateTime.fromISO(end, { setZone: true }),
         limit: Math.min(limit ?? 32, 64),
     })
-    const result = events.map(serializeMcpResolvedEvent)
+    const result = serializeMcpGroupedEvents(events)
 
     return toToolResponse(result)
 }

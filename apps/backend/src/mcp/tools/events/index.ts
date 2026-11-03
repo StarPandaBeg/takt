@@ -35,7 +35,8 @@ export function registerEventTools(server: McpServer) {
         'get_event',
         {
             title: 'Get Event',
-            description: 'Get an event master by ID, including recurrence data.',
+            description:
+                'Get an event master by ID, including recurrence data.',
             inputSchema: getEventInputSchema,
             outputSchema: getEventOutputSchema,
             annotations: {
@@ -52,7 +53,7 @@ export function registerEventTools(server: McpServer) {
         {
             title: 'Get Events',
             description:
-                'Get occurrences in a time range. Recurrence and overrides are applied.',
+                'Get events in a time range, with resolved occurrences grouped by effective fields.',
             inputSchema: getEventsInputSchema,
             outputSchema: getEventsOutputSchema,
             annotations: {

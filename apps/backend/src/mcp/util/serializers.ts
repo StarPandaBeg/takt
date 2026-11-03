@@ -76,9 +76,7 @@ export function serializeDeadlineEntity(deadline: DeadlineEntity) {
         exceptions: deadline.exceptions.map((exception) => ({
             ...exception,
             recurrenceId: exception.recurrenceId.toISOString(),
-            ...('due' in exception
-                ? { due: exception.due.toISOString() }
-                : {}),
+            ...('due' in exception ? { due: exception.due.toISOString() } : {}),
         })),
     }
 }
@@ -108,6 +106,36 @@ export function serializeMcpResolvedEvent(event: ResolvedEvent) {
     return { ...serializeResolvedEvent(event), id: formatEventId(event.id) }
 }
 
+export function serializeMcpGroupedEvents(events: readonly ResolvedEvent[]) {
+    const groups = new Map<
+        string,
+        Omit<
+            ReturnType<typeof serializeMcpResolvedEvent>,
+            'start' | 'end' | 'recurrenceId'
+        > & {
+            occurrences: Pick<
+                ReturnType<typeof serializeMcpResolvedEvent>,
+                'start' | 'end' | 'recurrenceId'
+            >[]
+        }
+    >()
+
+    for (const event of events) {
+        const { start, end, recurrenceId, ...entity } =
+            serializeMcpResolvedEvent(event)
+        const key = JSON.stringify(entity)
+        const group = groups.get(key)
+        const occurrence = { start, end, recurrenceId }
+        if (group === undefined) {
+            groups.set(key, { ...entity, occurrences: [occurrence] })
+        } else {
+            group.occurrences.push(occurrence)
+        }
+    }
+
+    return [...groups.values()]
+}
+
 export function serializeMcpDeadlineEntity(deadline: DeadlineEntity) {
     return {
         ...serializeDeadlineEntity(deadline),
@@ -120,6 +148,38 @@ export function serializeMcpResolvedDeadline(deadline: ResolvedDeadline) {
         ...serializeResolvedDeadline(deadline),
         id: formatDeadlineId(deadline.id),
     }
+}
+
+export function serializeMcpGroupedDeadlines(
+    deadlines: readonly ResolvedDeadline[],
+) {
+    const groups = new Map<
+        string,
+        Omit<
+            ReturnType<typeof serializeMcpResolvedDeadline>,
+            'due' | 'completed' | 'completedAt' | 'recurrenceId'
+        > & {
+            occurrences: Pick<
+                ReturnType<typeof serializeMcpResolvedDeadline>,
+                'due' | 'completed' | 'completedAt' | 'recurrenceId'
+            >[]
+        }
+    >()
+
+    for (const deadline of deadlines) {
+        const { due, completed, completedAt, recurrenceId, ...entity } =
+            serializeMcpResolvedDeadline(deadline)
+        const key = JSON.stringify(entity)
+        const group = groups.get(key)
+        const occurrence = { due, completed, completedAt, recurrenceId }
+        if (group === undefined) {
+            groups.set(key, { ...entity, occurrences: [occurrence] })
+        } else {
+            group.occurrences.push(occurrence)
+        }
+    }
+
+    return [...groups.values()]
 }
 
 export function serializeMcpNote(note: Note) {

@@ -78,18 +78,14 @@ export const eventOccurrenceExceptionSchema = z
             status: z.literal('cancelled'),
             recurrenceId: z
                 .string()
-                .describe(
-                    'ISO 8601 original start identifying the occurrence',
-                ),
+                .describe('ISO 8601 original start identifying the occurrence'),
         }),
 
         z.object({
             status: z.literal('rescheduled'),
             recurrenceId: z
                 .string()
-                .describe(
-                    'ISO 8601 original start identifying the occurrence',
-                ),
+                .describe('ISO 8601 original start identifying the occurrence'),
             start: z.iso.datetime({ offset: true }).describe('ISO 8601'),
             end: z.iso
                 .datetime({ offset: true })
@@ -101,9 +97,7 @@ export const eventOccurrenceExceptionSchema = z
             status: z.literal('updated'),
             recurrenceId: z
                 .string()
-                .describe(
-                    'ISO 8601 original start identifying the occurrence',
-                ),
+                .describe('ISO 8601 original start identifying the occurrence'),
             start: z.iso.datetime({ offset: true }).describe('ISO 8601'),
             end: z.iso
                 .datetime({ offset: true })
@@ -122,10 +116,7 @@ export const eventEntitySchema = z.object({
     title: z.string(),
     description: z.string().nullable(),
     start: z.iso.datetime({ offset: true }).describe('ISO 8601'),
-    end: z.iso
-        .datetime({ offset: true })
-        .nullable()
-        .describe('ISO 8601'),
+    end: z.iso.datetime({ offset: true }).nullable().describe('ISO 8601'),
     allDay: z.boolean(),
     timezone: z.string().nullable(),
     createdAt: z.iso.datetime({ offset: true }).describe('ISO 8601'),
@@ -143,23 +134,31 @@ export const resolvedEventSchema = z.object({
     title: z.string(),
     description: z.string().nullable(),
     start: z.iso.datetime({ offset: true }).describe('ISO 8601'),
-    end: z.iso
-        .datetime({ offset: true })
-        .nullable()
-        .describe('ISO 8601'),
+    end: z.iso.datetime({ offset: true }).nullable().describe('ISO 8601'),
     timezone: z.string().nullable(),
     allDay: z.boolean(),
     recurrenceId: z.iso
         .datetime({ offset: true })
         .nullable()
-        .describe(
-            'ISO 8601 original series start; null for a one-time event',
-        ),
+        .describe('ISO 8601 original series start; null for a one-time event'),
 })
 
-export const deadlineOccurrenceExceptionSchema = z.discriminatedUnion(
-    'status',
-    [
+export const groupedResolvedEventSchema = resolvedEventSchema
+    .omit({ start: true, end: true, recurrenceId: true })
+    .extend({
+        occurrences: z
+            .array(
+                resolvedEventSchema.pick({
+                    start: true,
+                    end: true,
+                    recurrenceId: true,
+                }),
+            )
+            .min(1),
+    })
+
+export const deadlineOccurrenceExceptionSchema = z
+    .discriminatedUnion('status', [
         z.object({
             status: z.literal('cancelled'),
             recurrenceId: z.iso
@@ -190,8 +189,8 @@ export const deadlineOccurrenceExceptionSchema = z.discriminatedUnion(
             dueIsDate: z.boolean(),
             timezone: z.string(),
         }),
-    ],
-).describe('Recurring-deadline occurrence override')
+    ])
+    .describe('Recurring-deadline occurrence override')
 
 export const deadlineVisibilitySchema = z
     .object({
@@ -222,9 +221,7 @@ export const deadlineCompletionSchema = z.object({
     recurrenceId: z.iso
         .datetime({ offset: true })
         .nullable()
-        .describe(
-            'ISO 8601 original due time; null for a one-time deadline',
-        ),
+        .describe('ISO 8601 original due time; null for a one-time deadline'),
     completedAt: z.iso.datetime({ offset: true }).describe('ISO 8601'),
 })
 
@@ -234,9 +231,7 @@ export const deadlineEntitySchema = z.object({
     description: z.string().nullable(),
     due: z.iso
         .datetime({ offset: true })
-        .describe(
-            'ISO 8601 master due time and recurrence anchor',
-        ),
+        .describe('ISO 8601 master due time and recurrence anchor'),
     dueIsDate: z.boolean(),
     timezone: z.string(),
     completedAt: z.iso
@@ -248,18 +243,14 @@ export const deadlineEntitySchema = z.object({
     cancelledAt: z.iso
         .datetime({ offset: true })
         .nullable()
-        .describe(
-            'ISO 8601 whole-series cancellation time',
-        ),
+        .describe('ISO 8601 whole-series cancellation time'),
     createdAt: z.iso.datetime({ offset: true }).describe('ISO 8601'),
     updatedAt: z.iso.datetime({ offset: true }).describe('ISO 8601'),
     recurrence: recurrenceSchema.nullable(),
     exceptions: z.array(deadlineOccurrenceExceptionSchema),
     completions: z
         .array(deadlineCompletionSchema)
-        .describe(
-            'Occurrence completions keyed by recurrenceId',
-        ),
+        .describe('Occurrence completions keyed by recurrenceId'),
     visibility: deadlineVisibilitySchema,
 })
 
@@ -279,10 +270,28 @@ export const resolvedDeadlineSchema = z.object({
     recurrenceId: z.iso
         .datetime({ offset: true })
         .nullable()
-        .describe(
-            'ISO 8601 original series due; null for a one-time deadline',
-        ),
+        .describe('ISO 8601 original series due; null for a one-time deadline'),
 })
+
+export const groupedResolvedDeadlineSchema = resolvedDeadlineSchema
+    .omit({
+        due: true,
+        completed: true,
+        completedAt: true,
+        recurrenceId: true,
+    })
+    .extend({
+        occurrences: z
+            .array(
+                resolvedDeadlineSchema.pick({
+                    due: true,
+                    completed: true,
+                    completedAt: true,
+                    recurrenceId: true,
+                }),
+            )
+            .min(1),
+    })
 
 export const noteSchema = z.object({
     id: noteIdSchema,

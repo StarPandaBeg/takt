@@ -57,39 +57,39 @@ const { cancelEventTool } =
 const { createEvent } =
     await import('../apps/backend/dist/mcp/tools/events/create-event.tool.js')
 const { createDeadline } =
-    await import(
-        '../apps/backend/dist/mcp/tools/deadlines/create-deadline.tool.js'
-    )
+    await import('../apps/backend/dist/mcp/tools/deadlines/create-deadline.tool.js')
 const { getDeadline } =
     await import('../apps/backend/dist/mcp/tools/deadlines/get-deadline.tool.js')
 const { getDeadlines, getDeadlinesInputSchema } =
-    await import(
-        '../apps/backend/dist/mcp/tools/deadlines/get-deadlines.tool.js'
-    )
+    await import('../apps/backend/dist/mcp/tools/deadlines/get-deadlines.tool.js')
 const { searchDeadlines } =
-    await import(
-        '../apps/backend/dist/mcp/tools/deadlines/search-deadlines.tool.js'
-    )
+    await import('../apps/backend/dist/mcp/tools/deadlines/search-deadlines.tool.js')
 const { updateDeadlineTool } =
-    await import(
-        '../apps/backend/dist/mcp/tools/deadlines/update-deadline.tool.js'
-    )
+    await import('../apps/backend/dist/mcp/tools/deadlines/update-deadline.tool.js')
 const { cancelDeadlineTool } =
-    await import(
-        '../apps/backend/dist/mcp/tools/deadlines/cancel-deadline.tool.js'
-    )
+    await import('../apps/backend/dist/mcp/tools/deadlines/cancel-deadline.tool.js')
 const { setDeadlineCompletion } =
-    await import(
-        '../apps/backend/dist/mcp/tools/deadlines/set-deadline-completion.tool.js'
-    )
+    await import('../apps/backend/dist/mcp/tools/deadlines/set-deadline-completion.tool.js')
 const { createNote } =
     await import('../apps/backend/dist/mcp/tools/notes/create-note.tool.js')
 const { getNote } =
     await import('../apps/backend/dist/mcp/tools/notes/get-note.tool.js')
+const { listNotes } =
+    await import('../apps/backend/dist/mcp/tools/notes/list-notes.tool.js')
 const { updateNote } =
     await import('../apps/backend/dist/mcp/tools/notes/update-note.tool.js')
 const { deadlineIdSchema, eventIdSchema, noteIdSchema } =
     await import('../apps/backend/dist/mcp/util/ids.js')
+
+const flattenEventGroups = (groups) =>
+    groups.flatMap(({ occurrences, ...event }) =>
+        occurrences.map((occurrence) => ({ ...event, ...occurrence })),
+    )
+
+const flattenDeadlineGroups = (groups) =>
+    groups.flatMap(({ occurrences, ...deadline }) =>
+        occurrences.map((occurrence) => ({ ...deadline, ...occurrence })),
+    )
 
 test.after(() => {
     rmSync(databaseRoot, { recursive: true, force: true })
@@ -248,6 +248,35 @@ test('MCP note create and update return the complete entity', async () => {
     assert.deepEqual(
         (await getNote({ id })).structuredContent,
         updated.structuredContent,
+    )
+})
+
+test('MCP notes use a typed cursor to expose every page', async () => {
+    const first = await createNote({ text: 'Pagination anchor' })
+    const second = await createNote({ text: 'Pagination second' })
+    const third = await createNote({ text: 'Pagination third' })
+
+    const firstPage = await listNotes({
+        cursor: first.structuredContent.id,
+        limit: 1,
+        withDone: true,
+    })
+    assert.deepEqual(firstPage.structuredContent, {
+        notes: [second.structuredContent],
+        nextCursor: second.structuredContent.id,
+    })
+
+    const secondPage = await listNotes({
+        cursor: firstPage.structuredContent.nextCursor,
+        limit: 1,
+        withDone: true,
+    })
+    assert.deepEqual(secondPage.structuredContent, {
+        notes: [third.structuredContent],
+        nextCursor: null,
+    })
+    await assert.rejects(
+        listNotes({ cursor: 'event:1', limit: 1, withDone: true }),
     )
 })
 
@@ -570,14 +599,16 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
         limit: 8,
         withCompleted: false,
     })
-    let ownOccurrences = occurrences.structuredContent.filter(
+    const ownGroups = occurrences.structuredContent.filter(
         (deadline) => deadline.id === id,
     )
+    assert.equal(ownGroups.length, 1)
+    assert.equal(ownGroups[0].occurrences.length, 2)
+    let ownOccurrences = flattenDeadlineGroups(
+        occurrences.structuredContent,
+    ).filter((deadline) => deadline.id === id)
     assert.equal(ownOccurrences.length, 2)
-    assert.equal(
-        ownOccurrences[1].recurrenceId,
-        '2026-11-17T15:00:00.000Z',
-    )
+    assert.equal(ownOccurrences[1].recurrenceId, '2026-11-17T15:00:00.000Z')
 
     const updated = await updateDeadlineTool({
         id,
@@ -615,13 +646,12 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
         limit: 8,
         withCompleted: false,
     })
-    ownOccurrences = occurrences.structuredContent.filter(
-        (deadline) => deadline.id === id,
-    )
+    ownOccurrences = flattenDeadlineGroups(
+        occurrences.structuredContent,
+    ).filter((deadline) => deadline.id === id)
     assert.equal(
         ownOccurrences.some(
-            ({ recurrenceId }) =>
-                recurrenceId === '2026-11-17T15:00:00.000Z',
+            ({ recurrenceId }) => recurrenceId === '2026-11-17T15:00:00.000Z',
         ),
         false,
     )
@@ -631,13 +661,12 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
         limit: 8,
         withCompleted: true,
     })
-    ownOccurrences = occurrences.structuredContent.filter(
-        (deadline) => deadline.id === id,
-    )
+    ownOccurrences = flattenDeadlineGroups(
+        occurrences.structuredContent,
+    ).filter((deadline) => deadline.id === id)
     assert.equal(
         ownOccurrences.find(
-            ({ recurrenceId }) =>
-                recurrenceId === '2026-11-17T15:00:00.000Z',
+            ({ recurrenceId }) => recurrenceId === '2026-11-17T15:00:00.000Z',
         ).completed,
         true,
     )
@@ -952,7 +981,20 @@ test('event API cancels and reschedules one recurring occurrence', async () => {
             end: '2026-10-28T00:00:00+03:00',
         })
         assert.deepEqual(mcpOccurrences.structuredContent, [
-            { ...expectedOccurrence, id: mcpId },
+            {
+                id: mcpId,
+                title: expectedOccurrence.title,
+                description: expectedOccurrence.description,
+                timezone: expectedOccurrence.timezone,
+                allDay: expectedOccurrence.allDay,
+                occurrences: [
+                    {
+                        start: expectedOccurrence.start,
+                        end: expectedOccurrence.end,
+                        recurrenceId: expectedOccurrence.recurrenceId,
+                    },
+                ],
+            },
         ])
 
         const mcpMaster = await getEvent({ id: mcpId })
@@ -1032,7 +1074,9 @@ test('weekly event excludes a DTSTART whose weekday is not selected', async () =
             end: '2026-10-29T00:00:00Z',
         })
         assert.deepEqual(
-            wednesday.structuredContent.filter((event) => event.id === id),
+            flattenEventGroups(wednesday.structuredContent).filter(
+                (event) => event.id === id,
+            ),
             [],
         )
 
@@ -1040,8 +1084,13 @@ test('weekly event excludes a DTSTART whose weekday is not selected', async () =
             start: '2026-10-29T00:00:00Z',
             end: '2026-10-30T00:00:00Z',
         })
+        const ownGroups = thursday.structuredContent.filter(
+            (event) => event.id === id,
+        )
+        assert.equal(ownGroups.length, 1)
+        assert.equal(ownGroups[0].occurrences.length, 1)
         assert.deepEqual(
-            thursday.structuredContent
+            flattenEventGroups(thursday.structuredContent)
                 .filter((event) => event.id === id)
                 .map(({ start, end }) => ({ start, end })),
             [
@@ -1120,7 +1169,7 @@ test('MCP update_event updates one occurrence and splits this and future', async
             end: '2026-11-04T00:00:00+03:00',
         })
         assert.equal(occurrence.structuredContent[0].title, 'Dentist')
-        assert.equal(occurrence.structuredContent[0].end, null)
+        assert.equal(occurrence.structuredContent[0].occurrences[0].end, null)
 
         await updateEventTool({
             id: mcpId,
@@ -1136,7 +1185,10 @@ test('MCP update_event updates one occurrence and splits this and future', async
             updatedOccurrence.structuredContent[0].title,
             'Dentist follow-up',
         )
-        assert.equal(updatedOccurrence.structuredContent[0].end, null)
+        assert.equal(
+            updatedOccurrence.structuredContent[0].occurrences[0].end,
+            null,
+        )
 
         result = await updateEventTool({
             id: mcpId,
@@ -1388,9 +1440,7 @@ test('bundled project registers all required Inter weights', () => {
     assert.equal(project.settings.fonts.length, 3)
     createNodeEnvironment({ fonts: project.settings.fonts })
 
-    const inter = GlobalFonts.families.find(
-        ({ family }) => family === 'Inter',
-    )
+    const inter = GlobalFonts.families.find(({ family }) => family === 'Inter')
     assert.ok(inter)
     assert.deepEqual(
         [...new Set(inter.styles.map(({ weight }) => weight))].sort(

@@ -3,8 +3,8 @@ import { DateTime } from 'luxon'
 import * as z from 'zod'
 
 import { toToolResponse } from '#src/mcp/util/helpers.js'
-import { resolvedDeadlineSchema } from '#src/mcp/util/objects.js'
-import { serializeMcpResolvedDeadline } from '#src/mcp/util/serializers.js'
+import { groupedResolvedDeadlineSchema } from '#src/mcp/util/objects.js'
+import { serializeMcpGroupedDeadlines } from '#src/mcp/util/serializers.js'
 import { getResolvedDeadlines } from '#src/services/deadlines.js'
 
 export const getDeadlinesInputSchema = z
@@ -20,21 +20,21 @@ export const getDeadlinesInputSchema = z
             .positive()
             .max(64)
             .optional()
-            .describe('Defaults to 32'),
+            .describe('Occurrences before grouping; defaults to 32'),
         withCompleted: z
             .boolean()
             .optional()
             .default(false)
             .describe('Include completed; defaults to false'),
     })
-    .refine(
-        ({ from, to }) => new Date(to) > new Date(from),
-        { message: 'to must be later than from', path: ['to'] },
-    )
+    .refine(({ from, to }) => new Date(to) > new Date(from), {
+        message: 'to must be later than from',
+        path: ['to'],
+    })
 
 export const getDeadlinesOutputSchema = z
-    .array(resolvedDeadlineSchema)
-    .describe('Occurrences ordered by effective due time')
+    .array(groupedResolvedDeadlineSchema)
+    .describe('Entities with occurrences ordered by effective due time')
 
 export const getDeadlines: ToolCallback<
     typeof getDeadlinesInputSchema
@@ -42,8 +42,8 @@ export const getDeadlines: ToolCallback<
     const deadlines = await getResolvedDeadlines({
         from: DateTime.fromISO(from, { setZone: true }),
         to: DateTime.fromISO(to, { setZone: true }),
-        limit: Math.min((limit ?? 32), 64),
+        limit: Math.min(limit ?? 32, 64),
         withCompleted,
     })
-    return toToolResponse(deadlines.map(serializeMcpResolvedDeadline))
+    return toToolResponse(serializeMcpGroupedDeadlines(deadlines))
 }

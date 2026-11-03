@@ -47,7 +47,7 @@ export const searchDeadlines: ToolCallback<
         ...(from === undefined ? {} : { from: new Date(from) }),
         ...(to === undefined ? {} : { to: new Date(to) }),
         ...(query === undefined ? {} : { query }),
-        ...(limit === undefined ? {} : { limit: Math.min(limit, 64) }),
+        limit: Math.min(limit ?? 32, 64),
         withCompleted,
     })
     return toToolResponse(deadlines.map(serializeMcpDeadlineEntity))
