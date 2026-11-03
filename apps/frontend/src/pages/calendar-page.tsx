@@ -892,7 +892,7 @@ export function CalendarPage() {
                                     const view = info.view.type as CalendarView
                                     setCalendarView(view)
                                     const nextDate = toIsoDate(
-                                        info.view.currentStart,
+                                        info.view.calendar.getDate(),
                                     )
                                     setActiveCalendarDate(nextDate)
                                     setSelectedDate(nextDate)
