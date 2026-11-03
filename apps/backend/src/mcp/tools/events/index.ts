@@ -1,20 +1,43 @@
 import type { McpServer } from '@modelcontextprotocol/server'
-import { cancelEventInputSchema, cancelEventTool } from './cancel-event.tool.js'
-import { createEvent, createEventInputSchema } from './create-event.tool.js'
-import { getEvent, getEventInputSchema } from './get-event.tool.js'
-import { getEvents, getEventsInputSchema } from './get-events.tool.js'
-import { searchEvents, searchEventsInputSchema } from './search-events.tool.js'
-import { updateEventInputSchema, updateEventTool } from './update-event.tool.js'
+import {
+    cancelEventInputSchema,
+    cancelEventOutputSchema,
+    cancelEventTool,
+} from './cancel-event.tool.js'
+import {
+    createEvent,
+    createEventInputSchema,
+    createEventOutputSchema,
+} from './create-event.tool.js'
+import {
+    getEvent,
+    getEventInputSchema,
+    getEventOutputSchema,
+} from './get-event.tool.js'
+import {
+    getEvents,
+    getEventsInputSchema,
+    getEventsOutputSchema,
+} from './get-events.tool.js'
+import {
+    searchEvents,
+    searchEventsInputSchema,
+    searchEventsOutputSchema,
+} from './search-events.tool.js'
+import {
+    updateEventInputSchema,
+    updateEventOutputSchema,
+    updateEventTool,
+} from './update-event.tool.js'
 
 export function registerEventTools(server: McpServer) {
     server.registerTool(
         'get_event',
         {
             title: 'Get Event',
-            description:
-                'Get an event master by ID, including recurrence data.',
+            description: 'Get an event master by ID, including recurrence data.',
             inputSchema: getEventInputSchema,
-            // outputSchema: getEventOutputSchema,
+            outputSchema: getEventOutputSchema,
             annotations: {
                 readOnlyHint: true,
                 destructiveHint: false,
@@ -31,7 +54,7 @@ export function registerEventTools(server: McpServer) {
             description:
                 'Get occurrences in a time range. Recurrence and overrides are applied.',
             inputSchema: getEventsInputSchema,
-            // outputSchema: getEventsOutputSchema,
+            outputSchema: getEventsOutputSchema,
             annotations: {
                 readOnlyHint: true,
                 destructiveHint: false,
@@ -48,7 +71,7 @@ export function registerEventTools(server: McpServer) {
             description:
                 'Search active event masters. Recurrence is not expanded.',
             inputSchema: searchEventsInputSchema,
-            // outputSchema: searchEventsOutputSchema,
+            outputSchema: searchEventsOutputSchema,
             annotations: {
                 readOnlyHint: true,
                 destructiveHint: false,
@@ -65,7 +88,7 @@ export function registerEventTools(server: McpServer) {
             description:
                 'Create a one-time or recurring event. End time is optional.',
             inputSchema: createEventInputSchema,
-            // outputSchema: createEventOutputSchema,
+            outputSchema: createEventOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: false,
@@ -82,7 +105,7 @@ export function registerEventTools(server: McpServer) {
             description:
                 'Update a series, one occurrence, or this and future occurrences.',
             inputSchema: updateEventInputSchema,
-            // outputSchema: updateEventOutputSchema,
+            outputSchema: updateEventOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: true,
@@ -99,7 +122,7 @@ export function registerEventTools(server: McpServer) {
             description:
                 'Cancel a series, one occurrence, or this and future occurrences.',
             inputSchema: cancelEventInputSchema,
-            //  outputSchema: cancelEventOutputSchema,
+            outputSchema: cancelEventOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: true,

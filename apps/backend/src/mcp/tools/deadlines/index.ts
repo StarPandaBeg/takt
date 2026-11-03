@@ -1,24 +1,37 @@
 import type { McpServer } from '@modelcontextprotocol/server'
 import {
     cancelDeadlineInputSchema,
+    cancelDeadlineOutputSchema,
     cancelDeadlineTool,
 } from './cancel-deadline.tool.js'
 import {
     createDeadline,
     createDeadlineInputSchema,
+    createDeadlineOutputSchema,
 } from './create-deadline.tool.js'
-import { getDeadline, getDeadlineInputSchema } from './get-deadline.tool.js'
-import { getDeadlines, getDeadlinesInputSchema } from './get-deadlines.tool.js'
+import {
+    getDeadline,
+    getDeadlineInputSchema,
+    getDeadlineOutputSchema,
+} from './get-deadline.tool.js'
+import {
+    getDeadlines,
+    getDeadlinesInputSchema,
+    getDeadlinesOutputSchema,
+} from './get-deadlines.tool.js'
 import {
     searchDeadlines,
     searchDeadlinesInputSchema,
+    searchDeadlinesOutputSchema,
 } from './search-deadlines.tool.js'
 import {
     setDeadlineCompletion,
     setDeadlineCompletionInputSchema,
+    setDeadlineCompletionOutputSchema,
 } from './set-deadline-completion.tool.js'
 import {
     updateDeadlineInputSchema,
+    updateDeadlineOutputSchema,
     updateDeadlineTool,
 } from './update-deadline.tool.js'
 
@@ -27,10 +40,9 @@ export function registerDeadlineTools(server: McpServer) {
         'get_deadline',
         {
             title: 'Get Deadline',
-            description:
-                'Get a deadline master by ID, including recurrence data.',
+            description: 'Get a deadline master by ID, including recurrence data.',
             inputSchema: getDeadlineInputSchema,
-            // outputSchema: getDeadlineOutputSchema,
+            outputSchema: getDeadlineOutputSchema,
             annotations: {
                 readOnlyHint: true,
                 destructiveHint: false,
@@ -47,7 +59,7 @@ export function registerDeadlineTools(server: McpServer) {
             description:
                 'Get occurrences from a time boundary. Recurrence and overrides are applied.',
             inputSchema: getDeadlinesInputSchema,
-            // outputSchema: getDeadlinesOutputSchema,
+            outputSchema: getDeadlinesOutputSchema,
             annotations: {
                 readOnlyHint: true,
                 destructiveHint: false,
@@ -64,7 +76,7 @@ export function registerDeadlineTools(server: McpServer) {
             description:
                 'Search active deadline masters. Recurrence is not expanded.',
             inputSchema: searchDeadlinesInputSchema,
-            // outputSchema: searchDeadlinesOutputSchema,
+            outputSchema: searchDeadlinesOutputSchema,
             annotations: {
                 readOnlyHint: true,
                 destructiveHint: false,
@@ -78,9 +90,10 @@ export function registerDeadlineTools(server: McpServer) {
         'create_deadline',
         {
             title: 'Create Deadline',
-            description: 'Create a one-time or recurring deadline.',
+            description:
+                'Create a one-time or recurring deadline.',
             inputSchema: createDeadlineInputSchema,
-            // outputSchema: createDeadlineOutputSchema,
+            outputSchema: createDeadlineOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: false,
@@ -97,7 +110,7 @@ export function registerDeadlineTools(server: McpServer) {
             description:
                 'Update a series, one occurrence, or this and future occurrences.',
             inputSchema: updateDeadlineInputSchema,
-            // outputSchema: updateDeadlineOutputSchema,
+            outputSchema: updateDeadlineOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: true,
@@ -114,7 +127,7 @@ export function registerDeadlineTools(server: McpServer) {
             description:
                 'Cancel a series, one occurrence, or this and future occurrences.',
             inputSchema: cancelDeadlineInputSchema,
-            // outputSchema: cancelDeadlineOutputSchema,
+            outputSchema: cancelDeadlineOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: true,
@@ -128,9 +141,10 @@ export function registerDeadlineTools(server: McpServer) {
         'set_deadline_completion',
         {
             title: 'Set Deadline Completion',
-            description: 'Complete or reopen a deadline occurrence.',
+            description:
+                'Complete or reopen a deadline occurrence.',
             inputSchema: setDeadlineCompletionInputSchema,
-            // outputSchema: setDeadlineCompletionOutputSchema,
+            outputSchema: setDeadlineCompletionOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: false,
