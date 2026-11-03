@@ -1,24 +1,8 @@
 import type { McpServer } from '@modelcontextprotocol/server'
-import {
-    createNote,
-    createNoteInputSchema,
-    createNoteOutputSchema,
-} from './create-note.tool.js'
-import {
-    getNote,
-    getNoteInputSchema,
-    getNoteOutputSchema,
-} from './get-note.tool.js'
-import {
-    listNotes,
-    listNotesInputSchema,
-    listNotesOutputSchema,
-} from './list-notes.tool.js'
-import {
-    updateNote,
-    updateNoteInputSchema,
-    updateNoteOutputSchema,
-} from './update-note.tool.js'
+import { createNote, createNoteInputSchema } from './create-note.tool.js'
+import { getNote, getNoteInputSchema } from './get-note.tool.js'
+import { listNotes, listNotesInputSchema } from './list-notes.tool.js'
+import { updateNote, updateNoteInputSchema } from './update-note.tool.js'
 
 export function registerNoteTools(server: McpServer) {
     server.registerTool(
@@ -27,7 +11,7 @@ export function registerNoteTools(server: McpServer) {
             title: 'Get Notes',
             description: 'List notes; active only by default.',
             inputSchema: listNotesInputSchema,
-            outputSchema: listNotesOutputSchema,
+            // outputSchema: listNotesOutputSchema,
             annotations: {
                 readOnlyHint: true,
                 destructiveHint: false,
@@ -43,7 +27,7 @@ export function registerNoteTools(server: McpServer) {
             title: 'Get Note',
             description: 'Get a note by ID.',
             inputSchema: getNoteInputSchema,
-            outputSchema: getNoteOutputSchema,
+            // outputSchema: getNoteOutputSchema,
             annotations: {
                 readOnlyHint: true,
                 destructiveHint: false,
@@ -59,7 +43,7 @@ export function registerNoteTools(server: McpServer) {
             title: 'Create Note',
             description: 'Create a short note.',
             inputSchema: createNoteInputSchema,
-            outputSchema: createNoteOutputSchema,
+            // outputSchema: createNoteOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: false,
@@ -76,7 +60,7 @@ export function registerNoteTools(server: McpServer) {
             description:
                 'Update note text or completion state. Omitted fields stay unchanged.',
             inputSchema: updateNoteInputSchema,
-            outputSchema: updateNoteOutputSchema,
+            // outputSchema: updateNoteOutputSchema,
             annotations: {
                 readOnlyHint: false,
                 destructiveHint: true,
