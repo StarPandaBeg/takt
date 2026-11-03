@@ -42,11 +42,17 @@ const listSchema = z
         ({ from, to }) => from === undefined || to === undefined || to > from,
         { message: 'to must be later than from', path: ['to'] },
     )
-const occurrenceListSchema = z.object({
-    from: z.coerce.date(),
-    limit: z.coerce.number().int().positive().max(8192).optional(),
-    withCompleted: z.stringbool().default(false),
-})
+const occurrenceListSchema = z
+    .object({
+        from: z.coerce.date(),
+        to: z.coerce.date().optional(),
+        limit: z.coerce.number().int().positive().max(8192).optional(),
+        withCompleted: z.stringbool().default(false),
+    })
+    .refine(({ from, to }) => to === undefined || to > from, {
+        message: 'to must be later than from',
+        path: ['to'],
+    })
 const fields = {
     title: z.string().trim().min(1),
     description: z.string().nullable().optional(),
@@ -136,12 +142,13 @@ export const deadlinesRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     fastify.get('/occurrences', async (request) => {
-        const { from, limit, withCompleted } = occurrenceListSchema.parse(
+        const { from, to, limit, withCompleted } = occurrenceListSchema.parse(
             request.query,
         )
         return (
             await getResolvedDeadlines({
                 from: DateTime.fromJSDate(from),
+                to: to === undefined ? undefined : DateTime.fromJSDate(to),
                 limit,
                 withCompleted,
             })

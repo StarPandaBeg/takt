@@ -57,7 +57,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Get Deadlines',
             description:
-                'Get occurrences from a time boundary. Recurrence and overrides are applied.',
+                'Get occurrences in a time range. Recurrence and overrides are applied.',
             inputSchema: getDeadlinesInputSchema,
             outputSchema: getDeadlinesOutputSchema,
             annotations: {

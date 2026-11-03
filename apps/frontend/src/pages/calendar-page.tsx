@@ -19,7 +19,13 @@ import {
     Trash2,
     Undo2,
 } from 'lucide-react'
-import { useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import {
+    useCallback,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { ConfirmDialog } from '../components/common/confirm-dialog'
@@ -38,9 +44,11 @@ import {
     formatDeadlineDue,
     formatLongDate,
     formatMonth,
+    getCalendarViewOccurrenceRange,
     getTodayIso,
     parseIsoDate,
     toIsoDate,
+    type OccurrenceRange,
 } from '../lib/date'
 import { formatRecurrenceRule } from '../lib/recurrence-format'
 import type {
@@ -111,25 +119,40 @@ export function CalendarPage() {
         deleteDeadline,
     } = useTakt()
     const toast = useToast()
-    const [isRefreshing, setIsRefreshing] = useState(false)
+    const [isCalendarLoading, setIsCalendarLoading] = useState(false)
+    const calendarRangeRef = useRef<OccurrenceRange | null>(null)
+    const calendarRequestRef = useRef(0)
 
-    const handleRefresh = async () => {
-        if (isRefreshing) return
+    const refreshCalendarRange = useCallback(
+        async (range?: OccurrenceRange) => {
+            const effectiveRange = range ?? calendarRangeRef.current
+            if (effectiveRange === null) return
 
-        setIsRefreshing(true)
-        try {
-            await Promise.all([refreshEvents(), refreshDeadlines()])
-            clearError()
-        } catch (err: unknown) {
-            toast.error(
-                err instanceof Error
-                    ? err.message
-                    : 'Не удалось обновить данные календаря',
-            )
-        } finally {
-            setIsRefreshing(false)
-        }
-    }
+            calendarRangeRef.current = effectiveRange
+            const requestId = ++calendarRequestRef.current
+            setIsCalendarLoading(true)
+            try {
+                await Promise.all([
+                    refreshEvents(effectiveRange),
+                    refreshDeadlines(effectiveRange),
+                ])
+                if (requestId === calendarRequestRef.current) clearError()
+            } catch (err: unknown) {
+                if (requestId === calendarRequestRef.current) {
+                    toast.error(
+                        err instanceof Error
+                            ? err.message
+                            : 'Не удалось обновить данные календаря',
+                    )
+                }
+            } finally {
+                if (requestId === calendarRequestRef.current) {
+                    setIsCalendarLoading(false)
+                }
+            }
+        },
+        [clearError, refreshDeadlines, refreshEvents, toast],
+    )
 
     const timezone = settings.timezone
     const isMobileCalendar = useSyncExternalStore(
@@ -664,12 +687,12 @@ export function CalendarPage() {
                     <button
                         className="button"
                         type="button"
-                        disabled={isRefreshing}
+                        disabled={isCalendarLoading}
                         onClick={() => {
-                            void handleRefresh()
+                            void refreshCalendarRange()
                         }}
                     >
-                        {isRefreshing ? (
+                        {isCalendarLoading ? (
                             <Loader2
                                 size={16}
                                 className="spin-animation"
@@ -678,7 +701,7 @@ export function CalendarPage() {
                         ) : (
                             <RefreshCw size={16} aria-hidden="true" />
                         )}
-                        {isRefreshing ? 'Обновление…' : 'Обновить'}
+                        {isCalendarLoading ? 'Обновление…' : 'Обновить'}
                     </button>
                 }
             />
@@ -816,7 +839,10 @@ export function CalendarPage() {
                             </div>
                         </header>
 
-                        <div className="full-calendar-viewport">
+                        <div
+                            className={`full-calendar-viewport${isCalendarLoading ? ' is-loading' : ''}`}
+                            aria-busy={isCalendarLoading}
+                        >
                             <FullCalendar
                                 ref={calendarRef}
                                 timeZone={timezone}
@@ -860,8 +886,15 @@ export function CalendarPage() {
                                     : {})}
                                 datesSet={(info) => {
                                     setCalendarTitle(info.view.title)
-                                    setCalendarView(
-                                        info.view.type as CalendarView,
+                                    const view = info.view.type as CalendarView
+                                    setCalendarView(view)
+                                    void refreshCalendarRange(
+                                        getCalendarViewOccurrenceRange(
+                                            toIsoDate(info.view.currentStart),
+                                            toIsoDate(info.view.currentEnd),
+                                            view,
+                                            timezone,
+                                        ),
                                     )
                                 }}
                                 dayCellClass={(info) =>
@@ -954,6 +987,20 @@ export function CalendarPage() {
                                     }
                                 }}
                             />
+                            {isCalendarLoading && (
+                                <div
+                                    className="calendar-loading-overlay"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    <Loader2
+                                        size={28}
+                                        className="spin-animation"
+                                        aria-hidden="true"
+                                    />
+                                    <span>Загрузка календаря…</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

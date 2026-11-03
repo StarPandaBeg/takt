@@ -11,7 +11,7 @@ import {
     StickyNote,
     Undo2,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ErrorBanner } from '../components/common/error-banner'
@@ -22,6 +22,7 @@ import { EventDialog } from '../components/events/event-dialog'
 import { MiniCalendar } from '../components/mini-calendar'
 import { NoteDialog } from '../components/notes/note-dialog'
 import { PageHeader } from '../components/page-header'
+import { useToast } from '../context/use-toast'
 import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
 import { useDelayedNoteCompletion } from '../hooks/use-delayed-note-completion'
 import { useApplicationToday } from '../hooks/use-application-today'
@@ -30,6 +31,7 @@ import {
     extractDateString,
     formatDeadlineDue,
     formatLongDate,
+    getMonthOccurrenceRange,
     getTodayIso,
     parseIsoDate,
     toIsoDate,
@@ -49,6 +51,8 @@ export function DashboardPage() {
         isServerConnected,
         screenRevision,
         refreshAll,
+        refreshEvents,
+        refreshDeadlines,
         refreshScreen,
         clearError,
         createEvent,
@@ -63,6 +67,7 @@ export function DashboardPage() {
         createNote,
         toggleNote,
     } = useTakt()
+    const toast = useToast()
 
     const timezone = settings.timezone
     const initialToday = getTodayIso(timezone)
@@ -70,12 +75,61 @@ export function DashboardPage() {
     const [visibleMonth, setVisibleMonth] = useState(() =>
         parseIsoDate(initialToday),
     )
+    const [isCalendarLoading, setIsCalendarLoading] = useState(false)
+    const calendarRequestRef = useRef(0)
+
+    const loadCalendarMonth = useCallback(
+        async (month: Date) => {
+            const requestId = ++calendarRequestRef.current
+            const range = getMonthOccurrenceRange(
+                toIsoDate(month),
+                timezone,
+            )
+            setIsCalendarLoading(true)
+            try {
+                await Promise.all([
+                    refreshEvents(range),
+                    refreshDeadlines(range),
+                ])
+            } catch (err: unknown) {
+                if (requestId === calendarRequestRef.current) {
+                    toast.error(
+                        err instanceof Error
+                            ? err.message
+                            : 'Не удалось обновить данные календаря',
+                    )
+                }
+            } finally {
+                if (requestId === calendarRequestRef.current) {
+                    setIsCalendarLoading(false)
+                }
+            }
+        },
+        [refreshDeadlines, refreshEvents, timezone, toast],
+    )
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            void loadCalendarMonth(visibleMonth)
+        }, 0)
+        return () => window.clearTimeout(timer)
+    }, [loadCalendarMonth, visibleMonth])
+
+    const changeVisibleMonth = (month: Date) => {
+        if (
+            month.getFullYear() === visibleMonth.getFullYear() &&
+            month.getMonth() === visibleMonth.getMonth()
+        ) {
+            return
+        }
+        setVisibleMonth(month)
+    }
     const today = useApplicationToday(
         timezone,
         (nextToday, previousToday) => {
             if (selectedDate === previousToday) {
                 setSelectedDate(nextToday)
-                setVisibleMonth(parseIsoDate(nextToday))
+                changeVisibleMonth(parseIsoDate(nextToday))
             }
             void refreshAll()
         },
@@ -166,7 +220,7 @@ export function DashboardPage() {
 
     const selectDate = (date: string) => {
         setSelectedDate(date)
-        setVisibleMonth(parseIsoDate(date))
+        changeVisibleMonth(parseIsoDate(date))
     }
 
     const goToPrevDay = () => {
@@ -174,7 +228,7 @@ export function DashboardPage() {
         d.setDate(d.getDate() - 1)
         const newDate = toIsoDate(d)
         setSelectedDate(newDate)
-        setVisibleMonth(parseIsoDate(newDate))
+        changeVisibleMonth(parseIsoDate(newDate))
     }
 
     const goToNextDay = () => {
@@ -182,12 +236,12 @@ export function DashboardPage() {
         d.setDate(d.getDate() + 1)
         const newDate = toIsoDate(d)
         setSelectedDate(newDate)
-        setVisibleMonth(parseIsoDate(newDate))
+        changeVisibleMonth(parseIsoDate(newDate))
     }
 
     const goToToday = () => {
         setSelectedDate(today)
-        setVisibleMonth(parseIsoDate(today))
+        changeVisibleMonth(parseIsoDate(today))
     }
 
     return (
@@ -289,10 +343,11 @@ export function DashboardPage() {
                             <MiniCalendar
                                 today={today}
                                 month={visibleMonth}
+                                loading={isCalendarLoading}
                                 selected={selectedDate}
                                 eventDates={eventDates}
                                 onSelect={selectDate}
-                                onMonthChange={setVisibleMonth}
+                                onMonthChange={changeVisibleMonth}
                                 onToday={() => selectDate(today)}
                             />
                         </article>

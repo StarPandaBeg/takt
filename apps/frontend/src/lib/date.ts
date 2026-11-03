@@ -119,13 +119,42 @@ export function formatDeadlineDue(
         : `${formattedDate}, ${extractTimeString(due, timezone)}`
 }
 
-export function getOccurrenceRange(timezone: string): {
+export interface OccurrenceRange {
     from: string
     to: string
-} {
-    const today = Temporal.Now.zonedDateTimeISO(timezone)
+}
+
+function occurrenceBoundary(date: Temporal.PlainDate, timezone: string) {
+    return date.toZonedDateTime(timezone).startOfDay().toInstant().toString()
+}
+
+export function getMonthOccurrenceRange(
+    date: string,
+    timezone: string,
+): OccurrenceRange {
+    const month = plainDate(date).with({ day: 1 })
     return {
-        from: today.subtract({ years: 1 }).startOfDay().toInstant().toString(),
-        to: today.add({ years: 1 }).startOfDay().toInstant().toString(),
+        from: occurrenceBoundary(month.subtract({ months: 1 }), timezone),
+        to: occurrenceBoundary(month.add({ months: 2 }), timezone),
+    }
+}
+
+export function getCalendarViewOccurrenceRange(
+    start: string,
+    end: string,
+    view: 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay',
+    timezone: string,
+): OccurrenceRange {
+    const from = plainDate(start)
+    const to = plainDate(end)
+    const padding =
+        view === 'dayGridMonth'
+            ? { months: 1 }
+            : view === 'timeGridWeek'
+              ? { weeks: 1 }
+              : { days: 2 }
+    return {
+        from: occurrenceBoundary(from.subtract(padding), timezone),
+        to: occurrenceBoundary(to.add(padding), timezone),
     }
 }

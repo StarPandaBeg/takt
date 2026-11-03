@@ -7,7 +7,11 @@ import {
     type PropsWithChildren,
 } from 'react'
 import { api } from '../api/client'
-import { getOccurrenceRange } from '../lib/date'
+import {
+    getMonthOccurrenceRange,
+    getTodayIso,
+    type OccurrenceRange,
+} from '../lib/date'
 import type {
     ApplicationSettings,
     CancelDeadlinePayload,
@@ -33,6 +37,10 @@ export function TaktProvider({ children }: PropsWithChildren) {
     const [notes, setNotes] = useState<Note[]>([])
     const [settings, setSettings] = useState<ApplicationSettings | null>(null)
     const timezoneRef = useRef('UTC')
+    const eventRangeRef = useRef<OccurrenceRange | null>(null)
+    const deadlineRangeRef = useRef<OccurrenceRange | null>(null)
+    const eventRequestRef = useRef(0)
+    const deadlineRequestRef = useRef(0)
 
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -60,28 +68,44 @@ export function TaktProvider({ children }: PropsWithChildren) {
         }
     }, [])
 
-    const fetchEvents = useCallback(async () => {
+    const fetchEvents = useCallback(async (range?: OccurrenceRange) => {
+        const effectiveRange =
+            range ??
+            eventRangeRef.current ??
+            getMonthOccurrenceRange(
+                getTodayIso(timezoneRef.current),
+                timezoneRef.current,
+            )
+        eventRangeRef.current = effectiveRange
+        const requestId = ++eventRequestRef.current
         try {
-            const dateRange = getOccurrenceRange(timezoneRef.current)
             const data = await api.events.listOccurrences({
-                from: dateRange.from,
-                to: dateRange.to,
-                limit: 512,
+                from: effectiveRange.from,
+                to: effectiveRange.to,
             })
-            setEvents(data)
+            if (requestId === eventRequestRef.current) setEvents(data)
         } catch (err: unknown) {
             console.error('Failed to load events:', err)
             throw err
         }
     }, [])
 
-    const fetchDeadlines = useCallback(async () => {
+    const fetchDeadlines = useCallback(async (range?: OccurrenceRange) => {
+        const effectiveRange =
+            range ??
+            deadlineRangeRef.current ??
+            getMonthOccurrenceRange(
+                getTodayIso(timezoneRef.current),
+                timezoneRef.current,
+            )
+        deadlineRangeRef.current = effectiveRange
+        const requestId = ++deadlineRequestRef.current
         try {
-            const dateRange = getOccurrenceRange(timezoneRef.current)
             const [occurrences, masters] = await Promise.all([
                 api.deadlines.listOccurrences({
-                    from: dateRange.from,
-                    limit: 512,
+                    from: effectiveRange.from,
+                    to: effectiveRange.to,
+                    limit: 8192,
                     withCompleted: true,
                 }),
                 api.deadlines.list({
@@ -89,8 +113,10 @@ export function TaktProvider({ children }: PropsWithChildren) {
                     limit: 512,
                 }),
             ])
-            setDeadlines(occurrences)
-            setMasterDeadlines(masters)
+            if (requestId === deadlineRequestRef.current) {
+                setDeadlines(occurrences)
+                setMasterDeadlines(masters)
+            }
         } catch (err: unknown) {
             console.error('Failed to load deadlines:', err)
             throw err

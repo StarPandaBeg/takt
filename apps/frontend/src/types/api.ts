@@ -273,6 +273,7 @@ export interface DeadlineListQuery {
 
 export interface DeadlineOccurrenceListQuery {
     from: string
+    to: string
     limit?: number
     withCompleted?: boolean
 }

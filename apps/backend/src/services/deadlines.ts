@@ -266,6 +266,7 @@ function resolveDeadlineOccurrences(
     limit: number,
     withCompleted: boolean,
     nearestPerMaster = false,
+    to?: DateTime,
 ): ResolvedDeadline[] {
     const exceptionsByDeadline = Map.groupBy(
         exceptions,
@@ -301,6 +302,7 @@ function resolveDeadlineOccurrences(
         if (deadline.recurrenceRule === null) {
             const completion = completionFor(null)
             return deadline.due >= from.toJSDate() &&
+                (to === undefined || deadline.due < to.toJSDate()) &&
                 (withCompleted || completion === undefined)
                 ? [
                       {
@@ -323,11 +325,20 @@ function resolveDeadlineOccurrences(
         const start = DateTime.fromJSDate(deadline.due).setZone(
             deadline.timezone,
         )
-        const regular = getRecurrenceOccurrences(
-            start,
-            parseRecurrence(deadline.recurrenceRule),
-            from.setZone(deadline.timezone),
-            limit + deadlineExceptions.length,
+        const recurrence = parseRecurrence(deadline.recurrenceRule)
+        const regular = (to === undefined
+            ? getRecurrenceOccurrences(
+                  start,
+                  recurrence,
+                  from.setZone(deadline.timezone),
+                  limit + deadlineExceptions.length,
+              )
+            : getRecurrenceOccurrencesBetween(
+                  start,
+                  recurrence,
+                  from.setZone(deadline.timezone),
+                  to.setZone(deadline.timezone),
+              )
         )
             .filter((due) => !recurrenceIds.has(due.toMillis()))
             .flatMap((due) => {
@@ -348,7 +359,8 @@ function resolveDeadlineOccurrences(
         const replacements = deadlineExceptions.flatMap((exception) => {
             if (
                 exception.replacementDue === null ||
-                exception.replacementDue < from.toJSDate()
+                exception.replacementDue < from.toJSDate() ||
+                (to !== undefined && exception.replacementDue >= to.toJSDate())
             ) {
                 return []
             }
@@ -385,10 +397,17 @@ function resolveDeadlineOccurrences(
 
 export async function getResolvedDeadlines(options: {
     readonly from: DateTime
+    readonly to?: DateTime | undefined
     readonly limit?: number | undefined
     readonly withCompleted?: boolean | undefined
 }): Promise<ResolvedDeadline[]> {
     if (!options.from.isValid) throw new RangeError('Invalid deadline start')
+    if (
+        options.to !== undefined &&
+        (!options.to.isValid || options.to <= options.from)
+    ) {
+        throw new RangeError('Deadline range end must be later than start')
+    }
     const limit = options.limit ?? 128
     if (!Number.isInteger(limit) || limit <= 0 || limit > 8192) {
         throw new RangeError('Deadline limit must be an integer from 1 to 8192')
@@ -420,6 +439,8 @@ export async function getResolvedDeadlines(options: {
         options.from,
         limit,
         options.withCompleted ?? false,
+        false,
+        options.to,
     )
 }
 

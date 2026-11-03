@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 
 import {
     formatMonth,
@@ -12,6 +12,7 @@ interface Props {
     month: Date
     selected: string
     eventDates?: Set<string>
+    loading?: boolean
     onSelect: (date: string) => void
     onMonthChange: (month: Date) => void
     onToday: () => void
@@ -22,6 +23,7 @@ export function MiniCalendar({
     month,
     selected,
     eventDates,
+    loading = false,
     onSelect,
     onMonthChange,
     onToday,
@@ -34,7 +36,16 @@ export function MiniCalendar({
     return (
         <div className="mini-calendar">
             <div className="mini-calendar__toolbar">
-                <strong>{formatMonth(month)}</strong>
+                <strong>
+                    {formatMonth(month)}
+                    {loading && (
+                        <Loader2
+                            size={14}
+                            className="spin-animation"
+                            aria-label="Загрузка календаря"
+                        />
+                    )}
+                </strong>
                 <span>
                     <button type="button" onClick={onToday}>
                         Сегодня

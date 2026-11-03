@@ -492,7 +492,8 @@ interface DeadlineCompletion {
   разворачиваются.
 - `GET /api/deadlines/occurrences` возвращает разрешённые вхождения после
   применения исключений и завершений. `from` обязателен и inclusive; optional
-  `limit` по умолчанию `128`, optional `withCompleted` по умолчанию `false`.
+  `to` задаёт exclusive верхнюю границу. `limit` по умолчанию `128`, optional
+  `withCompleted` по умолчанию `false`.
 
 ### Создание
 

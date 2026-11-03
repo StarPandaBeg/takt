@@ -214,6 +214,7 @@ export const api = {
             request<ResolvedDeadline[]>(
                 `/api/deadlines/occurrences${buildQuery({
                     from: query.from,
+                    to: query.to,
                     limit: query.limit,
                     withCompleted: query.withCompleted,
                 })}`,

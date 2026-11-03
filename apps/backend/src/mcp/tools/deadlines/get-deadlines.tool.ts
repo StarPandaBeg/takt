@@ -7,22 +7,30 @@ import { resolvedDeadlineSchema } from '#src/mcp/util/objects.js'
 import { serializeMcpResolvedDeadline } from '#src/mcp/util/serializers.js'
 import { getResolvedDeadlines } from '#src/services/deadlines.js'
 
-export const getDeadlinesInputSchema = z.object({
-    from: z.iso
-        .datetime({ offset: true })
-        .describe('ISO 8601 inclusive effective due-time boundary'),
-    limit: z
-        .int()
-        .positive()
-        .max(8192)
-        .optional()
-        .describe('Defaults to 128'),
-    withCompleted: z
-        .boolean()
-        .optional()
-        .default(false)
-        .describe('Include completed; defaults to false'),
-})
+export const getDeadlinesInputSchema = z
+    .object({
+        from: z.iso
+            .datetime({ offset: true })
+            .describe('ISO 8601 inclusive effective due-time boundary'),
+        to: z.iso
+            .datetime({ offset: true })
+            .describe('ISO 8601 exclusive effective due-time boundary'),
+        limit: z
+            .int()
+            .positive()
+            .max(64)
+            .optional()
+            .describe('Defaults to 32'),
+        withCompleted: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe('Include completed; defaults to false'),
+    })
+    .refine(
+        ({ from, to }) => new Date(to) > new Date(from),
+        { message: 'to must be later than from', path: ['to'] },
+    )
 
 export const getDeadlinesOutputSchema = z
     .array(resolvedDeadlineSchema)
@@ -30,10 +38,11 @@ export const getDeadlinesOutputSchema = z
 
 export const getDeadlines: ToolCallback<
     typeof getDeadlinesInputSchema
-> = async ({ from, limit, withCompleted }) => {
+> = async ({ from, to, limit, withCompleted }) => {
     const deadlines = await getResolvedDeadlines({
         from: DateTime.fromISO(from, { setZone: true }),
-        limit,
+        to: DateTime.fromISO(to, { setZone: true }),
+        limit: Math.min((limit ?? 32), 64),
         withCompleted,
     })
     return toToolResponse(deadlines.map(serializeMcpResolvedDeadline))

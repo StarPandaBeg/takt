@@ -21,14 +21,12 @@ export const searchDeadlinesInputSchema = z
                 'ISO 8601 exclusive master due; occurrences are not expanded',
             ),
         query: z.string().trim().min(1).optional(),
-        limit: z.int().positive().max(8192).optional(),
+        limit: z.int().positive().max(64).optional(),
         withCompleted: z
             .boolean()
             .optional()
             .default(false)
-            .describe(
-                'Include completed; cancelled masters remain excluded',
-            ),
+            .describe('Include completed; cancelled masters remain excluded'),
     })
     .refine(
         ({ from, to }) =>
@@ -49,7 +47,7 @@ export const searchDeadlines: ToolCallback<
         ...(from === undefined ? {} : { from: new Date(from) }),
         ...(to === undefined ? {} : { to: new Date(to) }),
         ...(query === undefined ? {} : { query }),
-        ...(limit === undefined ? {} : { limit }),
+        ...(limit === undefined ? {} : { limit: Math.min(limit, 64) }),
         withCompleted,
     })
     return toToolResponse(deadlines.map(serializeMcpDeadlineEntity))

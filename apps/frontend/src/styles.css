@@ -494,6 +494,9 @@ h2 {
     margin-bottom: 3px;
 }
 .mini-calendar__toolbar strong {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 14px;
     font-weight: 600;
     text-transform: capitalize;
@@ -1504,6 +1507,7 @@ h2 {
     box-shadow: 0 1px 2px rgb(28 30 27 / 8%);
 }
 .full-calendar-viewport {
+    position: relative;
     min-height: 0;
     flex: 1 1 auto;
     overflow: auto;
@@ -1519,6 +1523,23 @@ h2 {
     --fc-classic-background: #ffffff;
     --fc-classic-foreground: var(--ink);
     --fc-classic-muted-foreground: var(--muted);
+}
+.full-calendar-viewport.is-loading > div:first-child {
+    opacity: 0.45;
+}
+.calendar-loading-overlay {
+    position: absolute;
+    z-index: 20;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgb(255 255 255 / 72%);
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+    backdrop-filter: blur(1px);
 }
 .full-calendar-viewport > div {
     height: 100%;

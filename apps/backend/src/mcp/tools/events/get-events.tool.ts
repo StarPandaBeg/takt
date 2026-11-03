@@ -14,7 +14,7 @@ export const getEventsInputSchema = z
         end: z.iso
             .datetime({ offset: true })
             .describe('ISO 8601 exclusive range end'),
-        limit: z.int().positive().max(8192).optional(),
+        limit: z.int().positive().max(64).optional(),
     })
     .refine(({ start, end }) => new Date(end) > new Date(start), {
         message: 'end must be later than start',
@@ -30,7 +30,7 @@ export const getEvents: ToolCallback<typeof getEventsInputSchema> = async ({
     const events = await getResolvedEvents({
         from: DateTime.fromISO(start, { setZone: true }),
         to: DateTime.fromISO(end, { setZone: true }),
-        limit,
+        limit: Math.min(limit ?? 32, 64),
     })
     const result = events.map(serializeMcpResolvedEvent)
 

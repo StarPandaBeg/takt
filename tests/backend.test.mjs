@@ -62,7 +62,7 @@ const { createDeadline } =
     )
 const { getDeadline } =
     await import('../apps/backend/dist/mcp/tools/deadlines/get-deadline.tool.js')
-const { getDeadlines } =
+const { getDeadlines, getDeadlinesInputSchema } =
     await import(
         '../apps/backend/dist/mcp/tools/deadlines/get-deadlines.tool.js'
     )
@@ -109,6 +109,29 @@ test('MCP entity IDs require the matching lowercase prefix', async () => {
     await assert.rejects(getEvent({ id: 'deadline:123' }))
     await assert.rejects(getDeadline({ id: 'note:456' }))
     await assert.rejects(getNote({ id: 'event:789' }))
+})
+
+test('MCP deadline range requires to to be later than from', () => {
+    assert.equal(
+        getDeadlinesInputSchema.safeParse({
+            from: '2026-11-04T00:00:00+03:00',
+            to: '2026-11-05T00:00:00+03:00',
+        }).success,
+        true,
+    )
+    assert.equal(
+        getDeadlinesInputSchema.safeParse({
+            from: '2026-11-04T00:00:00+03:00',
+            to: '2026-11-03T00:00:00+03:00',
+        }).success,
+        false,
+    )
+    assert.equal(
+        getDeadlinesInputSchema.safeParse({
+            from: '2026-11-04T00:00:00+03:00',
+        }).success,
+        false,
+    )
 })
 
 test('backend exposes a health check', async () => {
@@ -423,6 +446,22 @@ test('deadline API stores an iCalendar-compatible recurrence rule', async () => 
             count: 12,
         })
 
+        response = await app.inject({
+            method: 'GET',
+            url: '/api/deadlines/occurrences?from=2026-10-20T00:00:00%2B03:00&to=2026-11-01T00:00:00%2B03:00&withCompleted=true',
+        })
+        assert.equal(response.statusCode, 200, response.body)
+        assert.equal(response.json().length, 2)
+        assert.ok(
+            response
+                .json()
+                .every(
+                    (deadline) =>
+                        deadline.due >= '2026-10-19T21:00:00.000Z' &&
+                        deadline.due < '2026-10-31T21:00:00.000Z',
+                ),
+        )
+
         const recurrenceId = '2026-10-21T06:00:00.000Z'
         const occurrenceUrl = `/api/deadlines/${id}/occurrences/${encodeURIComponent(recurrenceId)}`
         response = await app.inject({
@@ -527,13 +566,14 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
 
     let occurrences = await getDeadlines({
         from: '2026-11-16T00:00:00+03:00',
+        to: '2026-11-18T00:00:00+03:00',
         limit: 8,
         withCompleted: false,
     })
     let ownOccurrences = occurrences.structuredContent.filter(
         (deadline) => deadline.id === id,
     )
-    assert.equal(ownOccurrences.length, 4)
+    assert.equal(ownOccurrences.length, 2)
     assert.equal(
         ownOccurrences[1].recurrenceId,
         '2026-11-17T15:00:00.000Z',
@@ -571,6 +611,7 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
     })
     occurrences = await getDeadlines({
         from: '2026-11-17T00:00:00+03:00',
+        to: '2026-11-22T00:00:00+03:00',
         limit: 8,
         withCompleted: false,
     })
@@ -586,6 +627,7 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
     )
     occurrences = await getDeadlines({
         from: '2026-11-17T00:00:00+03:00',
+        to: '2026-11-22T00:00:00+03:00',
         limit: 8,
         withCompleted: true,
     })

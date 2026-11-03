@@ -13,6 +13,7 @@ import type {
     UpdateEventPayload,
     UpdateNotePayload,
 } from '../types/api'
+import type { OccurrenceRange } from '../lib/date'
 
 export interface TaktContextValue {
     // Данные
@@ -30,8 +31,8 @@ export interface TaktContextValue {
 
     // Методы обновления
     refreshAll: () => Promise<void>
-    refreshEvents: () => Promise<void>
-    refreshDeadlines: () => Promise<void>
+    refreshEvents: (range?: OccurrenceRange) => Promise<void>
+    refreshDeadlines: (range?: OccurrenceRange) => Promise<void>
     refreshNotes: () => Promise<void>
     refreshScreen: () => void
     clearError: () => void

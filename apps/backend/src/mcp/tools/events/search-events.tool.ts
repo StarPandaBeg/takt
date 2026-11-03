@@ -16,7 +16,7 @@ export const searchEventsInputSchema = z
             .optional()
             .describe('ISO 8601 exclusive master start'),
         query: z.string().trim().min(1).optional(),
-        limit: z.int().positive().max(8192).optional(),
+        limit: z.int().positive().max(64).optional(),
     })
     .refine(
         ({ from, to }) =>
@@ -38,7 +38,7 @@ export const searchEvents: ToolCallback<
         from: from === undefined ? undefined : new Date(from),
         to: to === undefined ? undefined : new Date(to),
         query,
-        limit,
+        limit: Math.min(limit ?? 32, 64),
     })
     return toToolResponse(events.map(serializeMcpEventEntity))
 }
