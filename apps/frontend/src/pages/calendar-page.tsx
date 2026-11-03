@@ -14,6 +14,7 @@ import {
     PanelRight,
     PanelRightClose,
     Plus,
+    RefreshCw,
     Repeat,
     Trash2,
     Undo2,
@@ -26,8 +27,9 @@ import { ErrorBanner } from '../components/common/error-banner'
 import { DeadlineDialog } from '../components/deadlines/deadline-dialog'
 import { EventDialog } from '../components/events/event-dialog'
 import { PageHeader } from '../components/page-header'
-import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
+import { useToast } from '../context/use-toast'
 import { useApplicationToday } from '../hooks/use-application-today'
+import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
 import {
     buildIsoDateTime,
     eventTime,
@@ -95,6 +97,8 @@ export function CalendarPage() {
         settings,
         error,
         refreshAll,
+        refreshEvents,
+        refreshDeadlines,
         clearError,
         createEvent,
         updateEvent,
@@ -106,6 +110,26 @@ export function CalendarPage() {
         cancelDeadline,
         deleteDeadline,
     } = useTakt()
+    const toast = useToast()
+    const [isRefreshing, setIsRefreshing] = useState(false)
+
+    const handleRefresh = async () => {
+        if (isRefreshing) return
+
+        setIsRefreshing(true)
+        try {
+            await Promise.all([refreshEvents(), refreshDeadlines()])
+            clearError()
+        } catch (err: unknown) {
+            toast.error(
+                err instanceof Error
+                    ? err.message
+                    : 'Не удалось обновить данные календаря',
+            )
+        } finally {
+            setIsRefreshing(false)
+        }
+    }
 
     const timezone = settings.timezone
     const isMobileCalendar = useSyncExternalStore(
@@ -633,7 +657,31 @@ export function CalendarPage() {
         <div
             className={`page calendar-page ${section === 'calendar' ? 'is-calendar-view' : 'is-deadlines-view'}`}
         >
-            <PageHeader eyebrow="" title="Календарь" />
+            <PageHeader
+                eyebrow=""
+                title="Календарь"
+                action={
+                    <button
+                        className="button"
+                        type="button"
+                        disabled={isRefreshing}
+                        onClick={() => {
+                            void handleRefresh()
+                        }}
+                    >
+                        {isRefreshing ? (
+                            <Loader2
+                                size={16}
+                                className="spin-animation"
+                                aria-hidden="true"
+                            />
+                        ) : (
+                            <RefreshCw size={16} aria-hidden="true" />
+                        )}
+                        {isRefreshing ? 'Обновление…' : 'Обновить'}
+                    </button>
+                }
+            />
 
             {error && (
                 <ErrorBanner
