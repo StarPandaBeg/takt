@@ -42,6 +42,11 @@ jobs:
               with:
                   persist-credentials: false
 
+            - name: Read commit date
+              id: commit
+              shell: bash
+              run: echo "date=$(git show -s --format=%cI HEAD)" >> "$GITHUB_OUTPUT"
+
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v4
 
@@ -52,7 +57,9 @@ jobs:
                   file: ${{ matrix.app.file }}
                   platforms: linux/amd64
                   push: false
-                  build-args: ${{ matrix.app.build_args }}
+                  build-args: |
+                      ${{ matrix.app.build_args }}
+                      ${{ matrix.app.name == 'frontend' && format('VITE_COMMIT_DATE={0}', steps.commit.outputs.date) || '' }}
                   cache-from: type=gha,scope=${{ matrix.app.cache-scope }}-pr-${{ github.event.pull_request.number }}
                   cache-to: type=gha,mode=max,scope=${{ matrix.app.cache-scope }}-pr-${{ github.event.pull_request.number }}
 
@@ -81,6 +88,11 @@ jobs:
               uses: actions/checkout@v7
               with:
                   persist-credentials: false
+
+            - name: Read commit date
+              id: commit
+              shell: bash
+              run: echo "date=$(git show -s --format=%cI HEAD)" >> "$GITHUB_OUTPUT"
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v4
@@ -115,7 +127,9 @@ jobs:
                   file: ${{ matrix.app.file }}
                   platforms: linux/amd64
                   push: true
-                  build-args: ${{ matrix.app.build_args }}
+                  build-args: |
+                      ${{ matrix.app.build_args }}
+                      ${{ matrix.app.name == 'frontend' && format('VITE_COMMIT_DATE={0}', steps.commit.outputs.date) || '' }}
                   tags: ${{ steps.metadata.outputs.tags }}
                   labels: ${{ steps.metadata.outputs.labels }}
                   cache-from: type=gha,scope=${{ matrix.app.cache-scope }}

@@ -9,6 +9,16 @@ const navigation = [
 
 const commitSha = (import.meta.env.VITE_COMMIT_SHA || 'dev').trim()
 const shortCommitSha = commitSha === 'dev' ? commitSha : commitSha.slice(0, 7)
+const commitDate = (import.meta.env.VITE_COMMIT_DATE || '').trim()
+const parsedCommitDate = new Date(commitDate)
+const formattedCommitDate =
+    commitSha !== 'dev' && !Number.isNaN(parsedCommitDate.getTime())
+        ? new Intl.DateTimeFormat('ru-RU', {
+              dateStyle: 'short',
+              timeStyle: 'short',
+          }).format(parsedCommitDate)
+        : null
+const commitLabel = `commit ${shortCommitSha}${formattedCommitDate === null ? '' : ` (${formattedCommitDate})`}`
 
 export function AppShell() {
     return (
@@ -71,9 +81,9 @@ export function AppShell() {
             <div
                 className="build-commit"
                 title={`Commit сборки: ${commitSha}`}
-                aria-label={`Commit сборки: ${commitSha}`}
+                aria-label={commitLabel}
             >
-                commit {shortCommitSha}
+                {commitLabel}
             </div>
         </div>
     )
