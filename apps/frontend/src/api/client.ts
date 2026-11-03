@@ -11,7 +11,9 @@ import type {
     EventEntity,
     EventOccurrenceListQuery,
     EventSearchQuery,
+    ListNotesQuery,
     Note,
+    PaginatedNotes,
     ResolvedDeadline,
     ResolvedEvent,
     ScreenChange,
@@ -46,7 +48,13 @@ export function setAuthToken(token: string): void {
     localStorage.setItem('takt_auth_token', token)
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+const inFlightGetRequests = new Map<string, Promise<unknown>>()
+let requestGeneration = 0
+
+async function executeRequestWithHeaders<T>(
+    path: string,
+    options: RequestInit,
+): Promise<{ data: T; headers: Headers }> {
     const headers = new Headers(options.headers)
 
     if (!headers.has('Accept')) {
@@ -61,7 +69,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
         headers.set('Content-Type', 'application/json')
     }
 
-    // GET /health не требует Bearer токена, остальные эндпоинты требуют
     if (!path.startsWith('/health')) {
         const token = getAuthToken()
         if (token) {
@@ -95,10 +102,42 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     }
 
     if (response.status === 204) {
-        return undefined as T
+        return { data: undefined as T, headers: response.headers }
     }
 
-    return (await response.json()) as T
+    const data = (await response.json()) as T
+    return { data, headers: response.headers }
+}
+
+async function executeRequest<T>(
+    path: string,
+    options: RequestInit,
+): Promise<T> {
+    const { data } = await executeRequestWithHeaders<T>(path, options)
+    return data
+}
+
+function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const method = (options.method ?? 'GET').toUpperCase()
+    if (method !== 'GET' || options.signal !== undefined) {
+        requestGeneration += 1
+        return executeRequest<T>(path, options).finally(() => {
+            requestGeneration += 1
+        })
+    }
+
+    const key = `${requestGeneration}\n${getAuthToken()}\n${path}`
+    const existing = inFlightGetRequests.get(key) as Promise<T> | undefined
+    if (existing !== undefined) return existing
+
+    const pending = executeRequest<T>(path, options)
+    const tracked = pending.finally(() => {
+        if (inFlightGetRequests.get(key) === tracked) {
+            inFlightGetRequests.delete(key)
+        }
+    })
+    inFlightGetRequests.set(key, tracked)
+    return tracked
 }
 
 function buildQuery(
@@ -126,13 +165,41 @@ export const api = {
 
     // --- Notes ---
     notes: {
-        list: (query: { limit?: number; withDone?: boolean } = {}) =>
+        list: (query: ListNotesQuery = {}) =>
             request<Note[]>(
                 `/api/notes${buildQuery({
                     limit: query.limit,
                     withDone: query.withDone,
+                    onlyDone: query.onlyDone,
+                    page: query.page,
+                    offset: query.offset,
+                    afterId: query.afterId,
                 })}`,
             ),
+
+        listWithPagination: async (
+            query: ListNotesQuery = {},
+        ): Promise<PaginatedNotes> => {
+            const path = `/api/notes${buildQuery({
+                limit: query.limit,
+                withDone: query.withDone,
+                onlyDone: query.onlyDone,
+                page: query.page,
+                offset: query.offset,
+                afterId: query.afterId,
+            })}`
+            const { data, headers } = await executeRequestWithHeaders<Note[]>(
+                path,
+                {},
+            )
+            const countHeader = headers.get('x-total-count')
+            const total =
+                countHeader !== null ? parseInt(countHeader, 10) : data.length
+            return {
+                notes: data,
+                total,
+            }
+        },
 
         get: (id: number) => request<Note | null>(`/api/notes/${id}`),
 

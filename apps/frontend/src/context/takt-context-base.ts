@@ -1,4 +1,5 @@
 import { createContext } from 'react'
+import type { OccurrenceRange } from '../lib/date'
 import type {
     ApplicationSettings,
     CancelDeadlinePayload,
@@ -13,7 +14,6 @@ import type {
     UpdateEventPayload,
     UpdateNotePayload,
 } from '../types/api'
-import type { OccurrenceRange } from '../lib/date'
 
 export interface TaktContextValue {
     // Данные

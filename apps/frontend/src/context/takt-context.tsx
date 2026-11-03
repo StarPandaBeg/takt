@@ -12,6 +12,7 @@ import {
     getTodayIso,
     type OccurrenceRange,
 } from '../lib/date'
+import { queryClient } from '../lib/query-client'
 import type {
     ApplicationSettings,
     CancelDeadlinePayload,
@@ -151,6 +152,8 @@ export function TaktProvider({ children }: PropsWithChildren) {
         const unsubscribe = api.screens.subscribe(
             () => {
                 setScreenRevision((revision) => revision + 1)
+                // Инвалидируем все кэши React Query при изменении экрана
+                void queryClient.invalidateQueries()
                 // При получении изменения экрана обновляем данные
                 void fetchSettings()
                     .then(() =>
@@ -183,7 +186,12 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.events.create(payload)
                 toast.success('Событие добавлено')
-                await fetchEvents()
+                await Promise.all([
+                    fetchEvents(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-events'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -202,7 +210,12 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.events.update(id, payload)
                 toast.success('Событие сохранено')
-                await fetchEvents()
+                await Promise.all([
+                    fetchEvents(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-events'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -221,7 +234,12 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.events.cancel(id, payload)
                 toast.success('Событие отменено')
-                await fetchEvents()
+                await Promise.all([
+                    fetchEvents(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-events'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -240,7 +258,12 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.events.delete(id)
                 toast.success('Событие удалено')
-                await fetchEvents()
+                await Promise.all([
+                    fetchEvents(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-events'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -260,7 +283,15 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.deadlines.create(payload)
                 toast.success('Дедлайн добавлен')
-                await fetchDeadlines()
+                await Promise.all([
+                    fetchDeadlines(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-deadlines'],
+                    }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['masterDeadlines'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -279,7 +310,15 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.deadlines.update(id, payload)
                 toast.success('Дедлайн обновлен')
-                await fetchDeadlines()
+                await Promise.all([
+                    fetchDeadlines(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-deadlines'],
+                    }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['masterDeadlines'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -337,7 +376,15 @@ export function TaktProvider({ children }: PropsWithChildren) {
                     recurrenceId: deadline.recurrenceId ?? undefined,
                     completed: nextCompleted,
                 })
-                await fetchDeadlines()
+                await Promise.all([
+                    fetchDeadlines(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-deadlines'],
+                    }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['masterDeadlines'],
+                    }),
+                ])
                 toast.success(
                     nextCompleted
                         ? 'Дедлайн выполнен'
@@ -362,7 +409,15 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.deadlines.cancel(id, payload)
                 toast.success('Дедлайн отменен')
-                await fetchDeadlines()
+                await Promise.all([
+                    fetchDeadlines(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-deadlines'],
+                    }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['masterDeadlines'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -381,7 +436,15 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.deadlines.delete(id)
                 toast.success('Дедлайн удален')
-                await fetchDeadlines()
+                await Promise.all([
+                    fetchDeadlines(),
+                    queryClient.invalidateQueries({
+                        queryKey: ['calendar-deadlines'],
+                    }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['masterDeadlines'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -401,7 +464,13 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.notes.create({ text })
                 toast.success('Заметка добавлена')
-                await fetchNotes()
+                await Promise.all([
+                    fetchNotes(),
+                    queryClient.invalidateQueries({ queryKey: ['notes'] }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['notes-count'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -420,7 +489,13 @@ export function TaktProvider({ children }: PropsWithChildren) {
             try {
                 await api.notes.update(id, payload)
                 toast.success('Заметка обновлена')
-                await fetchNotes()
+                await Promise.all([
+                    fetchNotes(),
+                    queryClient.invalidateQueries({ queryKey: ['notes'] }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['notes-count'],
+                    }),
+                ])
             } catch (err: unknown) {
                 const message =
                     err instanceof Error
@@ -455,7 +530,13 @@ export function TaktProvider({ children }: PropsWithChildren) {
                 } else {
                     await api.notes.markDone(note.id)
                 }
-                await fetchNotes()
+                await Promise.all([
+                    fetchNotes(),
+                    queryClient.invalidateQueries({ queryKey: ['notes'] }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['notes-count'],
+                    }),
+                ])
                 toast.success(
                     isCompleted ? 'Заметка возвращена' : 'Заметка выполнена',
                 )
@@ -486,7 +567,13 @@ export function TaktProvider({ children }: PropsWithChildren) {
 
             try {
                 await api.notes.markDone(id)
-                await fetchNotes()
+                await Promise.all([
+                    fetchNotes(),
+                    queryClient.invalidateQueries({ queryKey: ['notes'] }),
+                    queryClient.invalidateQueries({
+                        queryKey: ['notes-count'],
+                    }),
+                ])
             } catch (err: unknown) {
                 await fetchNotes()
                 const message =

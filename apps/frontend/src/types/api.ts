@@ -78,6 +78,15 @@ export interface UpdateNotePayload {
 export interface ListNotesQuery {
     limit?: number
     withDone?: boolean
+    onlyDone?: boolean
+    page?: number
+    offset?: number
+    afterId?: number
+}
+
+export interface PaginatedNotes {
+    notes: Note[]
+    total: number
 }
 
 // --- Events ---

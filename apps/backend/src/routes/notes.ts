@@ -6,6 +6,10 @@ import * as z from 'zod'
 const getAllQuerySchema = z.object({
     limit: z.coerce.number().int().positive().max(8192).optional(),
     withDone: z.stringbool().default(false),
+    onlyDone: z.stringbool().optional(),
+    page: z.coerce.number().int().positive().optional(),
+    offset: z.coerce.number().int().nonnegative().optional(),
+    afterId: z.coerce.number().int().positive().optional(),
 })
 const idSchema = z.object({
     id: z.coerce.number().int().positive(),
@@ -28,9 +32,18 @@ const editSchema = z
     )
 
 export const notesRoutes: FastifyPluginAsync = async (fastify) => {
-    fastify.get('/', async (req) => {
+    fastify.get('/', async (req, reply) => {
         const filters = getAllQuerySchema.parse(req.query)
-        return (await notes.getFiltered(filters)).map(serializeNote)
+        const [items, total] = await Promise.all([
+            notes.getFiltered(filters),
+            notes.countFiltered({
+                withDone: filters.withDone,
+                onlyDone: filters.onlyDone,
+            }),
+        ])
+        reply.header('x-total-count', total)
+        reply.header('access-control-expose-headers', 'x-total-count')
+        return items.map(serializeNote)
     })
 
     fastify.get('/:id', async (req) => {

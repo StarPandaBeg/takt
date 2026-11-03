@@ -1535,11 +1535,10 @@ h2 {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    background: rgb(255 255 255 / 72%);
+    background: rgb(255 255 255 / 85%);
     color: var(--muted);
     font-size: 14px;
     font-weight: 600;
-    backdrop-filter: blur(1px);
 }
 .full-calendar-viewport > div {
     height: 100%;
@@ -1904,6 +1903,53 @@ h2 {
     padding: 28px 4px;
     color: var(--muted);
     font-size: 14px;
+}
+.notes-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 6px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+}
+.notes-pagination__controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.notes-pagination__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.notes-pagination__button:hover:not(:disabled) {
+    background: var(--surface-muted);
+}
+.notes-pagination__button.is-active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+.notes-pagination__button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.notes-pagination__info {
+    font-size: 13px;
+    color: var(--muted);
 }
 .notes-layout {
     display: grid;

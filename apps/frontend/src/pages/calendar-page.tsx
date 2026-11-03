@@ -35,6 +35,7 @@ import { EventDialog } from '../components/events/event-dialog'
 import { PageHeader } from '../components/page-header'
 import { useToast } from '../context/use-toast'
 import { useApplicationToday } from '../hooks/use-application-today'
+import { useCalendarPagination } from '../hooks/use-calendar-pagination'
 import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
 import {
     buildIsoDateTime,
@@ -44,11 +45,9 @@ import {
     formatDeadlineDue,
     formatLongDate,
     formatMonth,
-    getCalendarViewOccurrenceRange,
     getTodayIso,
     parseIsoDate,
     toIsoDate,
-    type OccurrenceRange,
 } from '../lib/date'
 import { formatRecurrenceRule } from '../lib/recurrence-format'
 import type {
@@ -75,9 +74,7 @@ function timeFromDate(date: Date, timezone: string) {
 
 const mobileCalendarQuery = '(max-width: 820px)'
 
-function subscribeToMobileCalendar(
-    onStoreChange: () => void,
-): () => void {
+function subscribeToMobileCalendar(onStoreChange: () => void): () => void {
     const media = window.matchMedia(mobileCalendarQuery)
     media.addEventListener('change', onStoreChange)
     return () => media.removeEventListener('change', onStoreChange)
@@ -99,14 +96,10 @@ function calendarDateTimeToUtc(
 
 export function CalendarPage() {
     const {
-        events,
-        deadlines,
         masterDeadlines,
         settings,
-        error,
+        error: taktError,
         refreshAll,
-        refreshEvents,
-        refreshDeadlines,
         clearError,
         createEvent,
         updateEvent,
@@ -119,42 +112,47 @@ export function CalendarPage() {
         deleteDeadline,
     } = useTakt()
     const toast = useToast()
-    const [isCalendarLoading, setIsCalendarLoading] = useState(false)
-    const calendarRangeRef = useRef<OccurrenceRange | null>(null)
-    const calendarRequestRef = useRef(0)
-
-    const refreshCalendarRange = useCallback(
-        async (range?: OccurrenceRange) => {
-            const effectiveRange = range ?? calendarRangeRef.current
-            if (effectiveRange === null) return
-
-            calendarRangeRef.current = effectiveRange
-            const requestId = ++calendarRequestRef.current
-            setIsCalendarLoading(true)
-            try {
-                await Promise.all([
-                    refreshEvents(effectiveRange),
-                    refreshDeadlines(effectiveRange),
-                ])
-                if (requestId === calendarRequestRef.current) clearError()
-            } catch (err: unknown) {
-                if (requestId === calendarRequestRef.current) {
-                    toast.error(
-                        err instanceof Error
-                            ? err.message
-                            : 'Не удалось обновить данные календаря',
-                    )
-                }
-            } finally {
-                if (requestId === calendarRequestRef.current) {
-                    setIsCalendarLoading(false)
-                }
-            }
-        },
-        [clearError, refreshDeadlines, refreshEvents, toast],
-    )
-
     const timezone = settings.timezone
+    const [params] = useSearchParams()
+    const initialToday = getTodayIso(timezone)
+    const initialDate = params.get('date') ?? initialToday
+    const [selectedDate, setSelectedDate] = useState(initialDate)
+    const [activeCalendarDate, setActiveCalendarDate] = useState(initialDate)
+    const [calendarTitle, setCalendarTitle] = useState(() =>
+        formatMonth(parseIsoDate(initialDate)),
+    )
+    const [calendarView, setCalendarView] =
+        useState<CalendarView>('dayGridMonth')
+
+    const {
+        events,
+        deadlines,
+        isCalendarLoading,
+        error: calendarPaginationError,
+        refetch: refetchCalendar,
+    } = useCalendarPagination({
+        view: calendarView,
+        date: activeCalendarDate,
+        timezone,
+    })
+
+    const [isRefreshing, setIsRefreshing] = useState(false)
+    const handleRefresh = useCallback(async () => {
+        setIsRefreshing(true)
+        try {
+            await refetchCalendar()
+            clearError()
+        } catch (err: unknown) {
+            toast.error(
+                err instanceof Error
+                    ? err.message
+                    : 'Не удалось обновить данные календаря',
+            )
+        } finally {
+            setIsRefreshing(false)
+        }
+    }, [clearError, refetchCalendar, toast])
+
     const isMobileCalendar = useSyncExternalStore(
         subscribeToMobileCalendar,
         getMobileCalendarSnapshot,
@@ -166,25 +164,14 @@ export function CalendarPage() {
         dateStr: string
         timestamp: number
     } | null>(null)
-    const [params] = useSearchParams()
-    const initialToday = getTodayIso(timezone)
-    const initialDate = params.get('date') ?? initialToday
-    const [selectedDate, setSelectedDate] = useState(initialDate)
-    const [calendarTitle, setCalendarTitle] = useState(() =>
-        formatMonth(parseIsoDate(initialDate)),
-    )
-    const [calendarView, setCalendarView] =
-        useState<CalendarView>('dayGridMonth')
-    const today = useApplicationToday(
-        timezone,
-        (nextToday, previousToday) => {
-            if (selectedDate === previousToday) {
-                setSelectedDate(nextToday)
-                calendarRef.current?.getApi().gotoDate(nextToday)
-            }
-            void refreshAll()
-        },
-    )
+    const error = taktError ?? calendarPaginationError
+    const today = useApplicationToday(timezone, (nextToday, previousToday) => {
+        if (selectedDate === previousToday) {
+            setSelectedDate(nextToday)
+            calendarRef.current?.getApi().gotoDate(nextToday)
+        }
+        void refreshAll()
+    })
     const sectionParam = params.get('section')
     const [userSection, setUserSection] = useState<Section | null>(null)
     const section: Section =
@@ -424,6 +411,8 @@ export function CalendarPage() {
 
     // Группировка дедлайнов по сериям для вкладки списка дедлайнов
     const groupedDeadlines = useMemo(() => {
+        if (section !== 'deadlines') return []
+
         const masterMap = new Map<number, DeadlineEntity>()
         for (const m of masterDeadlines) {
             masterMap.set(m.id, m)
@@ -617,10 +606,11 @@ export function CalendarPage() {
         })
 
         return items
-    }, [masterDeadlines, deadlines, today, timezone])
+    }, [masterDeadlines, deadlines, today, timezone, section])
 
     // Фильтрация сгруппированных дедлайнов (строго по рассчитанному статусу выполнения)
     const filteredGroupedDeadlines = useMemo(() => {
+        if (section !== 'deadlines') return []
         return groupedDeadlines.filter((item) => {
             const isDone = item.isComplete || item.activeOccurrence.completed
             if (deadlineFilter === 'active') {
@@ -631,10 +621,13 @@ export function CalendarPage() {
             }
             return true
         })
-    }, [groupedDeadlines, deadlineFilter])
+    }, [groupedDeadlines, deadlineFilter, section])
 
     // Точные счётчики дедлайнов (строго соответствуют количеству элементов в каждом фильтре)
     const deadlineCounts = useMemo(() => {
+        if (section !== 'deadlines') {
+            return { all: masterDeadlines.length, active: 0, completed: 0 }
+        }
         let all = 0
         let active = 0
         let completed = 0
@@ -650,7 +643,7 @@ export function CalendarPage() {
         }
 
         return { all, active, completed }
-    }, [groupedDeadlines])
+    }, [groupedDeadlines, masterDeadlines.length, section])
 
     const openEventDraft = (draft: EventDraft) => {
         setSelectedDate(draft.date)
@@ -662,13 +655,11 @@ export function CalendarPage() {
         const calendarApi = calendarRef.current?.getApi()
         if (!calendarApi) return
         calendarApi[direction]()
-        setSelectedDate(toIsoDate(calendarApi.getDate()))
     }
 
     const goToday = () => {
         const calendarApi = calendarRef.current?.getApi()
         calendarApi?.today()
-        setSelectedDate(today)
     }
 
     const changeView = (view: CalendarView) => {
@@ -687,12 +678,12 @@ export function CalendarPage() {
                     <button
                         className="button"
                         type="button"
-                        disabled={isCalendarLoading}
+                        disabled={isCalendarLoading || isRefreshing}
                         onClick={() => {
-                            void refreshCalendarRange()
+                            void handleRefresh()
                         }}
                     >
-                        {isCalendarLoading ? (
+                        {isCalendarLoading || isRefreshing ? (
                             <Loader2
                                 size={16}
                                 className="spin-animation"
@@ -701,7 +692,9 @@ export function CalendarPage() {
                         ) : (
                             <RefreshCw size={16} aria-hidden="true" />
                         )}
-                        {isCalendarLoading ? 'Обновление…' : 'Обновить'}
+                        {isCalendarLoading || isRefreshing
+                            ? 'Обновление…'
+                            : 'Обновить'}
                     </button>
                 }
             />
@@ -840,9 +833,19 @@ export function CalendarPage() {
                         </header>
 
                         <div
-                            className={`full-calendar-viewport${isCalendarLoading ? ' is-loading' : ''}`}
-                            aria-busy={isCalendarLoading}
+                            className={`full-calendar-viewport${isCalendarLoading || isRefreshing ? ' is-loading' : ''}`}
+                            aria-busy={isCalendarLoading || isRefreshing}
                         >
+                            {(isCalendarLoading || isRefreshing) && (
+                                <div className="calendar-loading-overlay">
+                                    <Loader2
+                                        size={20}
+                                        className="spin-animation"
+                                        aria-hidden="true"
+                                    />
+                                    <span>Загрузка данных…</span>
+                                </div>
+                            )}
                             <FullCalendar
                                 ref={calendarRef}
                                 timeZone={timezone}
@@ -888,14 +891,11 @@ export function CalendarPage() {
                                     setCalendarTitle(info.view.title)
                                     const view = info.view.type as CalendarView
                                     setCalendarView(view)
-                                    void refreshCalendarRange(
-                                        getCalendarViewOccurrenceRange(
-                                            toIsoDate(info.view.currentStart),
-                                            toIsoDate(info.view.currentEnd),
-                                            view,
-                                            timezone,
-                                        ),
+                                    const nextDate = toIsoDate(
+                                        info.view.currentStart,
                                     )
+                                    setActiveCalendarDate(nextDate)
+                                    setSelectedDate(nextDate)
                                 }}
                                 dayCellClass={(info) =>
                                     toIsoDate(info.date) === selectedDate
@@ -952,10 +952,12 @@ export function CalendarPage() {
                                     if (isMobileCalendar) {
                                         const raw =
                                             ext.kind === 'deadline'
-                                                ? (ext.rawDeadline as ResolvedDeadline)
-                                                      .due
-                                                : (ext.rawEvent as ResolvedEvent)
-                                                      .start
+                                                ? (
+                                                      ext.rawDeadline as ResolvedDeadline
+                                                  ).due
+                                                : (
+                                                      ext.rawEvent as ResolvedEvent
+                                                  ).start
                                         setSelectedDate(
                                             extractDateString(raw, timezone),
                                         )
@@ -1581,10 +1583,7 @@ export function CalendarPage() {
                     initialDate={
                         eventDraft?.date ??
                         (editingEvent
-                            ? extractDateString(
-                                  editingEvent.start,
-                                  timezone,
-                              )
+                            ? extractDateString(editingEvent.start, timezone)
                             : selectedDate)
                     }
                     initialStart={eventDraft?.start}

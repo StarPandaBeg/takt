@@ -41,10 +41,13 @@ export function useApplicationToday(
 
         const scheduleRollover = () => {
             if (timer !== undefined) clearTimeout(timer)
-            timer = setTimeout(() => {
-                refreshToday()
-                scheduleRollover()
-            }, millisecondsUntilNextDay(timezone) + 250)
+            timer = setTimeout(
+                () => {
+                    refreshToday()
+                    scheduleRollover()
+                },
+                millisecondsUntilNextDay(timezone) + 250,
+            )
         }
 
         const handleVisibilityChange = () => {

@@ -88,9 +88,7 @@ export function EventDialog({
 
         const startIso = buildIsoDateTime(date, start, allDay, timezone)
         const endIso =
-            !allDay && end
-                ? buildIsoDateTime(date, end, false, timezone)
-                : null
+            !allDay && end ? buildIsoDateTime(date, end, false, timezone) : null
 
         if (endIso && endIso < startIso) {
             setFormError('Время окончания не может быть раньше времени начала')

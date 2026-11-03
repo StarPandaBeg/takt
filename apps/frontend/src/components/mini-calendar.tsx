@@ -1,11 +1,6 @@
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 
-import {
-    formatMonth,
-    getCalendarDays,
-    toIsoDate,
-    weekDays,
-} from '../lib/date'
+import { formatMonth, getCalendarDays, toIsoDate, weekDays } from '../lib/date'
 
 interface Props {
     today: string

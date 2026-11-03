@@ -11,7 +11,7 @@ import {
     StickyNote,
     Undo2,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ErrorBanner } from '../components/common/error-banner'
@@ -22,16 +22,15 @@ import { EventDialog } from '../components/events/event-dialog'
 import { MiniCalendar } from '../components/mini-calendar'
 import { NoteDialog } from '../components/notes/note-dialog'
 import { PageHeader } from '../components/page-header'
-import { useToast } from '../context/use-toast'
+import { useApplicationToday } from '../hooks/use-application-today'
+import { useCalendarPagination } from '../hooks/use-calendar-pagination'
 import { useDelayedDeadlineCompletion } from '../hooks/use-delayed-deadline-completion'
 import { useDelayedNoteCompletion } from '../hooks/use-delayed-note-completion'
-import { useApplicationToday } from '../hooks/use-application-today'
 import {
     eventTime,
     extractDateString,
     formatDeadlineDue,
     formatLongDate,
-    getMonthOccurrenceRange,
     getTodayIso,
     parseIsoDate,
     toIsoDate,
@@ -41,8 +40,6 @@ import { useTakt } from '../use-app'
 
 export function DashboardPage() {
     const {
-        events,
-        deadlines,
         masterDeadlines,
         notes,
         settings,
@@ -51,8 +48,6 @@ export function DashboardPage() {
         isServerConnected,
         screenRevision,
         refreshAll,
-        refreshEvents,
-        refreshDeadlines,
         refreshScreen,
         clearError,
         createEvent,
@@ -67,7 +62,6 @@ export function DashboardPage() {
         createNote,
         toggleNote,
     } = useTakt()
-    const toast = useToast()
 
     const timezone = settings.timezone
     const initialToday = getTodayIso(timezone)
@@ -75,45 +69,12 @@ export function DashboardPage() {
     const [visibleMonth, setVisibleMonth] = useState(() =>
         parseIsoDate(initialToday),
     )
-    const [isCalendarLoading, setIsCalendarLoading] = useState(false)
-    const calendarRequestRef = useRef(0)
 
-    const loadCalendarMonth = useCallback(
-        async (month: Date) => {
-            const requestId = ++calendarRequestRef.current
-            const range = getMonthOccurrenceRange(
-                toIsoDate(month),
-                timezone,
-            )
-            setIsCalendarLoading(true)
-            try {
-                await Promise.all([
-                    refreshEvents(range),
-                    refreshDeadlines(range),
-                ])
-            } catch (err: unknown) {
-                if (requestId === calendarRequestRef.current) {
-                    toast.error(
-                        err instanceof Error
-                            ? err.message
-                            : 'Не удалось обновить данные календаря',
-                    )
-                }
-            } finally {
-                if (requestId === calendarRequestRef.current) {
-                    setIsCalendarLoading(false)
-                }
-            }
-        },
-        [refreshDeadlines, refreshEvents, timezone, toast],
-    )
-
-    useEffect(() => {
-        const timer = window.setTimeout(() => {
-            void loadCalendarMonth(visibleMonth)
-        }, 0)
-        return () => window.clearTimeout(timer)
-    }, [loadCalendarMonth, visibleMonth])
+    const { events, deadlines, isCalendarLoading } = useCalendarPagination({
+        view: 'dayGridMonth',
+        date: toIsoDate(visibleMonth),
+        timezone,
+    })
 
     const changeVisibleMonth = (month: Date) => {
         if (
@@ -124,16 +85,13 @@ export function DashboardPage() {
         }
         setVisibleMonth(month)
     }
-    const today = useApplicationToday(
-        timezone,
-        (nextToday, previousToday) => {
-            if (selectedDate === previousToday) {
-                setSelectedDate(nextToday)
-                changeVisibleMonth(parseIsoDate(nextToday))
-            }
-            void refreshAll()
-        },
-    )
+    const today = useApplicationToday(timezone, (nextToday, previousToday) => {
+        if (selectedDate === previousToday) {
+            setSelectedDate(nextToday)
+            changeVisibleMonth(parseIsoDate(nextToday))
+        }
+        void refreshAll()
+    })
     const [quickMenuOpen, setQuickMenuOpen] = useState(false)
     const [creating, setCreating] = useState<CreateKind | null>(null)
     const [editingEvent, setEditingEvent] = useState<ResolvedEvent | null>(null)
@@ -154,9 +112,7 @@ export function DashboardPage() {
     const eventDates = useMemo(
         () =>
             new Set(
-                events.map((event) =>
-                    extractDateString(event.start, timezone),
-                ),
+                events.map((event) => extractDateString(event.start, timezone)),
             ),
         [events, timezone],
     )

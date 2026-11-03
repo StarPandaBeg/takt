@@ -64,21 +64,47 @@ export function getCalendarDays(month: Date): Date[] {
     )
 }
 
+const dateStringCache = new Map<string, string>()
+const timeStringCache = new Map<string, string>()
+const MAX_DATE_CACHE_SIZE = 3000
+
 export function extractDateString(isoString: string, timezone: string): string {
     if (!isoString) return getTodayIso(timezone)
     if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) return isoString
-    return Temporal.Instant.from(isoString)
+
+    const cacheKey = `${isoString}|${timezone}`
+    const cached = dateStringCache.get(cacheKey)
+    if (cached !== undefined) return cached
+
+    const result = Temporal.Instant.from(isoString)
         .toZonedDateTimeISO(timezone)
         .toPlainDate()
         .toString()
+
+    if (dateStringCache.size > MAX_DATE_CACHE_SIZE) {
+        dateStringCache.clear()
+    }
+    dateStringCache.set(cacheKey, result)
+    return result
 }
 
 export function extractTimeString(isoString: string, timezone: string): string {
     if (!isoString) return '09:00'
+
+    const cacheKey = `${isoString}|${timezone}`
+    const cached = timeStringCache.get(cacheKey)
+    if (cached !== undefined) return cached
+
     const time = Temporal.Instant.from(isoString)
         .toZonedDateTimeISO(timezone)
         .toPlainTime()
-    return `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`
+    const result = `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`
+
+    if (timeStringCache.size > MAX_DATE_CACHE_SIZE) {
+        timeStringCache.clear()
+    }
+    timeStringCache.set(cacheKey, result)
+    return result
 }
 
 /** Converts application-local wall time to the UTC transport representation. */
