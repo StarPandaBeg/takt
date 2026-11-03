@@ -23,13 +23,14 @@ export interface DeadlineFilters {
     readonly to?: Date | undefined
     readonly limit?: number | undefined
     readonly withCompleted?: boolean | undefined
+    readonly withCancelled?: boolean | undefined
     readonly query?: string | undefined
 }
 
 export const getFiltered = async (
     filters: DeadlineFilters,
 ): Promise<Deadline[]> => {
-    const conditions = [isNull(deadlinesTable.cancelledAt)]
+    const conditions = filters.withCancelled ? [] : [isNull(deadlinesTable.cancelledAt)]
     if (filters.from !== undefined) {
         conditions.push(
             or(
@@ -66,15 +67,16 @@ export const getFiltered = async (
 export const getScheduleCandidates = async (
     from: Date,
     withCompleted = false,
+    withCancelled = false,
 ): Promise<Deadline[]> => {
     const conditions = [
-        isNull(deadlinesTable.cancelledAt),
+        withCancelled ? undefined : isNull(deadlinesTable.cancelledAt),
         or(
             gte(deadlinesTable.due, from),
             isNotNull(deadlinesTable.recurrenceRule),
             eq(deadlinesTable.visibilityHide, 'on_complete'),
         )!,
-    ]
+    ].filter((c): c is NonNullable<typeof c> => c !== undefined)
     void withCompleted
     return await db
         .select()
@@ -184,6 +186,13 @@ export async function cancel(
         .where(
             and(eq(deadlinesTable.id, id), isNull(deadlinesTable.cancelledAt)),
         )
+}
+
+export async function restore(id: Deadline['id']): Promise<void> {
+    await db
+        .update(deadlinesTable)
+        .set({ cancelledAt: null })
+        .where(eq(deadlinesTable.id, id))
 }
 
 export async function truncate(

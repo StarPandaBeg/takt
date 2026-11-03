@@ -697,6 +697,43 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
         scope: 'occurrence',
         recurrenceId: '2026-11-18T15:00:00.000Z',
     })
+    let dlOccurrences = await getDeadlines({
+        from: '2026-11-18T00:00:00+03:00',
+        to: '2026-11-19T00:00:00+03:00',
+        withCancelled: false,
+    })
+    let foundDl = flattenDeadlineGroups(dlOccurrences.structuredContent).filter(
+        (d) => d.id === futureId,
+    )
+    assert.equal(foundDl.length, 0)
+
+    dlOccurrences = await getDeadlines({
+        from: '2026-11-18T00:00:00+03:00',
+        to: '2026-11-19T00:00:00+03:00',
+        withCancelled: true,
+    })
+    foundDl = flattenDeadlineGroups(dlOccurrences.structuredContent).filter(
+        (d) => d.id === futureId,
+    )
+    assert.equal(foundDl.length, 1)
+    assert.equal(foundDl[0].cancelled, true)
+
+    await updateDeadlineTool({
+        id: futureId,
+        scope: 'occurrence',
+        recurrenceId: '2026-11-18T15:00:00.000Z',
+        changes: { restore: true },
+    })
+    dlOccurrences = await getDeadlines({
+        from: '2026-11-18T00:00:00+03:00',
+        to: '2026-11-19T00:00:00+03:00',
+    })
+    foundDl = flattenDeadlineGroups(dlOccurrences.structuredContent).filter(
+        (d) => d.id === futureId,
+    )
+    assert.equal(foundDl.length, 1)
+    assert.equal(foundDl[0].cancelled, undefined)
+
     await cancelDeadlineTool({ id: futureId, scope: 'series' })
     const cancelled = await getDeadline({ id: futureId })
     assert.match(cancelled.structuredContent.cancelledAt, /Z$/)
@@ -705,6 +742,12 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
         withCompleted: true,
     })
     assert.deepEqual(found.structuredContent, [])
+    found = await searchDeadlines({
+        query: 'Future reports',
+        withCompleted: true,
+        withCancelled: true,
+    })
+    assert.equal(found.structuredContent.length, 1)
     await cancelDeadlineTool({ id, scope: 'series' })
 })
 
@@ -1262,6 +1305,38 @@ test('MCP cancel_event cancels one occurrence, this and future, and a series', a
             end: '2026-11-11T00:00:00+03:00',
         })
         assert.deepEqual(occurrences.structuredContent, [])
+        let cancelledOccurrences = await getEvents({
+            start: '2026-11-10T00:00:00+03:00',
+            end: '2026-11-11T00:00:00+03:00',
+            withCancelled: true,
+        })
+        let ownCancelled = flattenEventGroups(
+            cancelledOccurrences.structuredContent,
+        ).filter((e) => e.id === mcpId)
+        assert.equal(ownCancelled.length, 1)
+        assert.equal(ownCancelled[0].cancelled, true)
+
+        await updateEventTool({
+            id: mcpId,
+            scope: 'occurrence',
+            recurrenceId: '2026-11-10T07:00:00.000Z',
+            changes: { restore: true },
+        })
+        occurrences = await getEvents({
+            start: '2026-11-10T00:00:00+03:00',
+            end: '2026-11-11T00:00:00+03:00',
+        })
+        let ownRestored = flattenEventGroups(
+            occurrences.structuredContent,
+        ).filter((e) => e.id === mcpId)
+        assert.equal(ownRestored.length, 1)
+        assert.equal(ownRestored[0].cancelled, undefined)
+
+        result = await cancelEventTool({
+            id: mcpId,
+            scope: 'occurrence',
+            recurrenceId: '2026-11-10T07:00:00.000Z',
+        })
 
         result = await cancelEventTool({
             id: mcpId,
@@ -1287,6 +1362,11 @@ test('MCP cancel_event cancels one occurrence, this and future, and a series', a
         assert.match(master.structuredContent.cancelledAt, /Z$/)
         const found = await searchEvents({ query: 'Cancelable series' })
         assert.deepEqual(found.structuredContent, [])
+        const foundWithCancelled = await searchEvents({
+            query: 'Cancelable series',
+            withCancelled: true,
+        })
+        assert.equal(foundWithCancelled.structuredContent.length, 1)
         occurrences = await getEvents({
             start: '2026-11-09T00:00:00+03:00',
             end: '2026-11-10T00:00:00+03:00',

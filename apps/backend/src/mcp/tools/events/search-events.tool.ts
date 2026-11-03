@@ -17,6 +17,11 @@ export const searchEventsInputSchema = z
             .describe('ISO 8601 exclusive master start'),
         query: z.string().trim().min(1).optional(),
         limit: z.int().positive().max(64).optional(),
+        withCancelled: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe('Include cancelled master events; defaults to false'),
     })
     .refine(
         ({ from, to }) =>
@@ -33,12 +38,13 @@ export const searchEventsOutputSchema = z.array(eventEntitySchema)
 
 export const searchEvents: ToolCallback<
     typeof searchEventsInputSchema
-> = async ({ from, to, query, limit }) => {
+> = async ({ from, to, query, limit, withCancelled }) => {
     const events = await getEventEntities({
         from: from === undefined ? undefined : new Date(from),
         to: to === undefined ? undefined : new Date(to),
         query,
         limit: Math.min(limit ?? 32, 64),
+        withCancelled,
     })
     return toToolResponse(events.map(serializeMcpEventEntity))
 }

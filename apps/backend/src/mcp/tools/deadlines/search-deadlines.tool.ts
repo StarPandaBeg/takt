@@ -26,7 +26,12 @@ export const searchDeadlinesInputSchema = z
             .boolean()
             .optional()
             .default(false)
-            .describe('Include completed; cancelled masters remain excluded'),
+            .describe('Include completed; defaults to false'),
+        withCancelled: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe('Include cancelled master deadlines; defaults to false'),
     })
     .refine(
         ({ from, to }) =>
@@ -42,13 +47,14 @@ export const searchDeadlinesOutputSchema = z
 
 export const searchDeadlines: ToolCallback<
     typeof searchDeadlinesInputSchema
-> = async ({ from, to, query, limit, withCompleted }) => {
+> = async ({ from, to, query, limit, withCompleted, withCancelled }) => {
     const deadlines = await getDeadlineEntities({
         ...(from === undefined ? {} : { from: new Date(from) }),
         ...(to === undefined ? {} : { to: new Date(to) }),
         ...(query === undefined ? {} : { query }),
         limit: Math.min(limit ?? 32, 64),
         withCompleted,
+        withCancelled,
     })
     return toToolResponse(deadlines.map(serializeMcpDeadlineEntity))
 }

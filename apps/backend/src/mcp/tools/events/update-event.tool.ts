@@ -36,6 +36,10 @@ const changesSchema = z
             .nullable()
             .optional(),
         recurrence: recurrenceSchema.nullable().optional(),
+        restore: z
+            .boolean()
+            .optional()
+            .describe('Restore a cancelled occurrence or whole event'),
     })
     .refine((changes) => Object.keys(changes).length > 0, {
         message: 'changes must contain at least one field',
@@ -121,6 +125,7 @@ export const updateEventTool: ToolCallback<
                                         : new Date(changes.recurrence.until),
                             }),
               }),
+        ...(changes.restore === undefined ? {} : { restore: changes.restore }),
     }
     const eventId = await updateEvent({
         id: parseEventId(id),

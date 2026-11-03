@@ -46,6 +46,7 @@ export type EventChanges = Partial<{
     readonly timezone: string | null
     readonly allDay: boolean
     readonly recurrence: Recurrence | null
+    readonly restore: boolean
 }>
 
 export type EventUpdateScope = 'series' | 'occurrence' | 'this_and_future'
@@ -143,6 +144,7 @@ export async function getResolvedEvents(options: {
     readonly from: DateTime
     readonly to: DateTime
     readonly limit?: number | undefined
+    readonly withCancelled?: boolean | undefined
 }): Promise<ResolvedEvent[]> {
     if (
         !options.from.isValid ||
@@ -161,6 +163,7 @@ export async function getResolvedEvents(options: {
     const masters = await eventsRepository.getOverlapping(
         options.from.toJSDate(),
         options.to.toJSDate(),
+        options.withCancelled ?? false,
     )
     const exceptions = await eventExceptionsRepository.getForEventIds(
         masters.map(({ id }) => id),
@@ -171,6 +174,7 @@ export async function getResolvedEvents(options: {
         options.from,
         options.to,
         await getApplicationTimezone(),
+        options.withCancelled ?? false,
     )
     return options.limit === undefined
         ? occurrences
@@ -265,6 +269,20 @@ export async function updateEvent(options: {
 }): Promise<number> {
     const event = await eventsRepository.get(options.id)
     if (event === undefined) throw new RangeError('Event not found')
+
+    if (options.changes.restore) {
+        if (options.scope === 'occurrence') {
+            if (options.recurrenceId === undefined) {
+                throw new RangeError('recurrenceId is required for occurrence')
+            }
+            await eventExceptionsRepository.remove(event.id, options.recurrenceId)
+            return event.id
+        }
+        if (options.scope === 'series') {
+            await eventsRepository.restore(event.id)
+            return event.id
+        }
+    }
 
     if (options.scope === 'series') {
         const start = options.changes.start ?? event.start

@@ -26,6 +26,11 @@ export const getDeadlinesInputSchema = z
             .optional()
             .default(false)
             .describe('Include completed; defaults to false'),
+        withCancelled: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe('Include cancelled occurrences and deadlines; defaults to false'),
     })
     .refine(({ from, to }) => new Date(to) > new Date(from), {
         message: 'to must be later than from',
@@ -38,12 +43,13 @@ export const getDeadlinesOutputSchema = z
 
 export const getDeadlines: ToolCallback<
     typeof getDeadlinesInputSchema
-> = async ({ from, to, limit, withCompleted }) => {
+> = async ({ from, to, limit, withCompleted, withCancelled }) => {
     const deadlines = await getResolvedDeadlines({
         from: DateTime.fromISO(from, { setZone: true }),
         to: DateTime.fromISO(to, { setZone: true }),
         limit: Math.min(limit ?? 32, 64),
         withCompleted,
+        withCancelled,
     })
     return toToolResponse(serializeMcpGroupedDeadlines(deadlines))
 }

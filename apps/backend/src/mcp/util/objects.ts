@@ -137,6 +137,10 @@ export const resolvedEventSchema = z.object({
     end: z.iso.datetime({ offset: true }).nullable().describe('ISO 8601'),
     timezone: z.string().nullable(),
     allDay: z.boolean(),
+    cancelled: z
+        .boolean()
+        .optional()
+        .describe('True if this occurrence or event was cancelled'),
     recurrenceId: z.iso
         .datetime({ offset: true })
         .nullable()
@@ -144,7 +148,7 @@ export const resolvedEventSchema = z.object({
 })
 
 export const groupedResolvedEventSchema = resolvedEventSchema
-    .omit({ start: true, end: true, recurrenceId: true })
+    .omit({ start: true, end: true, recurrenceId: true, cancelled: true })
     .extend({
         occurrences: z
             .array(
@@ -152,6 +156,7 @@ export const groupedResolvedEventSchema = resolvedEventSchema
                     start: true,
                     end: true,
                     recurrenceId: true,
+                    cancelled: true,
                 }),
             )
             .min(1),
@@ -267,6 +272,10 @@ export const resolvedDeadlineSchema = z.object({
         .nullable()
         .describe('ISO 8601'),
     visibility: deadlineVisibilitySchema,
+    cancelled: z
+        .boolean()
+        .optional()
+        .describe('True if this occurrence or deadline was cancelled'),
     recurrenceId: z.iso
         .datetime({ offset: true })
         .nullable()
@@ -279,6 +288,7 @@ export const groupedResolvedDeadlineSchema = resolvedDeadlineSchema
         completed: true,
         completedAt: true,
         recurrenceId: true,
+        cancelled: true,
     })
     .extend({
         occurrences: z
@@ -288,6 +298,7 @@ export const groupedResolvedDeadlineSchema = resolvedDeadlineSchema
                     completed: true,
                     completedAt: true,
                     recurrenceId: true,
+                    cancelled: true,
                 }),
             )
             .min(1),

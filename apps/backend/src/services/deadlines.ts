@@ -76,6 +76,7 @@ export interface ResolvedDeadline {
     readonly completedAt: Date | null
     readonly visibility: DeadlineVisibility
     readonly recurrenceId: Date | null
+    readonly cancelled?: boolean
 }
 
 export type DeadlineChanges = Partial<{
@@ -86,6 +87,7 @@ export type DeadlineChanges = Partial<{
     readonly timezone: string
     readonly recurrence: Recurrence | null
     readonly visibility: DeadlineVisibility
+    readonly restore?: boolean
 }>
 
 export type DeadlineMutationScope = 'series' | 'occurrence' | 'this_and_future'
@@ -267,6 +269,7 @@ function resolveDeadlineOccurrences(
     withCompleted: boolean,
     nearestPerMaster = false,
     to?: DateTime,
+    withCancelled = false,
 ): ResolvedDeadline[] {
     const exceptionsByDeadline = Map.groupBy(
         exceptions,
@@ -301,6 +304,8 @@ function resolveDeadlineOccurrences(
         }
         if (deadline.recurrenceRule === null) {
             const completion = completionFor(null)
+            const isCancelled = deadline.cancelledAt !== null
+            if (isCancelled && !withCancelled) return []
             return deadline.due >= from.toJSDate() &&
                 (to === undefined || deadline.due < to.toJSDate()) &&
                 (withCompleted || completion === undefined)
@@ -311,6 +316,7 @@ function resolveDeadlineOccurrences(
                           completed: completion !== undefined,
                           completedAt: completion?.completedAt ?? null,
                           recurrenceId: null,
+                          ...(isCancelled ? { cancelled: true } : {}),
                       },
                   ]
                 : []
@@ -343,6 +349,8 @@ function resolveDeadlineOccurrences(
             .filter((due) => !recurrenceIds.has(due.toMillis()))
             .flatMap((due) => {
                 const recurrenceId = due.toJSDate()
+                const isCancelled = deadline.cancelledAt !== null
+                if (isCancelled && !withCancelled) return []
                 const completion = completionFor(recurrenceId)
                 return withCompleted || completion === undefined
                     ? [
@@ -352,13 +360,34 @@ function resolveDeadlineOccurrences(
                               completed: completion !== undefined,
                               completedAt: completion?.completedAt ?? null,
                               recurrenceId,
+                              ...(isCancelled ? { cancelled: true } : {}),
                           },
                       ]
                     : []
             })
         const replacements = deadlineExceptions.flatMap((exception) => {
+            if (exception.replacementDue === null) {
+                if (!withCancelled) return []
+                if (
+                    exception.recurrenceId < from.toJSDate() ||
+                    (to !== undefined && exception.recurrenceId >= to.toJSDate())
+                ) {
+                    return []
+                }
+                const completion = completionFor(exception.recurrenceId)
+                const cancelledOccurrence: ResolvedDeadline = {
+                    ...base,
+                    due: exception.recurrenceId,
+                    completed: completion !== undefined,
+                    completedAt: completion?.completedAt ?? null,
+                    recurrenceId: exception.recurrenceId,
+                    cancelled: true,
+                }
+                return withCompleted || !cancelledOccurrence.completed
+                    ? [cancelledOccurrence]
+                    : []
+            }
             if (
-                exception.replacementDue === null ||
                 exception.replacementDue < from.toJSDate() ||
                 (to !== undefined && exception.replacementDue >= to.toJSDate())
             ) {
@@ -366,6 +395,8 @@ function resolveDeadlineOccurrences(
             }
             const full = exception.replacementTitle !== null
             const completion = completionFor(exception.recurrenceId)
+            const isCancelled = deadline.cancelledAt !== null
+            if (isCancelled && !withCancelled) return []
             const replacement: ResolvedDeadline = {
                 ...base,
                 title: exception.replacementTitle ?? deadline.title,
@@ -378,6 +409,7 @@ function resolveDeadlineOccurrences(
                 completed: completion !== undefined,
                 completedAt: completion?.completedAt ?? null,
                 recurrenceId: exception.recurrenceId,
+                ...(isCancelled ? { cancelled: true } : {}),
             }
             return withCompleted || !replacement.completed ? [replacement] : []
         })
@@ -400,6 +432,7 @@ export async function getResolvedDeadlines(options: {
     readonly to?: DateTime | undefined
     readonly limit?: number | undefined
     readonly withCompleted?: boolean | undefined
+    readonly withCancelled?: boolean | undefined
 }): Promise<ResolvedDeadline[]> {
     if (!options.from.isValid) throw new RangeError('Invalid deadline start')
     if (
@@ -425,6 +458,7 @@ export async function getResolvedDeadlines(options: {
     const masters = await deadlinesRepository.getScheduleCandidates(
         options.from.toJSDate(),
         options.withCompleted ?? false,
+        options.withCancelled ?? false,
     )
     const exceptions = await deadlineExceptionsRepository.getForDeadlineIds(
         masters.map(({ id }) => id),
@@ -441,6 +475,7 @@ export async function getResolvedDeadlines(options: {
         options.withCompleted ?? false,
         false,
         options.to,
+        options.withCancelled ?? false,
     )
 }
 
@@ -708,6 +743,23 @@ export async function updateDeadline(options: {
         ])
     const deadline = await deadlinesRepository.get(options.id)
     if (deadline === undefined) throw new RangeError('Deadline not found')
+
+    if (options.changes.restore) {
+        if (options.scope === 'occurrence') {
+            if (options.recurrenceId === undefined) {
+                throw new RangeError('recurrenceId is required for occurrence')
+            }
+            await deadlineExceptionsRepository.remove(
+                deadline.id,
+                options.recurrenceId,
+            )
+            return deadline.id
+        }
+        if (options.scope === 'series') {
+            await deadlinesRepository.restore(deadline.id)
+            return deadline.id
+        }
+    }
 
     if (options.scope === 'series') {
         await deadlinesRepository.edit(

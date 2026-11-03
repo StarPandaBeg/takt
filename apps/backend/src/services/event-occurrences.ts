@@ -16,6 +16,7 @@ export interface ResolvedEvent {
     readonly allDay: Event['allDay']
     /** Original scheduled start of a recurring occurrence. */
     readonly recurrenceId: Date | null
+    readonly cancelled?: boolean | undefined
 }
 
 export const convertEvent = (
@@ -49,6 +50,7 @@ export function getEventOccurrences(
     from: DateTime,
     to: DateTime,
     applicationTimezone = 'UTC',
+    withCancelled = false,
 ): ResolvedEvent[] {
     const exceptionsByEvent = Map.groupBy(
         exceptions,
@@ -59,6 +61,11 @@ export function getEventOccurrences(
 
     return events
         .flatMap<ResolvedEvent>((event) => {
+            const isMasterCancelled = event.cancelledAt !== null
+            if (isMasterCancelled && !withCancelled) {
+                return []
+            }
+
             if (event.recurrenceRule === null) {
                 return overlaps(event, fromDate, toDate)
                     ? [
@@ -71,6 +78,7 @@ export function getEventOccurrences(
                               timezone: event.timezone,
                               allDay: event.allDay,
                               recurrenceId: null,
+                              ...(isMasterCancelled ? { cancelled: true } : {}),
                           },
                       ]
                     : []
@@ -115,10 +123,33 @@ export function getEventOccurrences(
                     timezone: event.timezone,
                     allDay: event.allDay,
                     recurrenceId: occurrence.toJSDate(),
+                    ...(isMasterCancelled ? { cancelled: true } : {}),
                 }))
                 .filter((occurrence) => overlaps(occurrence, fromDate, toDate))
+
             const replacements = eventExceptions.flatMap((exception) => {
-                if (exception.replacementStart === null) return []
+                if (exception.replacementStart === null) {
+                    if (!withCancelled) return []
+                    const occurrenceStart = exception.recurrenceId
+                    const occurrenceEnd =
+                        duration === undefined
+                            ? null
+                            : new Date(occurrenceStart.getTime() + duration)
+                    const cancelledOccurrence: ResolvedEvent = {
+                        id: event.id,
+                        title: event.title,
+                        description: event.description,
+                        start: occurrenceStart,
+                        end: occurrenceEnd,
+                        timezone: event.timezone,
+                        allDay: event.allDay,
+                        recurrenceId: exception.recurrenceId,
+                        cancelled: true,
+                    }
+                    return overlaps(cancelledOccurrence, fromDate, toDate)
+                        ? [cancelledOccurrence]
+                        : []
+                }
                 const replacement: ResolvedEvent = {
                     id: event.id,
                     title: exception.replacementTitle ?? event.title,
@@ -134,6 +165,7 @@ export function getEventOccurrences(
                             : exception.replacementTimezone,
                     allDay: exception.replacementAllDay ?? event.allDay,
                     recurrenceId: exception.recurrenceId,
+                    ...(isMasterCancelled ? { cancelled: true } : {}),
                 }
                 return overlaps(replacement, fromDate, toDate)
                     ? [replacement]

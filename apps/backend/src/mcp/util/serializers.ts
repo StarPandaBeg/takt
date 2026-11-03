@@ -111,21 +111,26 @@ export function serializeMcpGroupedEvents(events: readonly ResolvedEvent[]) {
         string,
         Omit<
             ReturnType<typeof serializeMcpResolvedEvent>,
-            'start' | 'end' | 'recurrenceId'
+            'start' | 'end' | 'recurrenceId' | 'cancelled'
         > & {
             occurrences: Pick<
                 ReturnType<typeof serializeMcpResolvedEvent>,
-                'start' | 'end' | 'recurrenceId'
+                'start' | 'end' | 'recurrenceId' | 'cancelled'
             >[]
         }
     >()
 
     for (const event of events) {
-        const { start, end, recurrenceId, ...entity } =
+        const { start, end, recurrenceId, cancelled, ...entity } =
             serializeMcpResolvedEvent(event)
         const key = JSON.stringify(entity)
         const group = groups.get(key)
-        const occurrence = { start, end, recurrenceId }
+        const occurrence = {
+            start,
+            end,
+            recurrenceId,
+            ...(cancelled !== undefined ? { cancelled } : {}),
+        }
         if (group === undefined) {
             groups.set(key, { ...entity, occurrences: [occurrence] })
         } else {
@@ -157,21 +162,27 @@ export function serializeMcpGroupedDeadlines(
         string,
         Omit<
             ReturnType<typeof serializeMcpResolvedDeadline>,
-            'due' | 'completed' | 'completedAt' | 'recurrenceId'
+            'due' | 'completed' | 'completedAt' | 'recurrenceId' | 'cancelled'
         > & {
             occurrences: Pick<
                 ReturnType<typeof serializeMcpResolvedDeadline>,
-                'due' | 'completed' | 'completedAt' | 'recurrenceId'
+                'due' | 'completed' | 'completedAt' | 'recurrenceId' | 'cancelled'
             >[]
         }
     >()
 
     for (const deadline of deadlines) {
-        const { due, completed, completedAt, recurrenceId, ...entity } =
+        const { due, completed, completedAt, recurrenceId, cancelled, ...entity } =
             serializeMcpResolvedDeadline(deadline)
         const key = JSON.stringify(entity)
         const group = groups.get(key)
-        const occurrence = { due, completed, completedAt, recurrenceId }
+        const occurrence = {
+            due,
+            completed,
+            completedAt,
+            recurrenceId,
+            ...(cancelled !== undefined ? { cancelled } : {}),
+        }
         if (group === undefined) {
             groups.set(key, { ...entity, occurrences: [occurrence] })
         } else {

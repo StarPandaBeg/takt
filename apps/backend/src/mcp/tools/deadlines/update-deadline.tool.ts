@@ -62,6 +62,10 @@ const changesSchema = z
             .describe(
                 'Unavailable for occurrence scope',
             ),
+        restore: z
+            .boolean()
+            .optional()
+            .describe('Restore a cancelled occurrence or whole deadline'),
     })
     .refine((changes) => Object.keys(changes).length > 0, {
         message: 'changes must contain at least one field',
@@ -140,6 +144,7 @@ export const updateDeadlineTool: ToolCallback<
                                         : new Date(changes.recurrence.until),
                             }),
               }),
+        ...(changes.restore === undefined ? {} : { restore: changes.restore }),
     }
     const deadlineId = await updateDeadline({
         id: parseDeadlineId(id),

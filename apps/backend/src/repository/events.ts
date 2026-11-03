@@ -23,10 +23,11 @@ export interface EventFilters {
     readonly to?: Date | undefined
     readonly query?: string | undefined
     readonly limit?: number | undefined
+    readonly withCancelled?: boolean | undefined
 }
 
 export const getFiltered = async (filters: EventFilters): Promise<Event[]> => {
-    const conditions = [isNull(eventsTable.cancelledAt)]
+    const conditions = filters.withCancelled ? [] : [isNull(eventsTable.cancelledAt)]
     if (filters.from !== undefined) {
         conditions.push(gte(eventsTable.start, filters.from))
     }
@@ -58,13 +59,14 @@ export const getFiltered = async (filters: EventFilters): Promise<Event[]> => {
 export const getOverlapping = async (
     from: Date,
     to: Date,
+    withCancelled = false,
 ): Promise<Event[]> => {
     return await db
         .select()
         .from(eventsTable)
         .where(
             and(
-                isNull(eventsTable.cancelledAt),
+                withCancelled ? undefined : isNull(eventsTable.cancelledAt),
                 or(
                     isNotNull(eventsTable.recurrenceRule),
                     and(
@@ -164,6 +166,13 @@ export async function cancel(
         .update(eventsTable)
         .set({ cancelledAt })
         .where(and(eq(eventsTable.id, id), isNull(eventsTable.cancelledAt)))
+}
+
+export async function restore(id: Event['id']): Promise<void> {
+    await db
+        .update(eventsTable)
+        .set({ cancelledAt: null })
+        .where(eq(eventsTable.id, id))
 }
 
 export async function truncate(

@@ -20,6 +20,11 @@ export const getEventsInputSchema = z
             .max(64)
             .optional()
             .describe('Occurrences before grouping; defaults to 32'),
+        withCancelled: z
+            .boolean()
+            .optional()
+            .default(false)
+            .describe('Include cancelled occurrences and events; defaults to false'),
     })
     .refine(({ start, end }) => new Date(end) > new Date(start), {
         message: 'end must be later than start',
@@ -31,11 +36,13 @@ export const getEvents: ToolCallback<typeof getEventsInputSchema> = async ({
     start,
     end,
     limit,
+    withCancelled,
 }) => {
     const events = await getResolvedEvents({
         from: DateTime.fromISO(start, { setZone: true }),
         to: DateTime.fromISO(end, { setZone: true }),
         limit: Math.min(limit ?? 32, 64),
+        withCancelled,
     })
     const result = serializeMcpGroupedEvents(events)
 
