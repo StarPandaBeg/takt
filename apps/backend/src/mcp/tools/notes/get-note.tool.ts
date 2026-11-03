@@ -6,7 +6,7 @@ import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
 export const getNoteInputSchema = z.object({
-    id: z.int().describe('ID of the note'),
+    id: z.int(),
 })
 export const getNoteOutputSchema = noteSchema.nullable()
 

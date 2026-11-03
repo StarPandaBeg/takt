@@ -25,8 +25,7 @@ export function registerNoteTools(server: McpServer) {
         'get_notes',
         {
             title: 'Get Notes',
-            description:
-                'Retrieve list of all notes. By default, returns only active notes',
+            description: 'List notes; active only by default.',
             inputSchema: listNotesInputSchema,
             outputSchema: listNotesOutputSchema,
             annotations: {
@@ -42,7 +41,7 @@ export function registerNoteTools(server: McpServer) {
         'get_note',
         {
             title: 'Get Note',
-            description: 'Retrieve one note by ID',
+            description: 'Get a note by ID.',
             inputSchema: getNoteInputSchema,
             outputSchema: getNoteOutputSchema,
             annotations: {
@@ -58,8 +57,7 @@ export function registerNoteTools(server: McpServer) {
         'create_note',
         {
             title: 'Create Note',
-            description:
-                'Create new note entry from text and return the complete created note. Note must be a short line of text, meaning small reminder',
+            description: 'Create a short note.',
             inputSchema: createNoteInputSchema,
             outputSchema: createNoteOutputSchema,
             annotations: {
@@ -76,7 +74,7 @@ export function registerNoteTools(server: McpServer) {
         {
             title: 'Update Note',
             description:
-                'Update note text and/or completion date and return the complete updated note. Not included fields remain untouched. You can soft remove a note by setting completion time',
+                'Update note text or completion state. Omitted fields stay unchanged.',
             inputSchema: updateNoteInputSchema,
             outputSchema: updateNoteOutputSchema,
             annotations: {

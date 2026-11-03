@@ -6,17 +6,17 @@ import { toToolResponse } from '#src/mcp/util/helpers.js'
 
 export const cancelDeadlineInputSchema = z
     .object({
-        id: z.int().positive().describe('ID of the deadline master'),
+        id: z.int().positive(),
         scope: z
             .enum(['series', 'occurrence', 'this_and_future'])
             .describe(
-                'Cancellation target: series cancels the whole master, occurrence cancels only the selected occurrence, and this_and_future cancels the selected occurrence plus all later ones',
+                'Target: whole series, one occurrence, or this and future',
             ),
         recurrenceId: z.iso
             .datetime({ offset: true })
             .optional()
             .describe(
-                'Original scheduled due time identifying the occurrence, even if it was moved. Required for occurrence and this_and_future; use recurrenceId returned by get_deadlines',
+                'ISO 8601 original series due; required unless scope is series',
             ),
     })
     .superRefine(({ scope, recurrenceId }, context) => {
@@ -31,7 +31,7 @@ export const cancelDeadlineInputSchema = z
     })
 
 export const cancelDeadlineOutputSchema = z.object({
-    id: z.int().positive().describe('ID of the affected deadline master'),
+    id: z.int().positive(),
 })
 
 export const cancelDeadlineTool: ToolCallback<

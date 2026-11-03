@@ -6,23 +6,18 @@ import { setDeadlineCompletion as setCompletion } from '#src/services/deadlines.
 
 export const setDeadlineCompletionInputSchema = z
     .object({
-        id: z.int().positive().describe('ID of the deadline master'),
+        id: z.int().positive(),
         recurrenceId: z.iso
             .datetime({ offset: true })
             .optional()
             .describe(
-                'Original scheduled due time identifying one recurring occurrence. Required for recurring deadlines and omitted for one-time deadlines; use recurrenceId returned by get_deadlines',
+                'ISO 8601 original series due; required only for recurring deadlines',
             ),
-        completed: z
-            .boolean()
-            .describe('True to complete, false to reopen the deadline'),
+        completed: z.boolean(),
     })
 
 export const setDeadlineCompletionOutputSchema = z.object({
-    id: z
-        .int()
-        .positive()
-        .describe('ID of the updated deadline master'),
+    id: z.int().positive(),
 })
 
 export const setDeadlineCompletion: ToolCallback<

@@ -6,19 +6,15 @@ import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
 export const updateNoteInputSchema = z.object({
-    id: z.int().describe('ID of the note'),
+    id: z.int(),
     text: z.string().min(1).max(256).optional(),
     completedAt: z.iso
         .datetime({ offset: true })
         .optional()
         .nullable()
-        .describe(
-            'Note completion time. Set to null to mark note as incompleted',
-        ),
+        .describe('ISO 8601 completion time; null reopens'),
 })
-export const updateNoteOutputSchema = noteSchema.describe(
-    'The complete updated note, in the same format as get_note',
-)
+export const updateNoteOutputSchema = noteSchema
 
 export const updateNote: ToolCallback<typeof updateNoteInputSchema> = async ({
     id,

@@ -6,7 +6,7 @@ import type { ToolCallback } from '@modelcontextprotocol/server'
 import * as z from 'zod'
 
 export const getEventInputSchema = z.object({
-    id: z.int().positive().describe('ID of the event master'),
+    id: z.int().positive(),
 })
 
 export const getEventOutputSchema = eventEntitySchema.nullable()

@@ -10,27 +10,23 @@ import { getResolvedDeadlines } from '#src/services/deadlines.js'
 export const getDeadlinesInputSchema = z.object({
     from: z.iso
         .datetime({ offset: true })
-        .describe('Inclusive lower bound for effective due times'),
+        .describe('ISO 8601 inclusive effective due-time boundary'),
     limit: z
         .int()
         .positive()
         .max(8192)
         .optional()
-        .describe(
-            'Maximum number of resolved occurrences to return. Defaults to 128',
-        ),
+        .describe('Defaults to 128'),
     withCompleted: z
         .boolean()
         .optional()
         .default(false)
-        .describe('Include completed deadline occurrences. Defaults to false'),
+        .describe('Include completed; defaults to false'),
 })
 
 export const getDeadlinesOutputSchema = z
     .array(resolvedDeadlineSchema)
-    .describe(
-        'Resolved deadline occurrences ordered by effective due time, with recurrence overrides already applied',
-    )
+    .describe('Occurrences ordered by effective due time')
 
 export const getDeadlines: ToolCallback<
     typeof getDeadlinesInputSchema

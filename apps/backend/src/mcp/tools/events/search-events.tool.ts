@@ -10,19 +10,12 @@ export const searchEventsInputSchema = z
         from: z.iso
             .datetime({ offset: true })
             .optional()
-            .describe('Inclusive master event start boundary (ISO 8601)'),
+            .describe('ISO 8601 inclusive master start'),
         to: z.iso
             .datetime({ offset: true })
             .optional()
-            .describe('Exclusive master event start boundary (ISO 8601)'),
-        query: z
-            .string()
-            .trim()
-            .min(1)
-            .optional()
-            .describe(
-                'Case-insensitive substring matched against title and description',
-            ),
+            .describe('ISO 8601 exclusive master start'),
+        query: z.string().trim().min(1).optional(),
         limit: z.int().positive().max(8192).optional(),
     })
     .refine(

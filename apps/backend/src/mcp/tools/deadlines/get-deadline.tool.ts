@@ -7,12 +7,10 @@ import { serializeDeadlineEntity } from '#src/mcp/util/serializers.js'
 import { getDeadlineEntity } from '#src/services/deadlines.js'
 
 export const getDeadlineInputSchema = z.object({
-    id: z.int().positive().describe('ID of the deadline master'),
+    id: z.int().positive(),
 })
 
-export const getDeadlineOutputSchema = deadlineEntitySchema
-    .nullable()
-    .describe('The stored deadline master, or null when the ID does not exist')
+export const getDeadlineOutputSchema = deadlineEntitySchema.nullable()
 
 export const getDeadline: ToolCallback<typeof getDeadlineInputSchema> = async ({
     id,

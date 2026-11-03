@@ -15,8 +15,15 @@ const changesSchema = z
     .object({
         title: z.string().trim().min(1).optional(),
         description: z.string().nullable().optional(),
-        start: z.iso.datetime({ offset: true }).optional(),
-        end: z.iso.datetime({ offset: true }).nullable().optional(),
+        start: z.iso
+            .datetime({ offset: true })
+            .optional()
+            .describe('ISO 8601'),
+        end: z.iso
+            .datetime({ offset: true })
+            .nullable()
+            .optional()
+            .describe('ISO 8601'),
         allDay: z.boolean().optional(),
         timezone: z
             .string()
@@ -45,19 +52,19 @@ const changesSchema = z
 
 export const updateEventInputSchema = z
     .object({
-        id: z.int().positive().describe('ID of the original event master'),
+        id: z.int().positive(),
         scope: z
             .enum(['series', 'occurrence', 'this_and_future'])
             .describe(
-                'Update the whole series, one occurrence, or the selected occurrence and all future occurrences',
+                'Target: whole series, one occurrence, or this and future',
             ),
         recurrenceId: z.iso
             .datetime({ offset: true })
             .optional()
             .describe(
-                'Original scheduled start identifying the selected occurrence. Required for occurrence and this_and_future',
+                'ISO 8601 original series start; required unless scope is series',
             ),
-        changes: changesSchema.describe('Fields to change'),
+        changes: changesSchema,
     })
     .superRefine(({ scope, recurrenceId, changes }, context) => {
         if (scope !== 'series' && recurrenceId === undefined) {
@@ -77,9 +84,7 @@ export const updateEventInputSchema = z
         }
     })
 
-export const updateEventOutputSchema = eventEntitySchema.describe(
-    'The complete updated master, or the new future master for this_and_future, in the same format as get_event',
-)
+export const updateEventOutputSchema = eventEntitySchema
 
 export const updateEventTool: ToolCallback<
     typeof updateEventInputSchema

@@ -27,56 +27,40 @@ const timezoneSchema = z
     })
 
 export const createDeadlineInputSchema = z.object({
-    title: z
-        .string()
-        .trim()
-        .min(1)
-        .describe('Short user-visible name of the deadline'),
-    description: z
-        .string()
-        .nullable()
-        .optional()
-        .describe(
-            'Optional details about the deadline. Use null for no description',
-        ),
-    due: z.iso
-        .datetime({ offset: true })
-        .describe(
-            'Due date and time in ISO 8601 format with an explicit UTC offset',
-        ),
+    title: z.string().trim().min(1),
+    description: z.string().nullable().optional(),
+    due: z.iso.datetime({ offset: true }).describe('ISO 8601'),
     dueIsDate: z
         .boolean()
         .optional()
         .describe(
-            'Whether the deadline represents a calendar date rather than a precise time. The due field must still contain a complete ISO date-time. Defaults to false',
+            'Date-only flag; due must still be a full date-time',
         ),
     timezone: timezoneSchema
         .optional()
         .describe(
-            'IANA timezone used to expand recurrence, for example Europe/Moscow. Defaults to the application timezone setting',
+            'Recurrence timezone; defaults to the application timezone',
         ),
     recurrence: recurrenceSchema
         .nullable()
         .optional()
         .describe(
-            'Recurrence rule for a repeating deadline, or null for a one-time deadline',
+            'null means one-time',
         ),
     visibility: deadlineVisibilitySchema
         .optional()
         .describe(
-            'When the deadline should appear and disappear. Defaults to show immediately and hide after the due day',
+            'Defaults to show immediately and hide after the due day',
         ),
     completed: z
         .boolean()
         .optional()
         .describe(
-            'Create the one-time deadline as already completed. For recurring deadlines complete occurrences later with set_deadline_completion',
+            'Initial state for one-time deadlines only',
         ),
 })
 
-export const createDeadlineOutputSchema = deadlineEntitySchema.describe(
-    'The complete created deadline master, in the same format as get_deadline',
-)
+export const createDeadlineOutputSchema = deadlineEntitySchema
 
 export const createDeadline: ToolCallback<
     typeof createDeadlineInputSchema

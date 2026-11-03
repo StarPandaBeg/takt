@@ -12,34 +12,22 @@ export const searchDeadlinesInputSchema = z
             .datetime({ offset: true })
             .optional()
             .describe(
-                'Inclusive lower bound applied to the stored master due time, not expanded occurrences',
+                'ISO 8601 inclusive master due; occurrences are not expanded',
             ),
         to: z.iso
             .datetime({ offset: true })
             .optional()
             .describe(
-                'Exclusive upper bound applied to the stored master due time, not expanded occurrences',
+                'ISO 8601 exclusive master due; occurrences are not expanded',
             ),
-        query: z
-            .string()
-            .trim()
-            .min(1)
-            .optional()
-            .describe(
-                'Case-insensitive substring to search for in title or description',
-            ),
-        limit: z
-            .int()
-            .positive()
-            .max(8192)
-            .optional()
-            .describe('Maximum number of deadline masters to return'),
+        query: z.string().trim().min(1).optional(),
+        limit: z.int().positive().max(8192).optional(),
         withCompleted: z
             .boolean()
             .optional()
             .default(false)
             .describe(
-                'Include completed deadline masters. Soft-cancelled masters are always excluded',
+                'Include completed; cancelled masters remain excluded',
             ),
     })
     .refine(
@@ -52,9 +40,7 @@ export const searchDeadlinesInputSchema = z
 
 export const searchDeadlinesOutputSchema = z
     .array(deadlineEntitySchema)
-    .describe(
-        'Matching active deadline masters. Recurring deadlines are not expanded',
-    )
+    .describe('Active masters; recurrence is not expanded')
 
 export const searchDeadlines: ToolCallback<
     typeof searchDeadlinesInputSchema

@@ -6,17 +6,17 @@ import { cancelEvent } from '#src/services/events.js'
 
 export const cancelEventInputSchema = z
     .object({
-        id: z.int().positive().describe('ID of the original event master'),
+        id: z.int().positive(),
         scope: z
             .enum(['series', 'occurrence', 'this_and_future'])
             .describe(
-                'Cancel the entire series, one occurrence, or the selected occurrence and all future occurrences',
+                'Target: whole series, one occurrence, or this and future',
             ),
         recurrenceId: z.iso
             .datetime({ offset: true })
             .optional()
             .describe(
-                'Original scheduled start identifying the selected occurrence. Required for occurrence and this_and_future',
+                'ISO 8601 original series start; required unless scope is series',
             ),
     })
     .superRefine(({ scope, recurrenceId }, context) => {
@@ -31,7 +31,7 @@ export const cancelEventInputSchema = z
     })
 
 export const cancelEventOutputSchema = z.object({
-    id: z.int().positive().describe('ID of the affected event master'),
+    id: z.int().positive(),
 })
 
 export const cancelEventTool: ToolCallback<

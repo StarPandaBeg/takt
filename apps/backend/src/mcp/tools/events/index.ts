@@ -35,8 +35,7 @@ export function registerEventTools(server: McpServer) {
         'get_event',
         {
             title: 'Get Event',
-            description:
-                'Retrieve one stored event master by ID, including soft-cancellation time, its recurrence rule, and all cancelled or updated occurrence exceptions.',
+            description: 'Get an event master by ID, including recurrence data.',
             inputSchema: getEventInputSchema,
             outputSchema: getEventOutputSchema,
             annotations: {
@@ -53,10 +52,7 @@ export function registerEventTools(server: McpServer) {
         {
             title: 'Get Events',
             description:
-                'Retrieve scheduled event occurrences within a specified time range. ' +
-                'Recurring events are expanded and cancellation or rescheduling exceptions are already applied. ' +
-                'Each occurrence contains recurrenceId for later series-specific operations. ' +
-                'Use this tool to answer questions about schedules and availability.',
+                'Get occurrences in a time range. Recurrence and overrides are applied.',
             inputSchema: getEventsInputSchema,
             outputSchema: getEventsOutputSchema,
             annotations: {
@@ -73,10 +69,7 @@ export function registerEventTools(server: McpServer) {
         {
             title: 'Search Events',
             description:
-                'Search stored event masters to find their IDs. ' +
-                'Soft-cancelled masters are excluded. ' +
-                'Unlike get_events, this tool does not expand recurrence: it returns the original event entities with recurrence rules and exceptions. ' +
-                'Optional from and to filters apply to the master start time, and query searches title and description.',
+                'Search active event masters. Recurrence is not expanded.',
             inputSchema: searchEventsInputSchema,
             outputSchema: searchEventsOutputSchema,
             annotations: {
@@ -93,11 +86,7 @@ export function registerEventTools(server: McpServer) {
         {
             title: 'Create Event',
             description:
-                'Create a new calendar event, optionally with a recurrence rule. ' +
-                'Use this tool to schedule meetings, appointments, tasks, or recurring activities. ' +
-                'Events may have no end time. ' +
-                'For recurring events, specify the recurrence pattern using the provided schema. ' +
-                'Returns the complete created master in the same format as get_event.',
+                'Create a one-time or recurring event. End time is optional.',
             inputSchema: createEventInputSchema,
             outputSchema: createEventOutputSchema,
             annotations: {
@@ -114,12 +103,7 @@ export function registerEventTools(server: McpServer) {
         {
             title: 'Update Event',
             description:
-                'Update an entire event series, one occurrence, or the selected occurrence and all future occurrences. ' +
-                'Use recurrenceId from get_events to target an occurrence. ' +
-                'A single-occurrence update is stored as an override and cannot change recurrence. ' +
-                'Updating this_and_future splits the series and returns the complete new future master. ' +
-                'Other scopes return the complete updated original master. ' +
-                'Omitted fields stay unchanged; set nullable fields to null to clear them.',
+                'Update a series, one occurrence, or this and future occurrences.',
             inputSchema: updateEventInputSchema,
             outputSchema: updateEventOutputSchema,
             annotations: {
@@ -136,10 +120,7 @@ export function registerEventTools(server: McpServer) {
         {
             title: 'Cancel Event',
             description:
-                'Cancel an entire event series, one occurrence, or the selected occurrence and all future occurrences. ' +
-                'Use recurrenceId from get_events to target an occurrence. ' +
-                'Series cancellation is a soft deletion and remains visible through get_event by ID. ' +
-                'Cancelling this_and_future truncates the series while preserving earlier occurrences.',
+                'Cancel a series, one occurrence, or this and future occurrences.',
             inputSchema: cancelEventInputSchema,
             outputSchema: cancelEventOutputSchema,
             annotations: {

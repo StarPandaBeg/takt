@@ -40,8 +40,7 @@ export function registerDeadlineTools(server: McpServer) {
         'get_deadline',
         {
             title: 'Get Deadline',
-            description:
-                'Retrieve one deadline master by ID, including recurrence, soft-cancellation time, and occurrence overrides.',
+            description: 'Get a deadline master by ID, including recurrence data.',
             inputSchema: getDeadlineInputSchema,
             outputSchema: getDeadlineOutputSchema,
             annotations: {
@@ -58,7 +57,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Get Deadlines',
             description:
-                'Retrieve effective deadline occurrences from a time boundary. Recurrence and occurrence overrides are applied.',
+                'Get occurrences from a time boundary. Recurrence and overrides are applied.',
             inputSchema: getDeadlinesInputSchema,
             outputSchema: getDeadlinesOutputSchema,
             annotations: {
@@ -75,7 +74,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Search Deadlines',
             description:
-                'Search active deadline masters by title, description, and master due time. Recurrence is not expanded.',
+                'Search active deadline masters. Recurrence is not expanded.',
             inputSchema: searchDeadlinesInputSchema,
             outputSchema: searchDeadlinesOutputSchema,
             annotations: {
@@ -92,7 +91,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Create Deadline',
             description:
-                'Create a one-time or recurring deadline with optional date-only semantics. Returns the complete created master in the same format as get_deadline.',
+                'Create a one-time or recurring deadline.',
             inputSchema: createDeadlineInputSchema,
             outputSchema: createDeadlineOutputSchema,
             annotations: {
@@ -109,7 +108,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Update Deadline',
             description:
-                'Update a deadline series, one occurrence, or the selected occurrence and all future occurrences. Returns the complete affected master in the same format as get_deadline; for this_and_future this is the new future master.',
+                'Update a series, one occurrence, or this and future occurrences.',
             inputSchema: updateDeadlineInputSchema,
             outputSchema: updateDeadlineOutputSchema,
             annotations: {
@@ -126,7 +125,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Cancel Deadline',
             description:
-                'Cancel a deadline series, one occurrence, or the selected occurrence and all future occurrences.',
+                'Cancel a series, one occurrence, or this and future occurrences.',
             inputSchema: cancelDeadlineInputSchema,
             outputSchema: cancelDeadlineOutputSchema,
             annotations: {
@@ -143,7 +142,7 @@ export function registerDeadlineTools(server: McpServer) {
         {
             title: 'Set Deadline Completion',
             description:
-                'Complete or reopen a one-time deadline or one specific occurrence of a recurring deadline. Completion is independent from cancellation and rescheduling.',
+                'Complete or reopen a deadline occurrence.',
             inputSchema: setDeadlineCompletionInputSchema,
             outputSchema: setDeadlineCompletionOutputSchema,
             annotations: {

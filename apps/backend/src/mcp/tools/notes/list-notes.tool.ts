@@ -11,9 +11,7 @@ export const listNotesInputSchema = z.object({
         .boolean()
         .default(false)
         .optional()
-        .describe(
-            'Show done notes. False by default. Use this if you want to find notes to restore',
-        ),
+        .describe('Include completed notes; defaults to false'),
 })
 export const listNotesOutputSchema = z.array(noteSchema)
 

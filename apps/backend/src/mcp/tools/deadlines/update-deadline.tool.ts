@@ -25,46 +25,41 @@ const timezoneSchema = z
 
 const changesSchema = z
     .object({
-        title: z
-            .string()
-            .trim()
-            .min(1)
-            .optional()
-            .describe('New user-visible deadline name'),
+        title: z.string().trim().min(1).optional(),
         description: z
             .string()
             .nullable()
             .optional()
             .describe(
-                'New description. Use null to explicitly remove the description; omit to keep it unchanged',
+                'null clears; omit to keep unchanged',
             ),
         due: z.iso
             .datetime({ offset: true })
             .optional()
             .describe(
-                'New due date and time with an explicit UTC offset. For occurrence scope this is the effective due time of that occurrence',
+                'ISO 8601; effective occurrence due for occurrence scope',
             ),
         dueIsDate: z
             .boolean()
             .optional()
             .describe(
-                'Whether the deadline is date-only rather than due at a precise time. This flag does not rewrite the due value',
+                'Date-only flag; does not rewrite due',
             ),
         timezone: timezoneSchema
             .optional()
             .describe(
-                'New IANA timezone used for recurrence expansion, for example Europe/Moscow',
+                'IANA recurrence timezone',
             ),
         recurrence: recurrenceSchema
             .nullable()
             .optional()
             .describe(
-                'New recurrence rule, null to stop repeating, or omitted to preserve the rule. Not allowed with occurrence scope',
+                'null stops recurrence; unavailable for occurrence scope',
             ),
         visibility: deadlineVisibilitySchema
             .optional()
             .describe(
-                'New display policy for the master or for the new series created by this_and_future. Not allowed for one occurrence',
+                'Unavailable for occurrence scope',
             ),
     })
     .refine((changes) => Object.keys(changes).length > 0, {
@@ -73,21 +68,19 @@ const changesSchema = z
 
 export const updateDeadlineInputSchema = z
     .object({
-        id: z.int().positive().describe('ID of the original deadline master'),
+        id: z.int().positive(),
         scope: z
             .enum(['series', 'occurrence', 'this_and_future'])
             .describe(
-                'Update target: the entire series, only one occurrence, or the selected occurrence and all future occurrences',
+                'Target: whole series, one occurrence, or this and future',
             ),
         recurrenceId: z.iso
             .datetime({ offset: true })
             .optional()
             .describe(
-                'Original scheduled due time identifying the occurrence, even after a move. Required for occurrence and this_and_future; use recurrenceId returned by get_deadlines',
+                'ISO 8601 original series due; required unless scope is series',
             ),
-        changes: changesSchema.describe(
-            'Fields to change. Omitted fields retain their current values',
-        ),
+        changes: changesSchema.describe('Omitted fields stay unchanged'),
     })
     .superRefine(({ scope, recurrenceId, changes }, context) => {
         if (scope !== 'series' && recurrenceId === undefined) {
@@ -112,9 +105,7 @@ export const updateDeadlineInputSchema = z
         }
     })
 
-export const updateDeadlineOutputSchema = deadlineEntitySchema.describe(
-    'The complete updated master, or the new future master for this_and_future, in the same format as get_deadline',
-)
+export const updateDeadlineOutputSchema = deadlineEntitySchema
 
 export const updateDeadlineTool: ToolCallback<
     typeof updateDeadlineInputSchema

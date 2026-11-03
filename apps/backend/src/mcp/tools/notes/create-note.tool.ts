@@ -8,9 +8,7 @@ import * as z from 'zod'
 export const createNoteInputSchema = z.object({
     text: z.string().min(1).max(256),
 })
-export const createNoteOutputSchema = noteSchema.describe(
-    'The complete created note, in the same format as get_note',
-)
+export const createNoteOutputSchema = noteSchema
 
 export const createNote: ToolCallback<typeof createNoteInputSchema> = async ({
     text,

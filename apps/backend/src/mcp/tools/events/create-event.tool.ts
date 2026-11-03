@@ -20,23 +20,17 @@ import {
 // MCP принимает ISO-строки, а не JS Date
 export const createEventInputSchema = z
     .object({
-        title: z.string().trim().min(1).describe('Name of the event'),
+        title: z.string().trim().min(1),
 
-        description: z
-            .string()
-            .nullable()
-            .optional()
-            .describe('Optional event description'),
+        description: z.string().nullable().optional(),
 
-        start: z.iso
-            .datetime({ offset: true })
-            .describe('Event start time (ISO 8601)'),
+        start: z.iso.datetime({ offset: true }).describe('ISO 8601'),
 
         end: z.iso
             .datetime({ offset: true })
             .nullable()
             .optional()
-            .describe('Event end time (ISO 8601), or null if unspecified'),
+            .describe('ISO 8601'),
 
         timezone: z
             .string()
@@ -47,17 +41,13 @@ export const createEventInputSchema = z
             })
             .nullable()
             .optional()
-            .describe('IANA timezone, e.g. Europe/Moscow'),
+            .describe('IANA timezone'),
 
-        allDay: z
-            .boolean()
-            .optional()
-            .describe('Whether the event is an all-day event'),
+        allDay: z.boolean().optional(),
 
         recurrence: recurrenceSchema
             .nullable()
-            .optional()
-            .describe('Optional recurrence rule for repeating events'),
+            .optional(),
     })
     .refine(
         ({ start, end }) => end == null || new Date(end) >= new Date(start),
@@ -67,9 +57,7 @@ export const createEventInputSchema = z
         },
     )
 
-export const createEventOutputSchema = eventEntitySchema.describe(
-    'The complete created event master, in the same format as get_event',
-)
+export const createEventOutputSchema = eventEntitySchema
 
 export const createEvent: ToolCallback<typeof createEventInputSchema> = async (
     input,

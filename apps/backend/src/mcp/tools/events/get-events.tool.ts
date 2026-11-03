@@ -10,10 +10,10 @@ export const getEventsInputSchema = z
     .object({
         start: z.iso
             .datetime({ offset: true })
-            .describe('Inclusive range start (ISO 8601)'),
+            .describe('ISO 8601 inclusive range start'),
         end: z.iso
             .datetime({ offset: true })
-            .describe('Exclusive range end (ISO 8601)'),
+            .describe('ISO 8601 exclusive range end'),
         limit: z.int().positive().max(8192).optional(),
     })
     .refine(({ start, end }) => new Date(end) > new Date(start), {
