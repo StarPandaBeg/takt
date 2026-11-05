@@ -108,7 +108,7 @@ function EventRow({ event, state = 'default' }: EventRowProps) {
                 alignVertical="center"
                 fontSize={20}
                 color={color}
-                fontWeight={state === 'active' ? 600 : 400}
+                fontWeight={state === 'active' ? 600 : 500}
             >
                 {formatEventTime(event)}
             </Text>
@@ -129,15 +129,24 @@ function EventRow({ event, state = 'default' }: EventRowProps) {
 function FeaturedEvent({ event, now }: { event: Event; now: DateTime }) {
     const isActive = getEventState(event, now) === 'active'
 
+    const periodStart = event.start.minus({ minutes: 15 })
+    const isSoon = Interval.fromDateTimes(periodStart, event.start).contains(
+        now,
+    )
+
+    let label = 'БЛИЖАЙШЕЕ СОБЫТИЕ'
+    if (isActive) label = 'СЕЙЧАС'
+    if (isSoon) label = 'СКОРО НАЧНЕТСЯ'
+
     return (
         <Column>
-            <Text fontSize={16}>
-                {isActive ? 'СЕЙЧАС' : 'БЛИЖАЙШЕЕ СОБЫТИЕ'}
-            </Text>
+            <Text fontSize={16}>{label}</Text>
             <Text fontSize={28} fontWeight={600}>
                 {event.text}
             </Text>
-            <Text fontSize={16}>{formatEventTime(event)}</Text>
+            <Text fontSize={16} fontWeight={500}>
+                {formatEventTime(event)}
+            </Text>
         </Column>
     )
 }
