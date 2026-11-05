@@ -98,7 +98,12 @@ function parseUntil(value: string): Date {
     return parsed.toJSDate()
 }
 
+const recurrenceParseCache = new Map<string, Recurrence>()
+
 export function parseRecurrence(value: string): Recurrence {
+    const cached = recurrenceParseCache.get(value)
+    if (cached !== undefined) return cached
+
     const fields = new Map(
         value.split(';').map((part) => {
             const separator = part.indexOf('=')
@@ -165,7 +170,12 @@ export function parseRecurrence(value: string): Recurrence {
             throw new RangeError('Unsupported recurrence frequency')
     }
 
-    return recurrenceSchema.parse(candidate)
+    const result = recurrenceSchema.parse(candidate)
+    if (recurrenceParseCache.size > 1000) {
+        recurrenceParseCache.clear()
+    }
+    recurrenceParseCache.set(value, result)
+    return result
 }
 
 const weekdayNumbers = new Map(

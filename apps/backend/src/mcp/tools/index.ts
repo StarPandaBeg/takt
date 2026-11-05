@@ -19,7 +19,6 @@ export function registerTools(server: McpServer) {
 
                 console.log(
                     `[MCP] ← ${name} (${Math.round(performance.now() - started)}ms)`,
-                    result,
                 )
 
                 return result

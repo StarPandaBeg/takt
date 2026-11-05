@@ -3,7 +3,10 @@ import type {
     DeadlineCompletion,
     DeadlineRecurrenceException,
 } from '#src/database/schema.js'
+import * as deadlineCompletionsRepository from '#src/repository/deadline-completions.js'
+import * as deadlineExceptionsRepository from '#src/repository/deadline-recurrence-exceptions.js'
 import type { DeadlineFilters } from '#src/repository/deadlines.js'
+import * as deadlinesRepository from '#src/repository/deadlines.js'
 import type { Deadline as TemplateDeadline } from '@takt/templates'
 import { DateTime } from 'luxon'
 import * as z from 'zod'
@@ -194,23 +197,11 @@ function toDeadlineEntity(
 export async function getDeadlineEntity(
     id: number,
 ): Promise<DeadlineEntity | undefined> {
-    const [
-        deadlinesRepository,
-        deadlineExceptionsRepository,
-        deadlineCompletionsRepository,
-    ] =
-        await Promise.all([
-            import('#src/repository/deadlines.js'),
-            import('#src/repository/deadline-recurrence-exceptions.js'),
-            import('#src/repository/deadline-completions.js'),
-        ])
     const deadline = await deadlinesRepository.get(id)
     if (deadline === undefined) return undefined
-    const exceptions = await deadlineExceptionsRepository.getForDeadlineIds([
-        id,
-    ])
-    const completions = await deadlineCompletionsRepository.getForDeadlineIds([
-        id,
+    const [exceptions, completions] = await Promise.all([
+        deadlineExceptionsRepository.getForDeadlineIds([id]),
+        deadlineCompletionsRepository.getForDeadlineIds([id]),
     ])
     return toDeadlineEntity(deadline, exceptions, completions)
 }
@@ -218,29 +209,17 @@ export async function getDeadlineEntity(
 export async function getDeadlineEntities(
     filters: DeadlineFilters,
 ): Promise<DeadlineEntity[]> {
-    const [
-        deadlinesRepository,
-        deadlineExceptionsRepository,
-        deadlineCompletionsRepository,
-    ] =
-        await Promise.all([
-            import('#src/repository/deadlines.js'),
-            import('#src/repository/deadline-recurrence-exceptions.js'),
-            import('#src/repository/deadline-completions.js'),
-        ])
     const deadlines = await deadlinesRepository.getFiltered({
         ...filters,
-        limit: undefined,
+        limit: filters.withCompleted ? filters.limit : undefined,
         withCompleted: true,
     })
-    const exceptions = await deadlineExceptionsRepository.getForDeadlineIds(
-        deadlines.map(({ id }) => id),
-    )
+    const deadlineIds = deadlines.map(({ id }) => id)
+    const [exceptions, completions] = await Promise.all([
+        deadlineExceptionsRepository.getForDeadlineIds(deadlineIds),
+        deadlineCompletionsRepository.getForDeadlineIds(deadlineIds),
+    ])
     const grouped = Map.groupBy(exceptions, (exception) => exception.deadlineId)
-    const completions =
-        await deadlineCompletionsRepository.getForDeadlineIds(
-            deadlines.map(({ id }) => id),
-        )
     const groupedCompletions = Map.groupBy(
         completions,
         (completion) => completion.deadlineId,
@@ -445,27 +424,17 @@ export async function getResolvedDeadlines(options: {
     if (!Number.isInteger(limit) || limit <= 0 || limit > 8192) {
         throw new RangeError('Deadline limit must be an integer from 1 to 8192')
     }
-    const [
-        deadlinesRepository,
-        deadlineExceptionsRepository,
-        deadlineCompletionsRepository,
-    ] =
-        await Promise.all([
-            import('#src/repository/deadlines.js'),
-            import('#src/repository/deadline-recurrence-exceptions.js'),
-            import('#src/repository/deadline-completions.js'),
-        ])
     const masters = await deadlinesRepository.getScheduleCandidates(
         options.from.toJSDate(),
         options.withCompleted ?? false,
         options.withCancelled ?? false,
+        options.to?.toJSDate(),
     )
-    const exceptions = await deadlineExceptionsRepository.getForDeadlineIds(
-        masters.map(({ id }) => id),
-    )
-    const completions = await deadlineCompletionsRepository.getForDeadlineIds(
-        masters.map(({ id }) => id),
-    )
+    const deadlineIds = masters.map(({ id }) => id)
+    const [exceptions, completions] = await Promise.all([
+        deadlineExceptionsRepository.getForDeadlineIds(deadlineIds),
+        deadlineCompletionsRepository.getForDeadlineIds(deadlineIds),
+    ])
     return resolveDeadlineOccurrences(
         masters,
         exceptions,
@@ -736,11 +705,6 @@ export async function updateDeadline(options: {
     readonly recurrenceId?: Date | undefined
     readonly changes: DeadlineChanges
 }): Promise<number> {
-    const [deadlinesRepository, deadlineExceptionsRepository] =
-        await Promise.all([
-            import('#src/repository/deadlines.js'),
-            import('#src/repository/deadline-recurrence-exceptions.js'),
-        ])
     const deadline = await deadlinesRepository.get(options.id)
     if (deadline === undefined) throw new RangeError('Deadline not found')
 
@@ -865,11 +829,6 @@ export async function cancelDeadline(options: {
     readonly scope: DeadlineMutationScope
     readonly recurrenceId?: Date | undefined
 }): Promise<number> {
-    const [deadlinesRepository, deadlineExceptionsRepository] =
-        await Promise.all([
-            import('#src/repository/deadlines.js'),
-            import('#src/repository/deadline-recurrence-exceptions.js'),
-        ])
     const deadline = await deadlinesRepository.get(options.id)
     if (deadline === undefined) throw new RangeError('Deadline not found')
     if (deadline.cancelledAt !== null) return deadline.id
@@ -910,11 +869,6 @@ export async function setDeadlineCompletion(options: {
     readonly completed: boolean
     readonly completedAt?: Date | undefined
 }): Promise<number> {
-    const [deadlinesRepository, deadlineCompletionsRepository] =
-        await Promise.all([
-            import('#src/repository/deadlines.js'),
-            import('#src/repository/deadline-completions.js'),
-        ])
     const deadline = await deadlinesRepository.get(options.id)
     if (deadline === undefined) throw new RangeError('Deadline not found')
 

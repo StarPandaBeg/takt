@@ -7,3 +7,8 @@ if (databaseUrl === undefined || databaseUrl.length === 0) {
 }
 
 export const db = drizzle(databaseUrl, { relations })
+
+if (databaseUrl.startsWith('file:') && !databaseUrl.includes(':memory:')) {
+    void db.$client.execute('PRAGMA journal_mode = WAL;').catch(() => {})
+    void db.$client.execute('PRAGMA synchronous = NORMAL;').catch(() => {})
+}

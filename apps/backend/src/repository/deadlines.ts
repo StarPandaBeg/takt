@@ -68,12 +68,21 @@ export const getScheduleCandidates = async (
     from: Date,
     withCompleted = false,
     withCancelled = false,
+    to?: Date,
 ): Promise<Deadline[]> => {
+    const dueCondition =
+        to === undefined
+            ? gte(deadlinesTable.due, from)
+            : and(gte(deadlinesTable.due, from), lt(deadlinesTable.due, to))
+    const recurrenceCondition =
+        to === undefined
+            ? isNotNull(deadlinesTable.recurrenceRule)
+            : and(isNotNull(deadlinesTable.recurrenceRule), lt(deadlinesTable.due, to))
     const conditions = [
         withCancelled ? undefined : isNull(deadlinesTable.cancelledAt),
         or(
-            gte(deadlinesTable.due, from),
-            isNotNull(deadlinesTable.recurrenceRule),
+            dueCondition,
+            recurrenceCondition,
             eq(deadlinesTable.visibilityHide, 'on_complete'),
         )!,
     ].filter((c): c is NonNullable<typeof c> => c !== undefined)

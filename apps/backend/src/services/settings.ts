@@ -7,11 +7,16 @@ export interface ApplicationSettings {
 
 const TIMEZONE_KEY = 'timezone'
 
+let cachedTimezone: string | null = null
+
 export function isValidTimezone(timezone: string): boolean {
     return IANAZone.isValidZone(timezone) || timezone === 'UTC'
 }
 
 export async function getSettings(): Promise<ApplicationSettings> {
+    if (cachedTimezone !== null) {
+        return { timezone: cachedTimezone }
+    }
     const setting = await settingsRepository.get(TIMEZONE_KEY)
     if (setting === undefined) {
         throw new Error('Application timezone setting has not been initialized')
@@ -20,6 +25,7 @@ export async function getSettings(): Promise<ApplicationSettings> {
     if (!isValidTimezone(timezone)) {
         throw new Error(`Stored application timezone is invalid: ${timezone}`)
     }
+    cachedTimezone = timezone
     return { timezone }
 }
 
@@ -35,6 +41,7 @@ export async function updateSettings(changes: {
     readonly timezone?: string | undefined
 }): Promise<ApplicationSettings> {
     if (changes.timezone !== undefined) {
+        cachedTimezone = null
         await settingsRepository.set(TIMEZONE_KEY, changes.timezone)
     }
     return getSettings()

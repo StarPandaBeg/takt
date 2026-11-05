@@ -67,16 +67,14 @@ export const getOverlapping = async (
         .where(
             and(
                 withCancelled ? undefined : isNull(eventsTable.cancelledAt),
+                lt(eventsTable.start, to),
                 or(
                     isNotNull(eventsTable.recurrenceRule),
-                    and(
-                        lt(eventsTable.start, to),
-                        or(
-                            gt(eventsTable.end, from),
-                            and(
-                                isNull(eventsTable.end),
-                                gte(eventsTable.start, from),
-                            ),
+                    or(
+                        gt(eventsTable.end, from),
+                        and(
+                            isNull(eventsTable.end),
+                            gte(eventsTable.start, from),
                         ),
                     ),
                 ),
