@@ -39,13 +39,21 @@ export class ApiClientError extends Error {
 export function getAuthToken(): string {
     return (
         localStorage.getItem('takt_auth_token') ||
-        (import.meta.env.VITE_AUTH_TOKEN as string | undefined) ||
+        import.meta.env.VITE_AUTH_TOKEN ||
         ''
     )
 }
 
 export function setAuthToken(token: string): void {
     localStorage.setItem('takt_auth_token', token)
+}
+
+const backendUrl = (import.meta.env.VITE_BACKEND_URL ?? '')
+    .trim()
+    .replace(/\/+$/, '')
+
+function backendPath(path: string): string {
+    return `${backendUrl}${path}`
 }
 
 const inFlightGetRequests = new Map<string, Promise<unknown>>()
@@ -76,7 +84,7 @@ async function executeRequestWithHeaders<T>(
         }
     }
 
-    const response = await fetch(path, {
+    const response = await fetch(backendPath(path), {
         ...options,
         headers,
     })
@@ -341,7 +349,8 @@ export const api = {
         getInfo: (name: 'main' | 'splash') =>
             request<ScreenInfo>(`/screens/${name}`),
 
-        getPngUrl: (name: 'main' | 'splash') => `/screens/${name}/png`,
+        getPngUrl: (name: 'main' | 'splash') =>
+            backendPath(`/screens/${name}/png`),
 
         getPngBlob: async (name: 'main' | 'splash'): Promise<Blob> => {
             const token = getAuthToken()
@@ -351,7 +360,7 @@ export const api = {
             if (token) {
                 headers.set('Authorization', `Bearer ${token}`)
             }
-            const response = await fetch(`/screens/${name}/png`, {
+            const response = await fetch(backendPath(`/screens/${name}/png`), {
                 headers,
             })
             if (!response.ok) {
@@ -383,10 +392,13 @@ export const api = {
                 }
 
                 try {
-                    const response = await fetch('/screens/events', {
-                        headers,
-                        signal: controller.signal,
-                    })
+                    const response = await fetch(
+                        backendPath('/screens/events'),
+                        {
+                            headers,
+                            signal: controller.signal,
+                        },
+                    )
 
                     if (!response.ok) {
                         throw new Error(`SSE HTTP ${response.status}`)

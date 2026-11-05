@@ -19,6 +19,8 @@ services:
         build:
             context: .
             dockerfile: Dockerfile.frontend
+            args:
+                VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}
         image: ${TAKT_FRONTEND_IMAGE:-takt-frontend:latest}
         restart: unless-stopped
         ports:

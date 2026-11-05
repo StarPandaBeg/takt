@@ -70,6 +70,20 @@ PNG и ESP endpoints возвращают `Cache-Control: no-store`. `/screens/e
 AUTH_TOKEN=replace-me npm run dev
 ```
 
+## Запуск frontend
+
+Если backend доступен на другом origin, задайте его публичный URL при запуске
+или сборке frontend:
+
+```bash
+VITE_BACKEND_URL=http://localhost:3000 npm run dev --workspace=@takt/frontend
+```
+
+Без `VITE_BACKEND_URL` frontend обращается к своему origin. Значение встраивается
+в статическую сборку Vite, поэтому для Docker-образа его нужно передавать как
+build argument, а не только как runtime environment variable. Завершающий `/`
+необязателен.
+
 ## Запуск в Docker
 
 Для тестового сервера достаточно Docker Compose:
