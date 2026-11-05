@@ -35,7 +35,10 @@ const changesSchema = z
             })
             .nullable()
             .optional(),
-        recurrence: recurrenceSchema.nullable().optional(),
+        recurrence: recurrenceSchema
+            .nullable()
+            .optional()
+            .describe('null stops recurrence'),
         restore: z
             .boolean()
             .optional()

@@ -47,7 +47,8 @@ export const createEventInputSchema = z
 
         recurrence: recurrenceSchema
             .nullable()
-            .optional(),
+            .optional()
+            .describe('null means one-time'),
     })
     .refine(
         ({ start, end }) => end == null || new Date(end) >= new Date(start),

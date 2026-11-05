@@ -13,7 +13,7 @@ const recurrenceCommonFields = {
         .positive()
         .max(1000)
         .optional()
-        .describe('Frequency multiplier; 2 means every second period'),
+        .describe('Periods between occurrences; defaults to 1'),
     count: z
         .number()
         .int()
@@ -49,7 +49,12 @@ export const recurrenceSchema = z
 
         z.object({
             frequency: z.literal('monthly-date'),
-            day: z.number().int().min(1).max(31),
+            day: z
+                .number()
+                .int()
+                .min(1)
+                .max(31)
+                .describe('Day of month'),
             ...recurrenceCommonFields,
         }),
 
@@ -70,7 +75,9 @@ export const recurrenceSchema = z
     .refine((rule) => rule.count === undefined || rule.until === undefined, {
         message: 'count and until are mutually exclusive',
     })
-    .describe('Recurrence rule')
+    .describe(
+        'Recurrence rule: frequency selects the pattern; interval controls spacing; count or until ends the series',
+    )
 
 export const eventOccurrenceExceptionSchema = z
     .discriminatedUnion('status', [
