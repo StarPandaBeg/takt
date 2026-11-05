@@ -68,7 +68,7 @@ const { updateDeadlineTool } =
     await import('../apps/backend/dist/mcp/tools/deadlines/update-deadline.tool.js')
 const { cancelDeadlineTool } =
     await import('../apps/backend/dist/mcp/tools/deadlines/cancel-deadline.tool.js')
-const { setDeadlineCompletion } =
+const { setDeadlineCompletion, setDeadlineCompletionInputSchema } =
     await import('../apps/backend/dist/mcp/tools/deadlines/set-deadline-completion.tool.js')
 const { createNote } =
     await import('../apps/backend/dist/mcp/tools/notes/create-note.tool.js')
@@ -577,6 +577,11 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
     })
     const id = created.structuredContent.id
 
+    await assert.rejects(
+        setDeadlineCompletion({ id, completed: true }),
+        /recurrenceId is required for a recurring deadline/,
+    )
+
     let master = await getDeadline({ id })
     assert.deepEqual(created.structuredContent, master.structuredContent)
     assert.equal(master.structuredContent.title, 'Quarterly report')
@@ -749,6 +754,57 @@ test('MCP deadline tools cover create, read, search, update, completion, and can
     })
     assert.equal(found.structuredContent.length, 1)
     await cancelDeadlineTool({ id, scope: 'series' })
+})
+
+test('MCP completion safely tolerates a one-time deadline due as recurrenceId', async () => {
+    assert.equal(
+        setDeadlineCompletionInputSchema.safeParse({
+            id: 'deadline:1',
+            recurrenceId: null,
+            completed: true,
+        }).success,
+        true,
+    )
+
+    const created = await createDeadline({
+        title: 'One-time completion compatibility',
+        due: '2026-11-20T18:00:00+03:00',
+        timezone: 'Europe/Moscow',
+    })
+    const id = created.structuredContent.id
+
+    try {
+        await setDeadlineCompletion({
+            id,
+            recurrenceId: '2026-11-20T15:00:00.000Z',
+            completed: true,
+        })
+        assert.notEqual(
+            (await getDeadline({ id })).structuredContent.completedAt,
+            null,
+        )
+
+        await setDeadlineCompletion({
+            id,
+            recurrenceId: null,
+            completed: false,
+        })
+        assert.equal(
+            (await getDeadline({ id })).structuredContent.completedAt,
+            null,
+        )
+
+        await assert.rejects(
+            setDeadlineCompletion({
+                id,
+                recurrenceId: '2026-11-21T15:00:00.000Z',
+                completed: true,
+            }),
+            /recurrenceId does not match due for a one-time deadline/,
+        )
+    } finally {
+        await cancelDeadlineTool({ id, scope: 'series' })
+    }
 })
 
 test('HTTP deadline API matches MCP update, completion, search, and cancellation scopes', async () => {

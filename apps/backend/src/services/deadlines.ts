@@ -874,9 +874,12 @@ export async function setDeadlineCompletion(options: {
 
     let recurrenceId: Date | null = null
     if (deadline.recurrenceRule === null) {
-        if (options.recurrenceId !== undefined) {
+        if (
+            options.recurrenceId !== undefined &&
+            options.recurrenceId.getTime() !== deadline.due.getTime()
+        ) {
             throw new RangeError(
-                'recurrenceId must not be provided for a one-time deadline',
+                'recurrenceId does not match due for a one-time deadline',
             )
         }
     } else {

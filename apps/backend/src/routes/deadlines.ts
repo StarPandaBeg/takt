@@ -127,7 +127,10 @@ const cancellationSchema = z
         }
     })
 const completionSchema = z.object({
-    recurrenceId: z.coerce.date().optional(),
+    recurrenceId: z.preprocess(
+        (value) => (value === null ? undefined : value),
+        z.coerce.date().optional(),
+    ),
     completed: z.boolean(),
 })
 const occurrenceExceptionSchema = z.discriminatedUnion('status', [

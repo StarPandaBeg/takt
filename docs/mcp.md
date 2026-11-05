@@ -228,15 +228,16 @@ interface UpdateDeadlineInput {
 
 ```ts
 interface SetDeadlineCompletionInput {
-    id: number
-    scope: 'series' | 'occurrence' | 'this_and_future'
-    recurrenceId?: string
+    id: `deadline:${number}`
+    recurrenceId?: string | null
     completed: boolean
 }
 ```
 
-Для одного occurrence состояние сохраняется в override. Для
-`this_and_future` создаётся новая серия и возвращается её ID.
+Для повторяющегося дедлайна требуется исходный `recurrenceId` вхождения. Для
+одноразового дедлайна поле следует опустить или передать `null`; значение,
+совпадающее с `due` по абсолютному времени, также принимается. Другая дата
+отклоняется как возможное смешение сущностей.
 
 ## Инструменты заметок
 

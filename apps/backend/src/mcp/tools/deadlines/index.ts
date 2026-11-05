@@ -141,7 +141,8 @@ export function registerDeadlineTools(server: McpServer) {
         'set_deadline_completion',
         {
             title: 'Set Deadline Completion',
-            description: 'Complete or reopen a deadline occurrence.',
+            description:
+                'Complete or reopen a deadline. Recurring deadlines require an occurrence recurrenceId.',
             inputSchema: setDeadlineCompletionInputSchema,
             outputSchema: setDeadlineCompletionOutputSchema,
             annotations: {
