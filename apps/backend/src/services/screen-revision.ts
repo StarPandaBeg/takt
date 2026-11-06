@@ -36,6 +36,7 @@ export const getEventsRevision = (
             start: event.start.toMillis(),
             end: event.end?.toMillis() ?? null,
             state: getEventState(event, now),
+            started: now.toMillis() >= event.start.toMillis(),
         }))
 }
 

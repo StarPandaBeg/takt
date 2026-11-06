@@ -141,6 +141,14 @@ test('event revision changes only at visible event state boundaries', () => {
     )
     assert.deepEqual(
         revisionAt('2026-10-25T09:45'),
+        revisionAt('2026-10-25T09:59'),
+    )
+    assert.notDeepEqual(
+        revisionAt('2026-10-25T09:59'),
+        revisionAt('2026-10-25T10:00'),
+    )
+    assert.deepEqual(
+        revisionAt('2026-10-25T10:00'),
         revisionAt('2026-10-25T10:14'),
     )
     assert.notDeepEqual(
