@@ -133,15 +133,26 @@ curl http://localhost:3000/api/diagnostics/batch \
 
 ### `GET /api/diagnostics/records`
 
-Возвращает записи от новых к старым. Фильтры: `device_id`, `from`, `to`
-(server receive time в Unix milliseconds), `level`, `module`, `type`,
-`boot_id`, `limit` (`1..500`, default `100`) и `offset`. Общее количество
-передаётся в `X-Total-Count`.
+Возвращает записи с серверной пагинацией. Фильтры комбинируются: `device_id`,
+`from`, `to` (server receive time в Unix milliseconds), `level`, `module`,
+`source`, `query` (по сообщению), `type`, `boot_id`, `sequence`,
+`firmware_version`, `git_sha`, `event_type` (ключ `event_type`/`eventType` в
+`fields`) и `has_fields`. Пагинация задаётся через `limit` (`1..500`, default
+`100`) и `offset`. Общее количество передаётся в `X-Total-Count`.
+
+`sort_by` принимает `received_at`, `timestamp`, `uptime`, `sequence`, `level`,
+`module`, `type` или `firmware_version`; `sort_direction` — `asc`/`desc`.
 
 ```sh
 curl -H 'Authorization: Bearer device-token' \
   'http://localhost:3000/api/diagnostics/records?level=ERROR&limit=50'
 ```
+
+`GET /api/diagnostics/records/export` применяет те же фильтры и принимает
+`format=json|csv` и `max_records` (`1..10000`, default `5000`).
+
+`GET /api/diagnostics/boots` возвращает агрегированную историю загрузок:
+устройство, boot ID, firmware, время первого/последнего пакета и число записей.
 
 ### Core dump
 
@@ -162,9 +173,11 @@ curl http://localhost:3000/api/diagnostics/coredump \
   --data-binary @core-dump.bin
 ```
 
-Метаданные доступны через `GET /api/diagnostics/coredumps/:id`, бинарный файл
-— через `GET /api/diagnostics/coredumps/:id/file`. Оба маршрута защищены тем
-же Bearer-токеном.
+Список метаданных доступен через `GET /api/diagnostics/coredumps` с фильтрами
+`device_id`, `boot_id`, `from`, `to`, `limit`, `offset`; отдельная запись —
+через `GET /api/diagnostics/coredumps/:id`, бинарный файл — через
+`GET /api/diagnostics/coredumps/:id/file`. Все маршруты защищены тем же
+Bearer-токеном.
 
 ## Повторение
 

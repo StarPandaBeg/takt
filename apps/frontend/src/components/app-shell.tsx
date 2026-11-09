@@ -1,10 +1,17 @@
-import { CalendarDays, Home, NotebookPen, Settings } from 'lucide-react'
+import {
+    Activity,
+    CalendarDays,
+    Home,
+    NotebookPen,
+    Settings,
+} from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 
 const navigation = [
     { to: '/', label: 'Главная', icon: Home, end: true },
     { to: '/calendar', label: 'Календарь', icon: CalendarDays, end: false },
     { to: '/notes', label: 'Заметки', icon: NotebookPen, end: false },
+    { to: '/diagnostics', label: 'Диагностика', icon: Activity, end: false },
 ]
 
 const commitSha = (import.meta.env.VITE_COMMIT_SHA || 'dev').trim()

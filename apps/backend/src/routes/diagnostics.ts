@@ -38,6 +38,7 @@ const recordSchema = z
             'INFO',
             'WARN',
             'ERROR',
+            'CRITICAL',
             'FATAL',
             'VERBOSE',
         ]),
@@ -73,25 +74,79 @@ const batchSchema = z
         }
     })
 
+const recordFilterFields = {
+    device_id: identifier.optional(),
+    from: z.coerce.number().int().nonnegative().safe().optional(),
+    to: z.coerce.number().int().nonnegative().safe().optional(),
+    level: recordSchema.shape.level.optional(),
+    module: shortText.optional(),
+    source: shortText.optional(),
+    query: z.string().min(1).max(256).optional(),
+    type: recordSchema.shape.type.optional(),
+    boot_id: identifier.optional(),
+    sequence: z.coerce.number().int().nonnegative().safe().optional(),
+    firmware_version: shortText.optional(),
+    git_sha: z.string().min(1).max(64).optional(),
+    event_type: shortText.optional(),
+    has_fields: z.stringbool().optional(),
+    sort_by: z
+        .enum([
+            'received_at',
+            'timestamp',
+            'uptime',
+            'sequence',
+            'level',
+            'module',
+            'type',
+            'firmware_version',
+        ])
+        .default('received_at'),
+    sort_direction: z.enum(['asc', 'desc']).default('desc'),
+}
+const validatePeriod = ({ from, to }: { from?: number; to?: number }) =>
+    from === undefined || to === undefined || from <= to
 const recordsQuerySchema = z
     .object({
-        device_id: identifier.optional(),
-        from: z.coerce.number().int().nonnegative().safe().optional(),
-        to: z.coerce.number().int().nonnegative().safe().optional(),
-        level: recordSchema.shape.level.optional(),
-        module: shortText.optional(),
-        type: recordSchema.shape.type.optional(),
-        boot_id: identifier.optional(),
+        ...recordFilterFields,
         limit: z.coerce.number().int().positive().max(500).default(100),
         offset: z.coerce.number().int().nonnegative().default(0),
     })
     .strict()
-    .refine(
-        ({ from, to }) => from === undefined || to === undefined || from <= to,
-        {
-            message: 'from must be less than or equal to to',
-        },
-    )
+    .refine(validatePeriod, {
+        message: 'from must be less than or equal to to',
+    })
+const exportQuerySchema = z
+    .object({
+        ...recordFilterFields,
+        format: z.enum(['json', 'csv']).default('json'),
+        max_records: z.coerce
+            .number()
+            .int()
+            .positive()
+            .max(10_000)
+            .default(5000),
+    })
+    .strict()
+    .refine(validatePeriod, {
+        message: 'from must be less than or equal to to',
+    })
+const coredumpsQuerySchema = z
+    .object({
+        device_id: identifier.optional(),
+        boot_id: identifier.optional(),
+        from: z.coerce.number().int().nonnegative().safe().optional(),
+        to: z.coerce.number().int().nonnegative().safe().optional(),
+        limit: z.coerce.number().int().positive().max(200).default(50),
+        offset: z.coerce.number().int().nonnegative().default(0),
+    })
+    .strict()
+    .refine(validatePeriod, {
+        message: 'from must be less than or equal to to',
+    })
+const bootsQuerySchema = z.object({
+    device_id: identifier.optional(),
+    limit: z.coerce.number().int().positive().max(500).default(100),
+})
 const coredumpHeadersSchema = z.object({
     'x-device-id': identifier,
     'x-boot-id': identifier,
@@ -148,6 +203,40 @@ function serializeCoredump(
         received_at: coredump.receivedAt.getTime(),
         download_url: `/api/diagnostics/coredumps/${coredump.id}/file`,
     }
+}
+
+function toRecordFilters(
+    query:
+        z.infer<typeof recordsQuerySchema> | z.infer<typeof exportQuerySchema>,
+    limit: number,
+    offset: number,
+): diagnostics.RecordFilters {
+    return {
+        deviceId: query.device_id,
+        from: query.from === undefined ? undefined : new Date(query.from),
+        to: query.to === undefined ? undefined : new Date(query.to),
+        level: query.level,
+        module: query.module,
+        source: query.source,
+        query: query.query,
+        recordType: query.type,
+        bootId: query.boot_id,
+        sequence: query.sequence,
+        firmwareVersion: query.firmware_version,
+        gitSha: query.git_sha,
+        eventType: query.event_type,
+        hasFields: query.has_fields,
+        sortBy: query.sort_by,
+        sortDirection: query.sort_direction,
+        limit,
+        offset,
+    }
+}
+
+function csvCell(value: unknown): string {
+    const text =
+        typeof value === 'string' ? value : JSON.stringify(value ?? null)
+    return `"${text.replaceAll('"', '""')}"`
 }
 
 export const diagnosticsRoutes: FastifyPluginAsync<
@@ -252,19 +341,50 @@ export const diagnosticsRoutes: FastifyPluginAsync<
         }
     })
 
+    fastify.get('/records/export', async (request, reply) => {
+        const query = exportQuerySchema.parse(request.query)
+        const records = (
+            await diagnostics.listRecords(
+                toRecordFilters(query, query.max_records, 0),
+            )
+        ).map(serializeRecord)
+        const timestamp = new Date().toISOString().replaceAll(':', '-')
+        reply.header(
+            'content-disposition',
+            `attachment; filename="takt-diagnostics-${timestamp}.${query.format}"`,
+        )
+        if (query.format === 'json') return records
+
+        const columns = [
+            'id',
+            'device_id',
+            'record_id',
+            'boot_id',
+            'sequence',
+            'firmware_version',
+            'git_sha',
+            'type',
+            'level',
+            'source',
+            'module',
+            'message',
+            'uptime_ms',
+            'timestamp_unix_ms',
+            'fields',
+            'received_at',
+        ] as const
+        const csv = [
+            columns.join(','),
+            ...records.map((record) =>
+                columns.map((column) => csvCell(record[column])).join(','),
+            ),
+        ].join('\n')
+        return reply.type('text/csv; charset=utf-8').send(csv)
+    })
+
     fastify.get('/records', async (request, reply) => {
         const query = recordsQuerySchema.parse(request.query)
-        const filters: diagnostics.RecordFilters = {
-            deviceId: query.device_id,
-            from: query.from === undefined ? undefined : new Date(query.from),
-            to: query.to === undefined ? undefined : new Date(query.to),
-            level: query.level,
-            module: query.module,
-            recordType: query.type,
-            bootId: query.boot_id,
-            limit: query.limit,
-            offset: query.offset,
-        }
+        const filters = toRecordFilters(query, query.limit, query.offset)
         const [records, total] = await Promise.all([
             diagnostics.listRecords(filters),
             diagnostics.countRecords(filters),
@@ -275,6 +395,24 @@ export const diagnosticsRoutes: FastifyPluginAsync<
             records: records.map(serializeRecord),
             limit: query.limit,
             offset: query.offset,
+        }
+    })
+
+    fastify.get('/boots', async (request) => {
+        const query = bootsQuerySchema.parse(request.query)
+        const boots = await diagnostics.listBoots({
+            deviceId: query.device_id,
+            limit: query.limit,
+        })
+        return {
+            boots: boots.map((boot) => ({
+                device_id: boot.deviceId,
+                boot_id: boot.bootId,
+                firmware_version: boot.firmwareVersion,
+                first_received_at: boot.firstReceivedAt,
+                last_received_at: boot.lastReceivedAt,
+                record_count: boot.recordCount,
+            })),
         }
     })
 
@@ -353,6 +491,29 @@ export const diagnosticsRoutes: FastifyPluginAsync<
             return await reply.code(404).send({ error: 'Core dump not found' })
         }
         return serializeCoredump(coredump)
+    })
+
+    fastify.get('/coredumps', async (request, reply) => {
+        const query = coredumpsQuerySchema.parse(request.query)
+        const filters: diagnostics.CoredumpFilters = {
+            deviceId: query.device_id,
+            bootId: query.boot_id,
+            from: query.from === undefined ? undefined : new Date(query.from),
+            to: query.to === undefined ? undefined : new Date(query.to),
+            limit: query.limit,
+            offset: query.offset,
+        }
+        const [coredumps, total] = await Promise.all([
+            diagnostics.listCoredumps(filters),
+            diagnostics.countCoredumps(filters),
+        ])
+        reply.header('x-total-count', total)
+        reply.header('access-control-expose-headers', 'x-total-count')
+        return {
+            coredumps: coredumps.map(serializeCoredump),
+            limit: query.limit,
+            offset: query.offset,
+        }
     })
 
     fastify.get('/coredumps/:id/file', async (request, reply) => {

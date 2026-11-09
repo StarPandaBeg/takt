@@ -8,11 +8,15 @@ import type {
     DeadlineEntity,
     DeadlineListQuery,
     DeadlineOccurrenceListQuery,
+    DiagnosticBoot,
+    DiagnosticCoredump,
+    DiagnosticRecordsQuery,
     EventEntity,
     EventOccurrenceListQuery,
     EventSearchQuery,
     ListNotesQuery,
     Note,
+    PaginatedDiagnosticRecords,
     PaginatedNotes,
     ResolvedDeadline,
     ResolvedEvent,
@@ -159,6 +163,43 @@ function buildQuery(
     }
     const queryString = searchParams.toString()
     return queryString ? `?${queryString}` : ''
+}
+
+function diagnosticsQuery(query: DiagnosticRecordsQuery) {
+    return {
+        device_id: query.deviceId,
+        from: query.from,
+        to: query.to,
+        level: query.level,
+        module: query.module,
+        source: query.source,
+        query: query.query,
+        type: query.type,
+        boot_id: query.bootId,
+        sequence: query.sequence,
+        firmware_version: query.firmwareVersion,
+        git_sha: query.gitSha,
+        event_type: query.eventType,
+        has_fields: query.hasFields,
+        sort_by: query.sortBy,
+        sort_direction: query.sortDirection,
+        limit: query.limit,
+        offset: query.offset,
+    }
+}
+
+async function download(path: string): Promise<Blob> {
+    const headers = new Headers()
+    const token = getAuthToken()
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+    const response = await fetch(backendPath(path), { headers })
+    if (!response.ok) {
+        throw new ApiClientError(
+            `Ошибка загрузки: HTTP ${response.status}`,
+            response.status,
+        )
+    }
+    return response.blob()
 }
 
 export const api = {
@@ -338,6 +379,66 @@ export const api = {
             request<void>(`/api/deadlines/${id}`, {
                 method: 'DELETE',
             }),
+    },
+
+    diagnostics: {
+        records: async (
+            query: DiagnosticRecordsQuery,
+        ): Promise<PaginatedDiagnosticRecords> => {
+            const path = `/api/diagnostics/records${buildQuery(diagnosticsQuery(query))}`
+            const { data, headers } = await executeRequestWithHeaders<
+                Omit<PaginatedDiagnosticRecords, 'total'>
+            >(path, {})
+            const countHeader = headers.get('x-total-count')
+            return {
+                ...data,
+                total:
+                    countHeader === null
+                        ? data.records.length
+                        : Number.parseInt(countHeader, 10),
+            }
+        },
+        boots: (deviceId?: string) =>
+            request<{ boots: DiagnosticBoot[] }>(
+                `/api/diagnostics/boots${buildQuery({
+                    device_id: deviceId,
+                    limit: 200,
+                })}`,
+            ),
+        coredumps: async (query: {
+            bootId?: string
+            limit?: number
+            offset?: number
+        }): Promise<{ coredumps: DiagnosticCoredump[]; total: number }> => {
+            const path = `/api/diagnostics/coredumps${buildQuery({
+                boot_id: query.bootId,
+                limit: query.limit,
+                offset: query.offset,
+            })}`
+            const { data, headers } = await executeRequestWithHeaders<{
+                coredumps: DiagnosticCoredump[]
+            }>(path, {})
+            return {
+                coredumps: data.coredumps,
+                total: Number.parseInt(
+                    headers.get('x-total-count') ??
+                        String(data.coredumps.length),
+                    10,
+                ),
+            }
+        },
+        export: (query: DiagnosticRecordsQuery, format: 'json' | 'csv') =>
+            download(
+                `/api/diagnostics/records/export${buildQuery({
+                    ...diagnosticsQuery(query),
+                    limit: undefined,
+                    offset: undefined,
+                    format,
+                    max_records: 5000,
+                })}`,
+            ),
+        downloadCoredump: (id: number) =>
+            download(`/api/diagnostics/coredumps/${id}/file`),
     },
 
     // --- Screens & System ---

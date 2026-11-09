@@ -374,6 +374,86 @@ test('diagnostics batch is idempotent for full and partial retries', async () =>
     }
 })
 
+test('diagnostics combines analysis filters, sorting, boot history, and export', async () => {
+    const app = buildApp({
+        logger: false,
+        diagnosticsRateLimitPerMinute: false,
+    })
+    const bootId = 'analysis-filter-boot'
+    const payload = diagnosticBatch(
+        [
+            diagnosticRecord({
+                record_id: 'analysis-filter-000001',
+                sequence: 10,
+                type: 'event',
+                level: 'CRITICAL',
+                source: 'panic_handler',
+                module: 'system',
+                message: 'Core panic detected',
+                fields: { event_type: 'crash', cause: 'watchdog' },
+            }),
+            diagnosticRecord({
+                record_id: 'analysis-filter-000002',
+                sequence: 11,
+                type: 'metric',
+                source: 'diagnostics',
+                module: 'heap',
+                message: 'Heap snapshot',
+                fields: {},
+            }),
+        ],
+        { boot_id: bootId, firmware_version: '9.9.9', git_sha: 'feedface' },
+    )
+    try {
+        const accepted = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload,
+        })
+        assert.equal(accepted.statusCode, 200, accepted.body)
+
+        const filtered = await app.inject({
+            method: 'GET',
+            url: `/api/diagnostics/records?boot_id=${bootId}&level=CRITICAL&type=event&module=system&source=panic_handler&query=panic&sequence=10&firmware_version=9.9.9&git_sha=feedface&event_type=crash&has_fields=true&sort_by=sequence&sort_direction=asc`,
+        })
+        assert.equal(filtered.statusCode, 200, filtered.body)
+        assert.equal(filtered.headers['x-total-count'], '1')
+        assert.equal(
+            filtered.json().records[0].record_id,
+            'analysis-filter-000001',
+        )
+
+        const withoutFields = await app.inject({
+            method: 'GET',
+            url: `/api/diagnostics/records?boot_id=${bootId}&has_fields=false`,
+        })
+        assert.equal(withoutFields.headers['x-total-count'], '1')
+        assert.equal(
+            withoutFields.json().records[0].record_id,
+            'analysis-filter-000002',
+        )
+
+        const boots = await app.inject({
+            method: 'GET',
+            url: '/api/diagnostics/boots?limit=200',
+        })
+        const boot = boots.json().boots.find((item) => item.boot_id === bootId)
+        assert.equal(boot.record_count, 2)
+        assert.equal(boot.firmware_version, '9.9.9')
+
+        const csv = await app.inject({
+            method: 'GET',
+            url: `/api/diagnostics/records/export?boot_id=${bootId}&format=csv`,
+        })
+        assert.equal(csv.statusCode, 200, csv.body)
+        assert.match(csv.headers['content-type'], /^text\/csv/)
+        assert.match(csv.body, /analysis-filter-000001/)
+        assert.match(csv.body, /analysis-filter-000002/)
+    } finally {
+        await app.close()
+    }
+})
+
 test('diagnostics rejects unauthorized, invalid, and oversized batches', async () => {
     const protectedApp = buildBackendApp({
         logger: false,
@@ -546,6 +626,14 @@ test('diagnostics stores, deduplicates, and downloads binary core dumps', async 
         })
         assert.equal(metadata.statusCode, 200, metadata.body)
         assert.equal(metadata.json().file_size, payload.length)
+
+        const listed = await app.inject({
+            method: 'GET',
+            url: '/api/diagnostics/coredumps?boot_id=coredump-test-boot',
+        })
+        assert.equal(listed.statusCode, 200, listed.body)
+        assert.equal(listed.headers['x-total-count'], '1')
+        assert.equal(listed.json().coredumps[0].id, id)
 
         const download = await app.inject({
             method: 'GET',

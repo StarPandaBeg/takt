@@ -299,3 +299,94 @@ export interface ScreenChange {
     name: 'main' | 'splash'
     hash: string
 }
+
+// --- Diagnostics ---
+
+export type DiagnosticLevel =
+    | 'TRACE'
+    | 'DEBUG'
+    | 'INFO'
+    | 'WARN'
+    | 'ERROR'
+    | 'CRITICAL'
+    | 'FATAL'
+    | 'VERBOSE'
+
+export type DiagnosticRecordType = 'log' | 'event' | 'metric'
+export type DiagnosticSortBy =
+    | 'received_at'
+    | 'timestamp'
+    | 'uptime'
+    | 'sequence'
+    | 'level'
+    | 'module'
+    | 'type'
+    | 'firmware_version'
+
+export interface DiagnosticRecord {
+    id: number
+    device_id: string
+    record_id: string
+    boot_id: string
+    sequence: number
+    firmware_version: string | null
+    git_sha: string | null
+    type: DiagnosticRecordType
+    level: DiagnosticLevel | null
+    source: string | null
+    module: string | null
+    message: string | null
+    uptime_ms: number | null
+    timestamp_unix_ms: number | null
+    fields: Record<string, unknown>
+    received_at: number
+}
+
+export interface DiagnosticRecordsQuery {
+    deviceId?: string
+    from?: number
+    to?: number
+    level?: DiagnosticLevel
+    module?: string
+    source?: string
+    query?: string
+    type?: DiagnosticRecordType
+    bootId?: string
+    sequence?: number
+    firmwareVersion?: string
+    gitSha?: string
+    eventType?: string
+    hasFields?: boolean
+    sortBy?: DiagnosticSortBy
+    sortDirection?: 'asc' | 'desc'
+    limit?: number
+    offset?: number
+}
+
+export interface PaginatedDiagnosticRecords {
+    records: DiagnosticRecord[]
+    total: number
+    limit: number
+    offset: number
+}
+
+export interface DiagnosticCoredump {
+    id: number
+    device_id: string
+    boot_id: string
+    dump_id: string
+    firmware_version: string | null
+    file_size: number
+    sha256: string
+    received_at: number
+    download_url: string
+}
+
+export interface DiagnosticBoot {
+    device_id: string
+    boot_id: string
+    firmware_version: string | null
+    first_received_at: number
+    last_received_at: number
+    record_count: number
+}
