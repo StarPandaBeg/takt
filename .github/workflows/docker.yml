@@ -134,6 +134,8 @@ jobs:
                   labels: ${{ steps.metadata.outputs.labels }}
                   cache-from: type=gha,scope=${{ matrix.app.cache-scope }}
                   cache-to: type=gha,mode=max,scope=${{ matrix.app.cache-scope }}
+                  provenance: false
+                  sbom: false
 
     deploy:
         name: Deploy to production
