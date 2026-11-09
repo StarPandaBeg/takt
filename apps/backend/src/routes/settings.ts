@@ -1,4 +1,8 @@
-import { getSettings, isValidTimezone, updateSettings } from '#src/services/settings.js'
+import {
+    getSettings,
+    isValidTimezone,
+    updateSettings,
+} from '#src/services/settings.js'
 import type { FastifyPluginAsync } from 'fastify'
 import * as z from 'zod'
 
@@ -12,6 +16,7 @@ const settingsPatchSchema = z
                 message: 'timezone must be a valid IANA time zone',
             })
             .optional(),
+        tutorial: z.union([z.literal(0), z.literal(1)]).optional(),
     })
     .refine((changes) => Object.keys(changes).length > 0, {
         message: 'settings patch must contain at least one field',

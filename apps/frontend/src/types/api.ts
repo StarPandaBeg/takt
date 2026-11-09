@@ -52,10 +52,12 @@ export type UpdateScope = 'series' | 'occurrence' | 'this_and_future'
 
 export interface ApplicationSettings {
     timezone: string
+    tutorial: 0 | 1
 }
 
 export interface UpdateSettingsPayload {
     timezone?: string
+    tutorial?: 0 | 1
 }
 
 // --- Notes ---

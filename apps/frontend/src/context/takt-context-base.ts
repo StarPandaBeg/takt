@@ -13,6 +13,7 @@ import type {
     UpdateDeadlinePayload,
     UpdateEventPayload,
     UpdateNotePayload,
+    UpdateSettingsPayload,
 } from '../types/api'
 
 export interface TaktContextValue {
@@ -35,6 +36,9 @@ export interface TaktContextValue {
     refreshDeadlines: (range?: OccurrenceRange) => Promise<void>
     refreshNotes: () => Promise<void>
     refreshScreen: () => void
+    updateSettings: (
+        payload: UpdateSettingsPayload,
+    ) => Promise<ApplicationSettings>
     clearError: () => void
 
     // Мутации событий

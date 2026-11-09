@@ -173,7 +173,7 @@ test('backend exposes a health check', async () => {
     }
 })
 
-test('application settings expose and update the IANA timezone', async () => {
+test('application settings expose and update timezone and tutorial state', async () => {
     const app = buildApp({ logger: false })
     try {
         const initial = await app.inject({
@@ -181,7 +181,10 @@ test('application settings expose and update the IANA timezone', async () => {
             url: '/api/settings',
         })
         assert.equal(initial.statusCode, 200)
-        assert.deepEqual(initial.json(), { timezone: 'Europe/Moscow' })
+        assert.deepEqual(initial.json(), {
+            timezone: 'Europe/Moscow',
+            tutorial: 0,
+        })
 
         const updated = await app.inject({
             method: 'PATCH',
@@ -189,7 +192,21 @@ test('application settings expose and update the IANA timezone', async () => {
             payload: { timezone: 'Asia/Yekaterinburg' },
         })
         assert.equal(updated.statusCode, 200)
-        assert.deepEqual(updated.json(), { timezone: 'Asia/Yekaterinburg' })
+        assert.deepEqual(updated.json(), {
+            timezone: 'Asia/Yekaterinburg',
+            tutorial: 0,
+        })
+
+        const tutorialCompleted = await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { tutorial: 1 },
+        })
+        assert.equal(tutorialCompleted.statusCode, 200)
+        assert.deepEqual(tutorialCompleted.json(), {
+            timezone: 'Asia/Yekaterinburg',
+            tutorial: 1,
+        })
 
         const invalid = await app.inject({
             method: 'PATCH',
@@ -198,10 +215,17 @@ test('application settings expose and update the IANA timezone', async () => {
         })
         assert.equal(invalid.statusCode, 400)
 
+        const invalidTutorial = await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { tutorial: 2 },
+        })
+        assert.equal(invalidTutorial.statusCode, 400)
+
         await app.inject({
             method: 'PATCH',
             url: '/api/settings',
-            payload: { timezone: 'Europe/Moscow' },
+            payload: { timezone: 'Europe/Moscow', tutorial: 0 },
         })
     } finally {
         await app.close()

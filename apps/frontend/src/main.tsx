@@ -10,6 +10,8 @@ import { AppProvider } from './app-provider'
 import { router } from './router'
 import './styles.css'
 
+import 'animate.css/animate.min.css'
+
 const rootElement = document.getElementById('root')
 
 if (!rootElement) {

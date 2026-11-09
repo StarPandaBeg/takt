@@ -197,7 +197,11 @@ export function CalendarPage() {
     }
 
     const [editingEvent, setEditingEvent] = useState<ResolvedEvent | null>(null)
-    const [eventDraft, setEventDraft] = useState<EventDraft | null>(null)
+    const [eventDraft, setEventDraft] = useState<EventDraft | null>(() =>
+        params.get('create') === 'event'
+            ? { date: initialDate, allDay: false }
+            : null,
+    )
     const [editingDeadline, setEditingDeadline] = useState<
         ResolvedDeadline | 'new' | null
     >(null)

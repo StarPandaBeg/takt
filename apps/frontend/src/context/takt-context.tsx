@@ -26,6 +26,7 @@ import type {
     UpdateDeadlinePayload,
     UpdateEventPayload,
     UpdateNotePayload,
+    UpdateSettingsPayload,
 } from '../types/api'
 import { TaktContext } from './takt-context-base'
 import { useToast } from './use-toast'
@@ -58,6 +59,51 @@ export function TaktProvider({ children }: PropsWithChildren) {
         setSettings(data)
         return data
     }, [])
+
+    const updateSettings = useCallback(
+        async (payload: UpdateSettingsPayload) => {
+            const data = await api.settings.update(payload)
+            timezoneRef.current = data.timezone
+            setSettings(data)
+            return data
+        },
+        [],
+    )
+
+    useEffect(() => {
+        const previousTaktDescriptor = Object.getOwnPropertyDescriptor(
+            window,
+            'takt',
+        )
+        const developerConsole: TaktDeveloperConsole = {
+            setTutorial: async (value) => {
+                const tutorial =
+                    value === true ? 1 : value === false ? 0 : value
+                if (tutorial !== 0 && tutorial !== 1) {
+                    throw new TypeError(
+                        'takt.setTutorial expects 0, 1, false, or true',
+                    )
+                }
+                const updated = await updateSettings({ tutorial })
+                return updated.tutorial
+            },
+        }
+
+        Object.defineProperty(window, 'takt', {
+            configurable: true,
+            enumerable: false,
+            writable: false,
+            value: developerConsole,
+        })
+
+        return () => {
+            if (previousTaktDescriptor === undefined) {
+                Reflect.deleteProperty(window, 'takt')
+            } else {
+                Object.defineProperty(window, 'takt', previousTaktDescriptor)
+            }
+        }
+    }, [updateSettings])
 
     const fetchNotes = useCallback(async () => {
         try {
@@ -609,6 +655,7 @@ export function TaktProvider({ children }: PropsWithChildren) {
                 refreshDeadlines: fetchDeadlines,
                 refreshNotes: fetchNotes,
                 refreshScreen,
+                updateSettings,
                 clearError,
                 createEvent,
                 updateEvent,

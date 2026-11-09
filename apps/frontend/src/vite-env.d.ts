@@ -10,3 +10,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
     readonly env: ImportMetaEnv
 }
+
+interface TaktDeveloperConsole {
+    setTutorial(value: 0 | 1 | boolean): Promise<0 | 1>
+}
+
+interface Window {
+    takt: TaktDeveloperConsole
+}
