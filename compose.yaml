@@ -10,6 +10,8 @@ services:
             HOST: 0.0.0.0
             PORT: 3000
             AUTH_TOKEN: ${AUTH_TOKEN:?AUTH_TOKEN must be set}
+            TAKT_DIAGNOSTICS_TOKEN: ${TAKT_DIAGNOSTICS_TOKEN:-${AUTH_TOKEN}}
+            TAKT_COREDUMP_DIR: /data/diagnostics/coredumps
         ports:
             - '${TAKT_PORT:-3011}:3000'
         volumes:

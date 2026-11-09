@@ -75,6 +75,97 @@ backend использует текущую настройку приложен�
 `timezone` должна быть валидной IANA timezone. Изменение влияет на backend,
 рендер экрана, frontend и timezone по умолчанию для новых записей HTTP/MCP.
 
+## Диагностика устройства
+
+Все маршруты находятся под `/api/diagnostics`. Если задан
+`TAKT_DIAGNOSTICS_TOKEN`, эти маршруты принимают как отдельный device token,
+так и административный `AUTH_TOKEN`. Без отдельного токена используется
+`AUTH_TOKEN`. В production TLS должен завершаться существующим reverse proxy.
+
+Приём ограничен 120 запросами в минуту на IP в памяти одного backend-процесса.
+JSON batch не может превышать 64 KiB и 50 записей; `message` ограничен 2048
+символами, сериализованный `fields` — 8 KiB. Core dump по умолчанию ограничен
+4 MiB и сохраняется в `TAKT_COREDUMP_DIR` или
+`./data/diagnostics/coredumps`.
+
+### `POST /api/diagnostics/batch`
+
+Принимает `application/json`, проверяет `schema_version: 1` и сохраняет пакет
+в одной SQLite-транзакции. Уникальный ключ — `(device_id, record_id)`;
+повторная доставка считается успешной и не создаёт новую строку.
+
+```sh
+curl http://localhost:3000/api/diagnostics/batch \
+  -H 'Authorization: Bearer device-token' \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "schema_version": 1,
+    "device_id": "takt-dev-001",
+    "firmware_version": "0.3.1",
+    "git_sha": "abcdef123",
+    "boot_id": "a1b2c3d4",
+    "records": [{
+      "record_id": "a1b2c3d4-000001",
+      "sequence": 1,
+      "type": "log",
+      "level": "INFO",
+      "source": "esp_log",
+      "module": "wifi",
+      "message": "WiFi connected",
+      "uptime_ms": 1500,
+      "timestamp_unix_ms": null,
+      "fields": { "rssi": -54 }
+    }]
+  }'
+```
+
+Ответ подтверждает и новые, и ранее сохранённые `record_id`:
+
+```json
+{
+    "ok": true,
+    "accepted": 1,
+    "duplicates": 0,
+    "acknowledged_ids": ["a1b2c3d4-000001"],
+    "server_time_ms": 1794234005000
+}
+```
+
+### `GET /api/diagnostics/records`
+
+Возвращает записи от новых к старым. Фильтры: `device_id`, `from`, `to`
+(server receive time в Unix milliseconds), `level`, `module`, `type`,
+`boot_id`, `limit` (`1..500`, default `100`) и `offset`. Общее количество
+передаётся в `X-Total-Count`.
+
+```sh
+curl -H 'Authorization: Bearer device-token' \
+  'http://localhost:3000/api/diagnostics/records?level=ERROR&limit=50'
+```
+
+### Core dump
+
+`POST /api/diagnostics/coredump` принимает непустой
+`application/octet-stream`. Клиент передаёт `X-Device-Id`, `X-Boot-Id`,
+`X-Firmware-Version` и `X-Dump-Id`. Имя файла формирует backend; в SQLite
+сохраняются размер и SHA-256. Повтор `(device_id, dump_id)` с тем же содержимым
+получает успешный duplicate ACK, а с другим содержимым — `409`.
+
+```sh
+curl http://localhost:3000/api/diagnostics/coredump \
+  -H 'Authorization: Bearer device-token' \
+  -H 'Content-Type: application/octet-stream' \
+  -H 'X-Device-Id: takt-dev-001' \
+  -H 'X-Boot-Id: a1b2c3d4' \
+  -H 'X-Firmware-Version: 0.3.1' \
+  -H 'X-Dump-Id: dump-001' \
+  --data-binary @core-dump.bin
+```
+
+Метаданные доступны через `GET /api/diagnostics/coredumps/:id`, бинарный файл
+— через `GET /api/diagnostics/coredumps/:id/file`. Оба маршрута защищены тем
+же Bearer-токеном.
+
 ## Повторение
 
 Одинаковое поле `recurrence` поддерживается событиями и дедлайнами. В БД оно

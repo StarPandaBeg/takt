@@ -3,7 +3,13 @@ import {
     type InferInsertModel,
     type InferSelectModel,
 } from 'drizzle-orm'
-import { int, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import {
+    index,
+    int,
+    sqliteTable,
+    text,
+    uniqueIndex,
+} from 'drizzle-orm/sqlite-core'
 
 const timestamps = {
     createdAt: int('created_at', { mode: 'timestamp_ms' })
@@ -76,13 +82,9 @@ export const deadlinesTable = sqliteTable('deadlines', {
     recurrenceRule: text('recurrence_rule'),
     completed: int({ mode: 'boolean' }).notNull().default(false),
     cancelledAt: int('cancelled_at', { mode: 'timestamp_ms' }),
-    visibilityShow: text('visibility_show')
-        .notNull()
-        .default('always'),
+    visibilityShow: text('visibility_show').notNull().default('always'),
     visibilityDays: int('visibility_days').notNull().default(0),
-    visibilityHide: text('visibility_hide')
-        .notNull()
-        .default('on_due'),
+    visibilityHide: text('visibility_hide').notNull().default('on_due'),
     ...timestamps,
 })
 export type Deadline = InferSelectModel<typeof deadlinesTable>
@@ -158,6 +160,70 @@ export const settingsTable = sqliteTable('settings', {
 })
 export type Settings = InferSelectModel<typeof settingsTable>
 
+export const diagnosticRecordsTable = sqliteTable(
+    'diagnostic_records',
+    {
+        id: int().primaryKey({ autoIncrement: true }),
+        deviceId: text('device_id').notNull(),
+        recordId: text('record_id').notNull(),
+        bootId: text('boot_id').notNull(),
+        sequence: int().notNull(),
+        firmwareVersion: text('firmware_version'),
+        gitSha: text('git_sha'),
+        recordType: text('record_type').notNull(),
+        level: text(),
+        source: text(),
+        module: text(),
+        message: text(),
+        uptimeMs: int('uptime_ms'),
+        timestampUnixMs: int('timestamp_unix_ms'),
+        fieldsJson: text('fields_json'),
+        receivedAt: int('received_at', { mode: 'timestamp_ms' }).notNull(),
+    },
+    (table) => [
+        uniqueIndex('diagnostic_records_device_record_unique').on(
+            table.deviceId,
+            table.recordId,
+        ),
+        index('diagnostic_records_received_at_idx').on(table.receivedAt),
+        index('diagnostic_records_level_idx').on(table.level),
+        index('diagnostic_records_type_idx').on(table.recordType),
+        index('diagnostic_records_module_idx').on(table.module),
+        index('diagnostic_records_boot_id_idx').on(table.bootId),
+        index('diagnostic_records_sequence_idx').on(table.sequence),
+    ],
+)
+export type DiagnosticRecord = InferSelectModel<typeof diagnosticRecordsTable>
+export type DiagnosticRecordInsert = InferInsertModel<
+    typeof diagnosticRecordsTable
+>
+
+export const diagnosticCoredumpsTable = sqliteTable(
+    'diagnostic_coredumps',
+    {
+        id: int().primaryKey({ autoIncrement: true }),
+        deviceId: text('device_id').notNull(),
+        bootId: text('boot_id').notNull(),
+        dumpId: text('dump_id').notNull(),
+        firmwareVersion: text('firmware_version'),
+        filePath: text('file_path').notNull(),
+        fileSize: int('file_size').notNull(),
+        sha256: text().notNull(),
+        receivedAt: int('received_at', { mode: 'timestamp_ms' }).notNull(),
+    },
+    (table) => [
+        uniqueIndex('diagnostic_coredumps_device_dump_unique').on(
+            table.deviceId,
+            table.dumpId,
+        ),
+        index('diagnostic_coredumps_received_at_idx').on(table.receivedAt),
+        index('diagnostic_coredumps_boot_id_idx').on(table.bootId),
+    ],
+)
+export type DiagnosticCoredump = InferSelectModel<
+    typeof diagnosticCoredumpsTable
+>
+
 export const relations = defineRelations({
     eventsTable,
     eventRecurrenceExceptionsTable,
@@ -167,4 +233,6 @@ export const relations = defineRelations({
     deadlineRecurrenceExceptionsTable,
     versionsTable,
     settingsTable,
+    diagnosticRecordsTable,
+    diagnosticCoredumpsTable,
 })

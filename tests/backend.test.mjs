@@ -27,6 +27,7 @@ for (const migration of [
     '../apps/backend/drizzle/20261027094633_yellow_grim_reaper/migration.sql',
     '../apps/backend/drizzle/20261027103323_parched_kinsey_walden/migration.sql',
     '../apps/backend/drizzle/20261101190606_application_settings/migration.sql',
+    '../apps/backend/drizzle/20261109094846_right_madrox/migration.sql',
 ]) {
     const sql = readFileSync(new URL(migration, import.meta.url), 'utf8')
     await databaseClient.executeMultiple(
@@ -80,6 +81,31 @@ const { updateNote } =
     await import('../apps/backend/dist/mcp/tools/notes/update-note.tool.js')
 const { deadlineIdSchema, eventIdSchema, noteIdSchema } =
     await import('../apps/backend/dist/mcp/util/ids.js')
+const { db: backendDb } = await import('../apps/backend/dist/database/index.js')
+
+const diagnosticRecord = (overrides = {}) => ({
+    record_id: 'diagnostic-test-000001',
+    sequence: 1,
+    type: 'log',
+    level: 'INFO',
+    source: 'esp_log',
+    module: 'wifi',
+    message: 'WiFi connected',
+    uptime_ms: 1500,
+    timestamp_unix_ms: 1794234000000,
+    fields: { rssi: -54 },
+    ...overrides,
+})
+
+const diagnosticBatch = (records, overrides = {}) => ({
+    schema_version: 1,
+    device_id: 'takt-dev-001',
+    firmware_version: '0.3.1',
+    git_sha: 'abcdef123',
+    boot_id: 'diagnostic-test-boot',
+    records,
+    ...overrides,
+})
 
 const flattenEventGroups = (groups) =>
     groups.flatMap(({ occurrences, ...event }) =>
@@ -222,6 +248,342 @@ test('backend requires the configured bearer token', async () => {
         assert.equal(health.statusCode, 200)
     } finally {
         await app.close()
+    }
+})
+
+test('diagnostics batch accepts records, missing device time, and exposes filters', async () => {
+    const app = buildApp({
+        logger: false,
+        diagnosticsRateLimitPerMinute: false,
+    })
+    const records = [
+        diagnosticRecord(),
+        diagnosticRecord({
+            record_id: 'diagnostic-test-000002',
+            sequence: 2,
+            type: 'metric',
+            source: 'diagnostics',
+            module: 'system',
+            message: 'System snapshot',
+            uptime_ms: 60_000,
+            timestamp_unix_ms: null,
+            fields: { free_heap: 180_000 },
+        }),
+    ]
+    try {
+        const accepted = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload: diagnosticBatch(records),
+        })
+        assert.equal(accepted.statusCode, 200, accepted.body)
+        assert.equal(accepted.json().accepted, 2)
+        assert.equal(accepted.json().duplicates, 0)
+        assert.deepEqual(
+            accepted.json().acknowledged_ids,
+            records.map(({ record_id }) => record_id),
+        )
+
+        const listed = await app.inject({
+            method: 'GET',
+            url: '/api/diagnostics/records?type=metric&module=system&boot_id=diagnostic-test-boot&limit=10',
+        })
+        assert.equal(listed.statusCode, 200, listed.body)
+        assert.equal(listed.headers['x-total-count'], '1')
+        assert.equal(listed.json().records.length, 1)
+        assert.equal(listed.json().records[0].timestamp_unix_ms, null)
+        assert.deepEqual(listed.json().records[0].fields, {
+            free_heap: 180_000,
+        })
+    } finally {
+        await app.close()
+    }
+})
+
+test('diagnostics batch is idempotent for full and partial retries', async () => {
+    const app = buildApp({
+        logger: false,
+        diagnosticsRateLimitPerMinute: false,
+    })
+    const first = diagnosticRecord({ record_id: 'idempotency-000001' })
+    const second = diagnosticRecord({
+        record_id: 'idempotency-000002',
+        sequence: 2,
+    })
+    const third = diagnosticRecord({
+        record_id: 'idempotency-000003',
+        sequence: 3,
+    })
+    try {
+        let response = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload: diagnosticBatch([first, second], {
+                boot_id: 'idempotency-boot',
+            }),
+        })
+        assert.deepEqual(
+            {
+                accepted: response.json().accepted,
+                duplicates: response.json().duplicates,
+            },
+            { accepted: 2, duplicates: 0 },
+        )
+
+        response = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload: diagnosticBatch([first, second], {
+                boot_id: 'idempotency-boot',
+            }),
+        })
+        assert.deepEqual(
+            {
+                accepted: response.json().accepted,
+                duplicates: response.json().duplicates,
+            },
+            { accepted: 0, duplicates: 2 },
+        )
+
+        response = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload: diagnosticBatch([second, third], {
+                boot_id: 'idempotency-boot',
+            }),
+        })
+        assert.deepEqual(
+            {
+                accepted: response.json().accepted,
+                duplicates: response.json().duplicates,
+            },
+            { accepted: 1, duplicates: 1 },
+        )
+        assert.deepEqual(response.json().acknowledged_ids, [
+            second.record_id,
+            third.record_id,
+        ])
+
+        const listed = await app.inject({
+            method: 'GET',
+            url: '/api/diagnostics/records?boot_id=idempotency-boot',
+        })
+        assert.equal(listed.headers['x-total-count'], '3')
+    } finally {
+        await app.close()
+    }
+})
+
+test('diagnostics rejects unauthorized, invalid, and oversized batches', async () => {
+    const protectedApp = buildBackendApp({
+        logger: false,
+        authToken: 'admin-token',
+        diagnosticsToken: 'device-token',
+        diagnosticsRateLimitPerMinute: false,
+    })
+    try {
+        const unauthorized = await protectedApp.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload: diagnosticBatch([
+                diagnosticRecord({ record_id: 'auth-test-000001' }),
+            ]),
+        })
+        assert.equal(unauthorized.statusCode, 401)
+
+        const authorized = await protectedApp.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            headers: { authorization: 'Bearer device-token' },
+            payload: diagnosticBatch([
+                diagnosticRecord({ record_id: 'auth-test-000001' }),
+            ]),
+        })
+        assert.equal(authorized.statusCode, 200, authorized.body)
+    } finally {
+        await protectedApp.close()
+    }
+
+    const app = buildApp({
+        logger: false,
+        diagnosticsRateLimitPerMinute: false,
+    })
+    try {
+        const invalid = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload: diagnosticBatch([
+                diagnosticRecord({
+                    type: 'unknown',
+                    record_id: 'invalid-000001',
+                }),
+            ]),
+        })
+        assert.equal(invalid.statusCode, 400, invalid.body)
+
+        const oversized = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload: diagnosticBatch([
+                diagnosticRecord({
+                    record_id: 'oversized-000001',
+                    message: 'x'.repeat(70 * 1024),
+                }),
+            ]),
+        })
+        assert.equal(oversized.statusCode, 413, oversized.body)
+    } finally {
+        await app.close()
+    }
+})
+
+test('diagnostics applies an in-memory per-IP rate limit', async () => {
+    const app = buildApp({
+        logger: false,
+        diagnosticsRateLimitPerMinute: 1,
+    })
+    try {
+        const first = await app.inject({
+            method: 'GET',
+            url: '/api/diagnostics/records',
+        })
+        assert.equal(first.statusCode, 200, first.body)
+
+        const limited = await app.inject({
+            method: 'GET',
+            url: '/api/diagnostics/records',
+        })
+        assert.equal(limited.statusCode, 429, limited.body)
+        assert.equal(limited.headers['retry-after'], '60')
+    } finally {
+        await app.close()
+    }
+})
+
+test('diagnostics batch rolls back atomically on a SQLite error', async () => {
+    await backendDb.$client.executeMultiple(`
+        CREATE TRIGGER diagnostic_records_test_abort
+        BEFORE INSERT ON diagnostic_records
+        WHEN NEW.record_id = 'sqlite-error-000002'
+        BEGIN
+            SELECT RAISE(ABORT, 'forced diagnostics test failure');
+        END;
+    `)
+    const app = buildApp({
+        logger: false,
+        diagnosticsRateLimitPerMinute: false,
+    })
+    try {
+        const response = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/batch',
+            payload: diagnosticBatch(
+                [
+                    diagnosticRecord({ record_id: 'sqlite-error-000001' }),
+                    diagnosticRecord({
+                        record_id: 'sqlite-error-000002',
+                        sequence: 2,
+                    }),
+                ],
+                { boot_id: 'sqlite-error-boot' },
+            ),
+        })
+        assert.equal(response.statusCode, 500)
+
+        const listed = await app.inject({
+            method: 'GET',
+            url: '/api/diagnostics/records?boot_id=sqlite-error-boot',
+        })
+        assert.equal(listed.headers['x-total-count'], '0')
+    } finally {
+        await app.close()
+        await backendDb.$client.execute(
+            'DROP TRIGGER IF EXISTS diagnostic_records_test_abort',
+        )
+    }
+})
+
+test('diagnostics stores, deduplicates, and downloads binary core dumps', async () => {
+    const coredumpRoot = mkdtempSync(join(tmpdir(), 'takt-coredumps-'))
+    const app = buildApp({
+        logger: false,
+        diagnosticsCoredumpDirectory: coredumpRoot,
+        diagnosticsCoredumpMaxBytes: 1024,
+        diagnosticsRateLimitPerMinute: false,
+    })
+    const headers = {
+        'content-type': 'application/octet-stream',
+        'x-device-id': 'takt-dev-001',
+        'x-boot-id': 'coredump-test-boot',
+        'x-firmware-version': '0.3.1',
+        'x-dump-id': 'coredump-test-001',
+    }
+    const payload = Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0, 1, 2, 3])
+    try {
+        let response = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/coredump',
+            headers,
+            payload,
+        })
+        assert.equal(response.statusCode, 201, response.body)
+        assert.equal(response.json().duplicate, false)
+        const id = response.json().coredump.id
+
+        response = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/coredump',
+            headers,
+            payload,
+        })
+        assert.equal(response.statusCode, 200, response.body)
+        assert.equal(response.json().duplicate, true)
+        assert.equal(response.json().coredump.id, id)
+
+        const metadata = await app.inject({
+            method: 'GET',
+            url: `/api/diagnostics/coredumps/${id}`,
+        })
+        assert.equal(metadata.statusCode, 200, metadata.body)
+        assert.equal(metadata.json().file_size, payload.length)
+
+        const download = await app.inject({
+            method: 'GET',
+            url: `/api/diagnostics/coredumps/${id}/file`,
+        })
+        assert.equal(download.statusCode, 200, download.body)
+        assert.deepEqual(download.rawPayload, payload)
+
+        const empty = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/coredump',
+            headers: { ...headers, 'x-dump-id': 'coredump-test-empty' },
+            payload: Buffer.alloc(0),
+        })
+        assert.equal(empty.statusCode, 400, empty.body)
+
+        const wrongContentType = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/coredump',
+            headers: {
+                ...headers,
+                'content-type': 'application/json',
+                'x-dump-id': 'coredump-test-json',
+            },
+            payload: { dump: 'not binary' },
+        })
+        assert.equal(wrongContentType.statusCode, 400, wrongContentType.body)
+
+        const oversized = await app.inject({
+            method: 'POST',
+            url: '/api/diagnostics/coredump',
+            headers: { ...headers, 'x-dump-id': 'coredump-test-large' },
+            payload: Buffer.alloc(1025),
+        })
+        assert.equal(oversized.statusCode, 413, oversized.body)
+    } finally {
+        await app.close()
+        rmSync(coredumpRoot, { recursive: true, force: true })
     }
 })
 
