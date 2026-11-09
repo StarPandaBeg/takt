@@ -3530,6 +3530,443 @@ h2 {
     overflow-wrap: anywhere;
 }
 
+/* Diagnostics Mode Toggle */
+.diagnostics-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 14px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-muted);
+}
+.diagnostics-mode-toggle button {
+    display: inline-flex;
+    min-height: 34px;
+    align-items: center;
+    gap: 7px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.diagnostics-mode-toggle button:hover {
+    color: var(--ink);
+}
+.diagnostics-mode-toggle button.is-active {
+    background: white;
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+    font-weight: 600;
+}
+
+/* Diagnostics Charts Dashboard */
+.takt-diagnostics-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.takt-charts-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: white;
+}
+.takt-charts-quick-ranges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.takt-charts-quick-ranges__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-right: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+.takt-quick-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+.takt-quick-btn:hover {
+    border-color: var(--accent);
+    background: var(--surface-muted);
+}
+.takt-charts-boot-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 8px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+}
+.takt-charts-boot-badge button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* KPI Summary Grid */
+.takt-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+.takt-kpi-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 13px 15px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: white;
+    gap: 7px;
+}
+.takt-kpi-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+.takt-kpi-card__icon {
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+}
+.takt-kpi-card__title {
+    flex: 1;
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.takt-kpi-card__value {
+    color: var(--ink);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+}
+.takt-kpi-card__unit {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+}
+.takt-kpi-card__sub {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--muted);
+    font-size: 11px;
+}
+.takt-kpi-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+.takt-kpi-badge--good {
+    background: #eaf3e9;
+    color: #436e40;
+}
+.takt-kpi-badge--warn {
+    background: #fbf2dc;
+    color: #8c6a1e;
+}
+.takt-kpi-badge--bad {
+    background: #f8e4e0;
+    color: #a43a2e;
+}
+.takt-kpi-badge--neutral {
+    background: var(--surface-muted);
+    color: var(--muted);
+}
+.takt-text-danger {
+    color: #b94339;
+    font-weight: 600;
+}
+
+/* Charts Sections */
+.takt-charts-section {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.takt-charts-section__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+}
+.takt-charts-section__title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.takt-charts-section__icon {
+    color: var(--accent);
+}
+.takt-charts-section__header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 650;
+}
+.takt-charts-section__desc {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.takt-charts-grid {
+    display: grid;
+    gap: 14px;
+}
+.takt-charts-grid--2col {
+    grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+}
+.takt-charts-grid--3col {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.takt-chart-card {
+    position: relative;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: white;
+}
+.takt-chart-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.takt-chart-card__title {
+    margin: 0;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 650;
+}
+.takt-chart-card__description {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.takt-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+.takt-chart-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 6px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.12s ease;
+}
+.takt-chart-legend__item:hover {
+    background: var(--surface-muted);
+}
+.takt-chart-legend__item.is-muted {
+    opacity: 0.4;
+    text-decoration: line-through;
+}
+.takt-chart-legend__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.takt-chart-canvas-wrap {
+    position: relative;
+    width: 100%;
+}
+.takt-chart-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+.takt-chart-axis-label {
+    fill: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 9.5px;
+}
+.takt-chart-empty {
+    display: grid;
+    min-height: 160px;
+    place-items: center;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Floating Tooltip */
+.takt-chart-tooltip {
+    position: absolute;
+    z-index: 30;
+    min-width: 170px;
+    padding: 8px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 7px;
+    background: rgb(255 255 255 / 96%);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+    font-size: 11px;
+}
+.takt-chart-tooltip__time {
+    color: var(--ink);
+    font-weight: 650;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.takt-chart-tooltip__meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 2px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 9.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.takt-chart-tooltip__values {
+    display: grid;
+    gap: 3px;
+}
+.takt-chart-tooltip__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.takt-chart-tooltip__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.takt-chart-tooltip__name {
+    flex: 1;
+    color: var(--muted);
+}
+.takt-chart-tooltip__val {
+    color: var(--ink);
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Error Distribution */
+.takt-error-distribution-wrap {
+    min-height: 160px;
+    padding-top: 4px;
+}
+.takt-error-module-list {
+    display: grid;
+    gap: 10px;
+}
+.takt-error-module-row {
+    display: grid;
+    gap: 4px;
+}
+.takt-error-module-row__info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+}
+.takt-error-module-row__info strong {
+    color: var(--ink);
+}
+.takt-error-module-row__info span {
+    color: var(--muted);
+}
+.takt-error-module-row__bar-bg {
+    width: 100%;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--surface-muted);
+}
+.takt-error-module-row__bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.3s ease;
+}
+
+/* Reset History Table */
+.takt-reset-history-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+.takt-mt-16 {
+    margin-top: 14px;
+}
+.takt-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+}
+.takt-badge--normal {
+    background: #eaf3e9;
+    color: #436e40;
+}
+.takt-badge--warn {
+    background: #fbf2dc;
+    color: #8c6a1e;
+}
+.takt-badge--error {
+    background: #f8e4e0;
+    color: #a43a2e;
+}
+
 @media (max-width: 1200px) {
     .diagnostics-filter-grid {
         grid-template-columns: repeat(3, minmax(150px, 1fr));

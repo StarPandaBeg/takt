@@ -9,8 +9,10 @@ import {
     Clock3,
     Download,
     FileJson,
+    FileText,
     Filter,
     HardDriveDownload,
+    LineChart,
     Loader2,
     RefreshCw,
     RotateCcw,
@@ -23,6 +25,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import { ConfirmDialog } from '../components/common/confirm-dialog'
 import { ErrorBanner } from '../components/common/error-banner'
+import { DiagnosticsChartsView } from '../components/diagnostics/diagnostics-charts-view'
 import { PageHeader } from '../components/page-header'
 import type {
     DiagnosticCoredump,
@@ -269,6 +272,7 @@ function RecordDetails({
 }
 
 export function DiagnosticsPage() {
+    const [displayMode, setDisplayMode] = useState<'logs' | 'charts'>('logs')
     const [view, setView] = useState<DiagnosticsView>('records')
     const [draftFilters, setDraftFilters] = useState(initialFilters)
     const [filters, setFilters] = useState(initialFilters)
@@ -291,14 +295,14 @@ export function DiagnosticsPage() {
     const records = useQuery({
         queryKey: ['diagnostics-records', recordsQuery],
         queryFn: () => api.diagnostics.records(recordsQuery),
-        enabled: showsRecords,
+        enabled: showsRecords && displayMode === 'logs',
         refetchInterval: refreshInterval || false,
         placeholderData: (previous) => previous,
     })
     const boots = useQuery({
         queryKey: ['diagnostics-boots'],
         queryFn: () => api.diagnostics.boots(),
-        enabled: view === 'boots',
+        enabled: view === 'boots' || displayMode === 'charts',
         refetchInterval: refreshInterval || false,
     })
     const coredumps = useQuery({
@@ -308,7 +312,54 @@ export function DiagnosticsPage() {
                 bootId: optionalText(filters.bootId),
                 limit: 100,
             }),
-        enabled: view === 'coredumps',
+        enabled: view === 'coredumps' && displayMode === 'logs',
+        refetchInterval: refreshInterval || false,
+    })
+
+    // Запросы для режима «Графики»
+    const telemetryQuery: DiagnosticRecordsQuery = useMemo(
+        () => ({
+            from: parseLocalDate(filters.from),
+            to: parseLocalDate(filters.to),
+            bootId: optionalText(filters.bootId),
+            firmwareVersion: optionalText(filters.firmwareVersion),
+            gitSha: optionalText(filters.gitSha),
+            hasFields: true,
+            sortBy: 'received_at',
+            sortDirection: 'asc',
+            limit: 500,
+        }),
+        [
+            filters.from,
+            filters.to,
+            filters.bootId,
+            filters.firmwareVersion,
+            filters.gitSha,
+        ],
+    )
+    const telemetryRecords = useQuery({
+        queryKey: ['diagnostics-telemetry-charts', telemetryQuery],
+        queryFn: () => api.diagnostics.records(telemetryQuery),
+        enabled: displayMode === 'charts',
+        refetchInterval: refreshInterval || false,
+    })
+
+    const errorLogsQuery: DiagnosticRecordsQuery = useMemo(
+        () => ({
+            from: parseLocalDate(filters.from),
+            to: parseLocalDate(filters.to),
+            bootId: optionalText(filters.bootId),
+            level: 'ERROR',
+            sortBy: 'received_at',
+            sortDirection: 'asc',
+            limit: 500,
+        }),
+        [filters.from, filters.to, filters.bootId],
+    )
+    const errorRecords = useQuery({
+        queryKey: ['diagnostics-errors-charts', errorLogsQuery],
+        queryFn: () => api.diagnostics.records(errorLogsQuery),
+        enabled: displayMode === 'charts',
         refetchInterval: refreshInterval || false,
     })
 
@@ -322,6 +373,8 @@ export function DiagnosticsPage() {
         records.dataUpdatedAt,
         boots.dataUpdatedAt,
         coredumps.dataUpdatedAt,
+        telemetryRecords.dataUpdatedAt,
+        errorRecords.dataUpdatedAt,
     )
 
     const applyFilters = (event: FormEvent) => {
@@ -345,6 +398,18 @@ export function DiagnosticsPage() {
         setView('records')
         setPage(0)
     }
+    const handleTimeRangeChange = (from: string, to: string) => {
+        const next = { ...filters, from, to }
+        setFilters(next)
+        setDraftFilters(next)
+        setPage(0)
+    }
+    const handleBootIdChange = (bootId: string) => {
+        const next = { ...filters, bootId }
+        setFilters(next)
+        setDraftFilters(next)
+        setPage(0)
+    }
     const changeSort = (sortBy: DiagnosticSortBy) => {
         const sortDirection: FilterState['sortDirection'] =
             filters.sortBy === sortBy && filters.sortDirection === 'desc'
@@ -356,9 +421,15 @@ export function DiagnosticsPage() {
         setPage(0)
     }
     const refresh = () => {
-        if (showsRecords) void records.refetch()
-        if (view === 'boots') void boots.refetch()
-        if (view === 'coredumps') void coredumps.refetch()
+        if (displayMode === 'charts') {
+            void telemetryRecords.refetch()
+            void errorRecords.refetch()
+            void boots.refetch()
+        } else {
+            if (showsRecords) void records.refetch()
+            if (view === 'boots') void boots.refetch()
+            if (view === 'coredumps') void coredumps.refetch()
+        }
     }
     const exportRecords = async (format: 'json' | 'csv') => {
         setExporting(format)
@@ -413,14 +484,19 @@ export function DiagnosticsPage() {
         }
     }
 
-    const error = records.error ?? boots.error ?? coredumps.error
+    const error =
+        records.error ??
+        boots.error ??
+        coredumps.error ??
+        telemetryRecords.error ??
+        errorRecords.error
 
     return (
         <div className="page diagnostics-page">
             <PageHeader
                 eyebrow="Устройство"
                 title="Диагностика"
-                description="Логи, события, метрики, загрузки и Core Dump устройства Takt"
+                description="Логи, события, метрики, телеметрия и графики устройства Takt"
                 action={
                     <div className="diagnostics-header-actions">
                         <label>
@@ -471,31 +547,44 @@ export function DiagnosticsPage() {
                         ? '—'
                         : dateFormatter.format(new Date(lastUpdated))}
                 </span>
-                {showsRecords && (
-                    <strong>{total.toLocaleString('ru-RU')} записей</strong>
+                {displayMode === 'charts' ? (
+                    <strong>
+                        {(
+                            telemetryRecords.data?.records.length ?? 0
+                        ).toLocaleString('ru-RU')}{' '}
+                        снимков телеметрии
+                    </strong>
+                ) : (
+                    showsRecords && (
+                        <strong>{total.toLocaleString('ru-RU')} записей</strong>
+                    )
                 )}
             </div>
 
-            <nav className="diagnostics-tabs" aria-label="Раздел диагностики">
-                {(
-                    [
-                        ['records', FileJson, 'Все записи'],
-                        ['metrics', Activity, 'Метрики'],
-                        ['crashes', AlertTriangle, 'Сбои'],
-                        ['boots', ServerCog, 'Загрузки'],
-                        ['coredumps', HardDriveDownload, 'Core Dump'],
-                    ] as const
-                ).map(([value, Icon, label]) => (
-                    <button
-                        key={value}
-                        type="button"
-                        className={view === value ? 'is-active' : ''}
-                        onClick={() => selectView(value)}
-                    >
-                        <Icon size={16} /> {label}
-                    </button>
-                ))}
-            </nav>
+            <div
+                className="diagnostics-mode-toggle"
+                role="tablist"
+                aria-label="Режим отображения"
+            >
+                <button
+                    type="button"
+                    className={displayMode === 'logs' ? 'is-active' : ''}
+                    onClick={() => setDisplayMode('logs')}
+                    role="tab"
+                    aria-selected={displayMode === 'logs'}
+                >
+                    <FileText size={15} /> Логи и события
+                </button>
+                <button
+                    type="button"
+                    className={displayMode === 'charts' ? 'is-active' : ''}
+                    onClick={() => setDisplayMode('charts')}
+                    role="tab"
+                    aria-selected={displayMode === 'charts'}
+                >
+                    <LineChart size={15} /> Графики
+                </button>
+            </div>
 
             {error instanceof Error && (
                 <ErrorBanner message={error.message} onRetry={refresh} />
@@ -519,7 +608,7 @@ export function DiagnosticsPage() {
                 </div>
             )}
 
-            {showsRecords && (
+            {displayMode === 'charts' && (
                 <>
                     <form
                         className="diagnostics-filters"
@@ -528,7 +617,7 @@ export function DiagnosticsPage() {
                         <div className="diagnostics-filters__heading">
                             <div>
                                 <Filter size={17} />
-                                <strong>Фильтры</strong>
+                                <strong>Фильтры диапазона</strong>
                                 {activeFilterCount > 0 && (
                                     <span>{activeFilterCount}</span>
                                 )}
@@ -569,82 +658,6 @@ export function DiagnosticsPage() {
                                 />
                             </label>
                             <label>
-                                Уровень
-                                <select
-                                    value={draftFilters.level}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            level: event.target
-                                                .value as FilterState['level'],
-                                        })
-                                    }
-                                >
-                                    <option value="">Все</option>
-                                    {levels.map((level) => (
-                                        <option key={level}>{level}</option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label>
-                                Тип
-                                <select
-                                    value={draftFilters.type}
-                                    disabled={view !== 'records'}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            type: event.target
-                                                .value as FilterState['type'],
-                                        })
-                                    }
-                                >
-                                    <option value="">Все</option>
-                                    <option value="log">log</option>
-                                    <option value="event">event</option>
-                                    <option value="metric">metric</option>
-                                </select>
-                            </label>
-                            <label>
-                                Модуль
-                                <input
-                                    value={draftFilters.module}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            module: event.target.value,
-                                        })
-                                    }
-                                    placeholder="wifi"
-                                />
-                            </label>
-                            <label>
-                                Источник
-                                <input
-                                    value={draftFilters.source}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            source: event.target.value,
-                                        })
-                                    }
-                                    placeholder="esp_log"
-                                />
-                            </label>
-                            <label className="diagnostics-filter--wide">
-                                Поиск в сообщении
-                                <input
-                                    value={draftFilters.query}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            query: event.target.value,
-                                        })
-                                    }
-                                    placeholder="Текст сообщения"
-                                />
-                            </label>
-                            <label>
                                 Boot ID
                                 <input
                                     value={draftFilters.bootId}
@@ -654,20 +667,7 @@ export function DiagnosticsPage() {
                                             bootId: event.target.value,
                                         })
                                     }
-                                />
-                            </label>
-                            <label>
-                                Sequence
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={draftFilters.sequence}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            sequence: event.target.value,
-                                        })
-                                    }
+                                    placeholder="Все загрузки"
                                 />
                             </label>
                             <label>
@@ -680,6 +680,7 @@ export function DiagnosticsPage() {
                                             firmwareVersion: event.target.value,
                                         })
                                     }
+                                    placeholder="Версия прошивки"
                                 />
                             </label>
                             <label>
@@ -692,82 +693,8 @@ export function DiagnosticsPage() {
                                             gitSha: event.target.value,
                                         })
                                     }
+                                    placeholder="Хэш коммита"
                                 />
-                            </label>
-                            <label>
-                                Тип события
-                                <input
-                                    value={draftFilters.eventType}
-                                    disabled={view === 'crashes'}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            eventType: event.target.value,
-                                        })
-                                    }
-                                    placeholder="crash"
-                                />
-                            </label>
-                            <label>
-                                Доп. поля
-                                <select
-                                    value={draftFilters.hasFields}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            hasFields: event.target
-                                                .value as FilterState['hasFields'],
-                                        })
-                                    }
-                                >
-                                    <option value="">Любые</option>
-                                    <option value="true">Есть</option>
-                                    <option value="false">Нет</option>
-                                </select>
-                            </label>
-                            <label>
-                                Сортировка
-                                <select
-                                    value={draftFilters.sortBy}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            sortBy: event.target
-                                                .value as DiagnosticSortBy,
-                                        })
-                                    }
-                                >
-                                    <option value="received_at">
-                                        Получено
-                                    </option>
-                                    <option value="timestamp">
-                                        Время устройства
-                                    </option>
-                                    <option value="uptime">Uptime</option>
-                                    <option value="sequence">Sequence</option>
-                                    <option value="level">Уровень</option>
-                                    <option value="module">Модуль</option>
-                                    <option value="type">Тип</option>
-                                    <option value="firmware_version">
-                                        Firmware
-                                    </option>
-                                </select>
-                            </label>
-                            <label>
-                                Направление
-                                <select
-                                    value={draftFilters.sortDirection}
-                                    onChange={(event) =>
-                                        setDraftFilters({
-                                            ...draftFilters,
-                                            sortDirection: event.target
-                                                .value as 'asc' | 'desc',
-                                        })
-                                    }
-                                >
-                                    <option value="desc">По убыванию</option>
-                                    <option value="asc">По возрастанию</option>
-                                </select>
                             </label>
                         </div>
                         <div className="diagnostics-filters__actions">
@@ -777,254 +704,629 @@ export function DiagnosticsPage() {
                             >
                                 Применить фильтры
                             </button>
-                            <button
-                                className="button button--quiet"
-                                type="button"
-                                disabled={exporting !== null}
-                                onClick={() => void exportRecords('json')}
-                            >
-                                <Download size={14} /> JSON
-                            </button>
-                            <button
-                                className="button button--quiet"
-                                type="button"
-                                disabled={exporting !== null}
-                                onClick={() => void exportRecords('csv')}
-                            >
-                                <Download size={14} /> CSV
-                            </button>
                         </div>
                     </form>
 
-                    {view === 'metrics' && records.data && (
-                        <div className="diagnostics-metrics-grid">
-                            {records.data.records.map((record) => (
-                                <button
-                                    key={record.id}
-                                    type="button"
-                                    onClick={() => setSelectedRecord(record)}
-                                >
-                                    <span>{record.module ?? 'system'}</span>
-                                    <strong>{record.message}</strong>
-                                    <code>{JSON.stringify(record.fields)}</code>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    <section className="diagnostics-table-panel">
-                        {records.isLoading ? (
-                            <div className="diagnostics-state">
-                                <Loader2 className="spin-animation" />
-                                Загрузка диагностики…
-                            </div>
-                        ) : records.data?.records.length === 0 ? (
-                            <div className="diagnostics-state">
-                                <FileJson size={30} />
-                                <strong>Записи не найдены</strong>
-                                <span>Измените фильтры или период поиска.</span>
-                            </div>
-                        ) : (
-                            <div className="diagnostics-table-wrap">
-                                <table className="diagnostics-table">
-                                    <thead>
-                                        <tr>
-                                            <SortableHeader
-                                                label="Время"
-                                                field="received_at"
-                                                filters={filters}
-                                                onSort={changeSort}
-                                            />
-                                            <SortableHeader
-                                                label="Уровень"
-                                                field="level"
-                                                filters={filters}
-                                                onSort={changeSort}
-                                            />
-                                            <SortableHeader
-                                                label="Тип"
-                                                field="type"
-                                                filters={filters}
-                                                onSort={changeSort}
-                                            />
-                                            <SortableHeader
-                                                label="Подсистема"
-                                                field="module"
-                                                filters={filters}
-                                                onSort={changeSort}
-                                            />
-                                            <th>Сообщение</th>
-                                            <SortableHeader
-                                                label="Uptime"
-                                                field="uptime"
-                                                filters={filters}
-                                                onSort={changeSort}
-                                            />
-                                            <th>Boot ID</th>
-                                            <SortableHeader
-                                                label="Seq."
-                                                field="sequence"
-                                                filters={filters}
-                                                onSort={changeSort}
-                                            />
-                                            <SortableHeader
-                                                label="Firmware"
-                                                field="firmware_version"
-                                                filters={filters}
-                                                onSort={changeSort}
-                                            />
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {records.data?.records.map((record) => (
-                                            <tr
-                                                key={record.id}
-                                                onClick={() =>
-                                                    setSelectedRecord(record)
-                                                }
-                                            >
-                                                <td>
-                                                    {formatTimestamp(
-                                                        record.received_at,
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    <LevelBadge
-                                                        level={record.level}
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <span className="diagnostics-type">
-                                                        {record.type}
-                                                    </span>
-                                                </td>
-                                                <td>{record.module ?? '—'}</td>
-                                                <td
-                                                    className="diagnostics-message"
-                                                    title={record.message ?? ''}
-                                                >
-                                                    {record.message || '—'}
-                                                </td>
-                                                <td>
-                                                    {formatUptime(
-                                                        record.uptime_ms,
-                                                    )}
-                                                </td>
-                                                <td className="diagnostics-mono diagnostics-boot-id">
-                                                    {record.boot_id}
-                                                </td>
-                                                <td>{record.sequence}</td>
-                                                <td className="diagnostics-mono">
-                                                    {record.firmware_version ??
-                                                        '—'}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                        <div className="diagnostics-pagination">
-                            <label>
-                                На странице
-                                <select
-                                    value={pageSize}
-                                    onChange={(event) => {
-                                        setPageSize(Number(event.target.value))
-                                        setPage(0)
-                                    }}
-                                >
-                                    {[25, 50, 100, 200].map((size) => (
-                                        <option key={size}>{size}</option>
-                                    ))}
-                                </select>
-                            </label>
+                    {telemetryRecords.isLoading && !telemetryRecords.data ? (
+                        <div className="diagnostics-state">
+                            <Loader2 className="spin-animation" size={28} />
                             <span>
-                                {total === 0 ? 0 : page * pageSize + 1}–
-                                {Math.min((page + 1) * pageSize, total)} из{' '}
-                                {total}
+                                Загрузка данных телеметрии для графиков…
                             </span>
-                            <button
-                                type="button"
-                                disabled={page === 0}
-                                onClick={() => setPage((value) => value - 1)}
-                                aria-label="Предыдущая страница"
-                            >
-                                <ChevronLeft size={17} />
-                            </button>
-                            <strong>
-                                {page + 1} / {totalPages}
-                            </strong>
-                            <button
-                                type="button"
-                                disabled={page + 1 >= totalPages}
-                                onClick={() => setPage((value) => value + 1)}
-                                aria-label="Следующая страница"
-                            >
-                                <ChevronRight size={17} />
-                            </button>
                         </div>
-                    </section>
+                    ) : (
+                        <DiagnosticsChartsView
+                            records={telemetryRecords.data?.records ?? []}
+                            boots={boots.data?.boots ?? []}
+                            allRecords={errorRecords.data?.records ?? []}
+                            fromFilter={filters.from}
+                            toFilter={filters.to}
+                            bootIdFilter={filters.bootId}
+                            onTimeRangeChange={handleTimeRangeChange}
+                            onBootIdChange={handleBootIdChange}
+                        />
+                    )}
                 </>
             )}
 
-            {view === 'boots' && (
-                <BootHistory
-                    loading={boots.isLoading}
-                    boots={boots.data?.boots ?? []}
-                    onSelect={selectBoot}
-                />
-            )}
-
-            {view === 'coredumps' && (
+            {displayMode === 'logs' && (
                 <>
-                    <div className="diagnostics-inline-filter">
-                        <label>
-                            Boot ID
-                            <input
-                                value={draftFilters.bootId}
-                                placeholder="Все загрузки"
-                                onChange={(event) =>
-                                    setDraftFilters({
-                                        ...draftFilters,
-                                        bootId: event.target.value,
-                                    })
+                    <nav
+                        className="diagnostics-tabs"
+                        aria-label="Раздел диагностики"
+                    >
+                        {(
+                            [
+                                ['records', FileJson, 'Все записи'],
+                                ['metrics', Activity, 'Метрики'],
+                                ['crashes', AlertTriangle, 'Сбои'],
+                                ['boots', ServerCog, 'Загрузки'],
+                                ['coredumps', HardDriveDownload, 'Core Dump'],
+                            ] as const
+                        ).map(([value, Icon, label]) => (
+                            <button
+                                key={value}
+                                type="button"
+                                className={view === value ? 'is-active' : ''}
+                                onClick={() => selectView(value)}
+                            >
+                                <Icon size={16} /> {label}
+                            </button>
+                        ))}
+                    </nav>
+
+                    {showsRecords && (
+                        <>
+                            <form
+                                className="diagnostics-filters"
+                                onSubmit={applyFilters}
+                            >
+                                <div className="diagnostics-filters__heading">
+                                    <div>
+                                        <Filter size={17} />
+                                        <strong>Фильтры</strong>
+                                        {activeFilterCount > 0 && (
+                                            <span>{activeFilterCount}</span>
+                                        )}
+                                    </div>
+                                    <button
+                                        className="text-link"
+                                        type="button"
+                                        onClick={resetFilters}
+                                    >
+                                        <RotateCcw size={14} /> Сбросить всё
+                                    </button>
+                                </div>
+                                <div className="diagnostics-filter-grid">
+                                    <label>
+                                        От
+                                        <input
+                                            type="datetime-local"
+                                            value={draftFilters.from}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    from: event.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                    <label>
+                                        До
+                                        <input
+                                            type="datetime-local"
+                                            value={draftFilters.to}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    to: event.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                    <label>
+                                        Уровень
+                                        <select
+                                            value={draftFilters.level}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    level: event.target
+                                                        .value as FilterState['level'],
+                                                })
+                                            }
+                                        >
+                                            <option value="">Все</option>
+                                            {levels.map((level) => (
+                                                <option key={level}>
+                                                    {level}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label>
+                                        Тип
+                                        <select
+                                            value={draftFilters.type}
+                                            disabled={view !== 'records'}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    type: event.target
+                                                        .value as FilterState['type'],
+                                                })
+                                            }
+                                        >
+                                            <option value="">Все</option>
+                                            <option value="log">log</option>
+                                            <option value="event">event</option>
+                                            <option value="metric">
+                                                metric
+                                            </option>
+                                        </select>
+                                    </label>
+                                    <label>
+                                        Модуль
+                                        <input
+                                            value={draftFilters.module}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    module: event.target.value,
+                                                })
+                                            }
+                                            placeholder="wifi"
+                                        />
+                                    </label>
+                                    <label>
+                                        Источник
+                                        <input
+                                            value={draftFilters.source}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    source: event.target.value,
+                                                })
+                                            }
+                                            placeholder="esp_log"
+                                        />
+                                    </label>
+                                    <label className="diagnostics-filter--wide">
+                                        Поиск в сообщении
+                                        <input
+                                            value={draftFilters.query}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    query: event.target.value,
+                                                })
+                                            }
+                                            placeholder="Текст сообщения"
+                                        />
+                                    </label>
+                                    <label>
+                                        Boot ID
+                                        <input
+                                            value={draftFilters.bootId}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    bootId: event.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                    <label>
+                                        Sequence
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={draftFilters.sequence}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    sequence:
+                                                        event.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                    <label>
+                                        Firmware
+                                        <input
+                                            value={draftFilters.firmwareVersion}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    firmwareVersion:
+                                                        event.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                    <label>
+                                        Git SHA
+                                        <input
+                                            value={draftFilters.gitSha}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    gitSha: event.target.value,
+                                                })
+                                            }
+                                        />
+                                    </label>
+                                    <label>
+                                        Тип события
+                                        <input
+                                            value={draftFilters.eventType}
+                                            disabled={view === 'crashes'}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    eventType:
+                                                        event.target.value,
+                                                })
+                                            }
+                                            placeholder="crash"
+                                        />
+                                    </label>
+                                    <label>
+                                        Доп. поля
+                                        <select
+                                            value={draftFilters.hasFields}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    hasFields: event.target
+                                                        .value as FilterState['hasFields'],
+                                                })
+                                            }
+                                        >
+                                            <option value="">Любые</option>
+                                            <option value="true">Есть</option>
+                                            <option value="false">Нет</option>
+                                        </select>
+                                    </label>
+                                    <label>
+                                        Сортировка
+                                        <select
+                                            value={draftFilters.sortBy}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    sortBy: event.target
+                                                        .value as DiagnosticSortBy,
+                                                })
+                                            }
+                                        >
+                                            <option value="received_at">
+                                                Получено
+                                            </option>
+                                            <option value="timestamp">
+                                                Время устройства
+                                            </option>
+                                            <option value="uptime">
+                                                Uptime
+                                            </option>
+                                            <option value="sequence">
+                                                Sequence
+                                            </option>
+                                            <option value="level">
+                                                Уровень
+                                            </option>
+                                            <option value="module">
+                                                Модуль
+                                            </option>
+                                            <option value="type">Тип</option>
+                                            <option value="firmware_version">
+                                                Firmware
+                                            </option>
+                                        </select>
+                                    </label>
+                                    <label>
+                                        Направление
+                                        <select
+                                            value={draftFilters.sortDirection}
+                                            onChange={(event) =>
+                                                setDraftFilters({
+                                                    ...draftFilters,
+                                                    sortDirection: event.target
+                                                        .value as
+                                                        'asc' | 'desc',
+                                                })
+                                            }
+                                        >
+                                            <option value="desc">
+                                                По убыванию
+                                            </option>
+                                            <option value="asc">
+                                                По возрастанию
+                                            </option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div className="diagnostics-filters__actions">
+                                    <button
+                                        className="button button--primary"
+                                        type="submit"
+                                    >
+                                        Применить фильтры
+                                    </button>
+                                    <button
+                                        className="button button--quiet"
+                                        type="button"
+                                        disabled={exporting !== null}
+                                        onClick={() =>
+                                            void exportRecords('json')
+                                        }
+                                    >
+                                        <Download size={14} /> JSON
+                                    </button>
+                                    <button
+                                        className="button button--quiet"
+                                        type="button"
+                                        disabled={exporting !== null}
+                                        onClick={() =>
+                                            void exportRecords('csv')
+                                        }
+                                    >
+                                        <Download size={14} /> CSV
+                                    </button>
+                                </div>
+                            </form>
+
+                            {view === 'metrics' && records.data && (
+                                <div className="diagnostics-metrics-grid">
+                                    {records.data.records.map((record) => (
+                                        <button
+                                            key={record.id}
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedRecord(record)
+                                            }
+                                        >
+                                            <span>
+                                                {record.module ?? 'system'}
+                                            </span>
+                                            <strong>{record.message}</strong>
+                                            <code>
+                                                {JSON.stringify(record.fields)}
+                                            </code>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <section className="diagnostics-table-panel">
+                                {records.isLoading ? (
+                                    <div className="diagnostics-state">
+                                        <Loader2 className="spin-animation" />
+                                        Загрузка диагностики…
+                                    </div>
+                                ) : records.data?.records.length === 0 ? (
+                                    <div className="diagnostics-state">
+                                        <FileJson size={30} />
+                                        <strong>Записи не найдены</strong>
+                                        <span>
+                                            Измените фильтры или период поиска.
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="diagnostics-table-wrap">
+                                        <table className="diagnostics-table">
+                                            <thead>
+                                                <tr>
+                                                    <SortableHeader
+                                                        label="Время"
+                                                        field="received_at"
+                                                        filters={filters}
+                                                        onSort={changeSort}
+                                                    />
+                                                    <SortableHeader
+                                                        label="Уровень"
+                                                        field="level"
+                                                        filters={filters}
+                                                        onSort={changeSort}
+                                                    />
+                                                    <SortableHeader
+                                                        label="Тип"
+                                                        field="type"
+                                                        filters={filters}
+                                                        onSort={changeSort}
+                                                    />
+                                                    <SortableHeader
+                                                        label="Подсистема"
+                                                        field="module"
+                                                        filters={filters}
+                                                        onSort={changeSort}
+                                                    />
+                                                    <th>Сообщение</th>
+                                                    <SortableHeader
+                                                        label="Uptime"
+                                                        field="uptime"
+                                                        filters={filters}
+                                                        onSort={changeSort}
+                                                    />
+                                                    <th>Boot ID</th>
+                                                    <SortableHeader
+                                                        label="Seq."
+                                                        field="sequence"
+                                                        filters={filters}
+                                                        onSort={changeSort}
+                                                    />
+                                                    <SortableHeader
+                                                        label="Firmware"
+                                                        field="firmware_version"
+                                                        filters={filters}
+                                                        onSort={changeSort}
+                                                    />
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {records.data?.records.map(
+                                                    (record) => (
+                                                        <tr
+                                                            key={record.id}
+                                                            onClick={() =>
+                                                                setSelectedRecord(
+                                                                    record,
+                                                                )
+                                                            }
+                                                        >
+                                                            <td>
+                                                                {formatTimestamp(
+                                                                    record.received_at,
+                                                                )}
+                                                            </td>
+                                                            <td>
+                                                                <LevelBadge
+                                                                    level={
+                                                                        record.level
+                                                                    }
+                                                                />
+                                                            </td>
+                                                            <td>
+                                                                <span className="diagnostics-type">
+                                                                    {
+                                                                        record.type
+                                                                    }
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                {record.module ??
+                                                                    '—'}
+                                                            </td>
+                                                            <td
+                                                                className="diagnostics-message"
+                                                                title={
+                                                                    record.message ??
+                                                                    ''
+                                                                }
+                                                            >
+                                                                {record.message ||
+                                                                    '—'}
+                                                            </td>
+                                                            <td>
+                                                                {formatUptime(
+                                                                    record.uptime_ms,
+                                                                )}
+                                                            </td>
+                                                            <td className="diagnostics-mono diagnostics-boot-id">
+                                                                {record.boot_id}
+                                                            </td>
+                                                            <td>
+                                                                {
+                                                                    record.sequence
+                                                                }
+                                                            </td>
+                                                            <td className="diagnostics-mono">
+                                                                {record.firmware_version ??
+                                                                    '—'}
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                                <div className="diagnostics-pagination">
+                                    <label>
+                                        На странице
+                                        <select
+                                            value={pageSize}
+                                            onChange={(event) => {
+                                                setPageSize(
+                                                    Number(event.target.value),
+                                                )
+                                                setPage(0)
+                                            }}
+                                        >
+                                            {[25, 50, 100, 200].map((size) => (
+                                                <option key={size}>
+                                                    {size}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <span>
+                                        {total === 0 ? 0 : page * pageSize + 1}–
+                                        {Math.min((page + 1) * pageSize, total)}{' '}
+                                        из {total}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        disabled={page === 0}
+                                        onClick={() =>
+                                            setPage((value) => value - 1)
+                                        }
+                                        aria-label="Предыдущая страница"
+                                    >
+                                        <ChevronLeft size={17} />
+                                    </button>
+                                    <strong>
+                                        {page + 1} / {totalPages}
+                                    </strong>
+                                    <button
+                                        type="button"
+                                        disabled={page + 1 >= totalPages}
+                                        onClick={() =>
+                                            setPage((value) => value + 1)
+                                        }
+                                        aria-label="Следующая страница"
+                                    >
+                                        <ChevronRight size={17} />
+                                    </button>
+                                </div>
+                            </section>
+                        </>
+                    )}
+
+                    {view === 'boots' && (
+                        <BootHistory
+                            loading={boots.isLoading}
+                            boots={boots.data?.boots ?? []}
+                            onSelect={selectBoot}
+                        />
+                    )}
+
+                    {view === 'coredumps' && (
+                        <>
+                            <div className="diagnostics-inline-filter">
+                                <label>
+                                    Boot ID
+                                    <input
+                                        value={draftFilters.bootId}
+                                        placeholder="Все загрузки"
+                                        onChange={(event) =>
+                                            setDraftFilters({
+                                                ...draftFilters,
+                                                bootId: event.target.value,
+                                            })
+                                        }
+                                    />
+                                </label>
+                                <button
+                                    className="button button--primary"
+                                    type="button"
+                                    onClick={() =>
+                                        setFilters({
+                                            ...filters,
+                                            bootId: draftFilters.bootId,
+                                        })
+                                    }
+                                >
+                                    Применить
+                                </button>
+                                {filters.bootId && (
+                                    <button
+                                        className="button button--quiet"
+                                        type="button"
+                                        onClick={() => {
+                                            setFilters({
+                                                ...filters,
+                                                bootId: '',
+                                            })
+                                            setDraftFilters({
+                                                ...draftFilters,
+                                                bootId: '',
+                                            })
+                                        }}
+                                    >
+                                        Сбросить
+                                    </button>
+                                )}
+                            </div>
+                            <CoredumpList
+                                loading={coredumps.isLoading}
+                                coredumps={coredumps.data?.coredumps ?? []}
+                                onDownload={(dump) =>
+                                    void downloadCoredump(dump)
                                 }
                             />
-                        </label>
-                        <button
-                            className="button button--primary"
-                            type="button"
-                            onClick={() =>
-                                setFilters({
-                                    ...filters,
-                                    bootId: draftFilters.bootId,
-                                })
-                            }
-                        >
-                            Применить
-                        </button>
-                        {filters.bootId && (
-                            <button
-                                className="button button--quiet"
-                                type="button"
-                                onClick={() => {
-                                    setFilters({ ...filters, bootId: '' })
-                                    setDraftFilters({
-                                        ...draftFilters,
-                                        bootId: '',
-                                    })
-                                }}
-                            >
-                                Сбросить
-                            </button>
-                        )}
-                    </div>
-                    <CoredumpList
-                        loading={coredumps.isLoading}
-                        coredumps={coredumps.data?.coredumps ?? []}
-                        onDownload={(dump) => void downloadCoredump(dump)}
-                    />
+                        </>
+                    )}
                 </>
             )}
 
