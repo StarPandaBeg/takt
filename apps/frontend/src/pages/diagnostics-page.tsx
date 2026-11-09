@@ -15,11 +15,13 @@ import {
     RefreshCw,
     RotateCcw,
     ServerCog,
+    Trash2,
     X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 
 import { api } from '../api/client'
+import { ConfirmDialog } from '../components/common/confirm-dialog'
 import { ErrorBanner } from '../components/common/error-banner'
 import { PageHeader } from '../components/page-header'
 import type {
@@ -277,6 +279,9 @@ export function DiagnosticsPage() {
         useState<DiagnosticRecord | null>(null)
     const [exporting, setExporting] = useState<'json' | 'csv' | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
+    const [showClearConfirmation, setShowClearConfirmation] = useState(false)
+    const [isClearing, setIsClearing] = useState(false)
+    const [clearResult, setClearResult] = useState<string | null>(null)
 
     const recordsQuery = useMemo(
         () => buildRecordsQuery(filters, view, page, pageSize),
@@ -387,6 +392,26 @@ export function DiagnosticsPage() {
             )
         }
     }
+    const clearRecords = async () => {
+        setIsClearing(true)
+        setActionError(null)
+        setClearResult(null)
+        try {
+            const result = await api.diagnostics.clearRecords()
+            setPage(0)
+            setSelectedRecord(null)
+            setClearResult(`Удалено диагностических записей: ${result.deleted}`)
+            await Promise.all([records.refetch(), boots.refetch()])
+        } catch (error: unknown) {
+            setActionError(
+                error instanceof Error
+                    ? error.message
+                    : 'Не удалось очистить диагностические записи',
+            )
+        } finally {
+            setIsClearing(false)
+        }
+    }
 
     const error = records.error ?? boots.error ?? coredumps.error
 
@@ -421,6 +446,19 @@ export function DiagnosticsPage() {
                             onClick={refresh}
                         >
                             <RefreshCw size={15} /> Обновить
+                        </button>
+                        <button
+                            className="button button--danger"
+                            type="button"
+                            disabled={isClearing}
+                            onClick={() => setShowClearConfirmation(true)}
+                        >
+                            {isClearing ? (
+                                <Loader2 className="spin-animation" size={15} />
+                            ) : (
+                                <Trash2 size={15} />
+                            )}
+                            Очистить логи
                         </button>
                     </div>
                 }
@@ -467,6 +505,18 @@ export function DiagnosticsPage() {
                     message={actionError}
                     onDismiss={() => setActionError(null)}
                 />
+            )}
+            {clearResult && (
+                <div className="diagnostics-success" role="status">
+                    {clearResult}
+                    <button
+                        type="button"
+                        onClick={() => setClearResult(null)}
+                        aria-label="Закрыть уведомление"
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
             )}
 
             {showsRecords && (
@@ -982,6 +1032,15 @@ export function DiagnosticsPage() {
                 <RecordDetails
                     record={selectedRecord}
                     onClose={() => setSelectedRecord(null)}
+                />
+            )}
+            {showClearConfirmation && (
+                <ConfirmDialog
+                    title="Очистить все диагностические логи?"
+                    message="Все логи, события и метрики будут безвозвратно удалены из SQLite. Сохранённые Core Dump останутся доступны."
+                    confirmLabel="Удалить все логи"
+                    onConfirm={() => void clearRecords()}
+                    onClose={() => setShowClearConfirmation(false)}
                 />
             )}
         </div>

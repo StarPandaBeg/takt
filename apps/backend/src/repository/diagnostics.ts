@@ -154,6 +154,13 @@ export async function countRecords(filters: RecordFilters): Promise<number> {
     return result[0]?.total ?? 0
 }
 
+export async function deleteAllRecords(): Promise<number> {
+    const deleted = await db
+        .delete(diagnosticRecordsTable)
+        .returning({ id: diagnosticRecordsTable.id })
+    return deleted.length
+}
+
 export async function findCoredump(
     deviceId: string,
     dumpId: string,

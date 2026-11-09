@@ -7,12 +7,17 @@ import {
 } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 
-const navigation = [
+const primaryNavigation = [
     { to: '/', label: 'Главная', icon: Home, end: true },
     { to: '/calendar', label: 'Календарь', icon: CalendarDays, end: false },
     { to: '/notes', label: 'Заметки', icon: NotebookPen, end: false },
-    { to: '/diagnostics', label: 'Диагностика', icon: Activity, end: false },
 ]
+const diagnosticsNavigation = {
+    to: '/diagnostics',
+    label: 'Диагностика',
+    icon: Activity,
+    end: false,
+}
 
 const commitSha = (import.meta.env.VITE_COMMIT_SHA || 'dev').trim()
 const shortCommitSha = commitSha === 'dev' ? commitSha : commitSha.slice(0, 7)
@@ -28,6 +33,12 @@ const formattedCommitDate =
 const commitLabel = `commit ${shortCommitSha}${formattedCommitDate === null ? '' : ` (${formattedCommitDate})`}`
 
 export function AppShell() {
+    const navigation =
+        typeof window !== 'undefined' &&
+        window.localStorage.getItem('DEBUG') === 'true'
+            ? [...primaryNavigation, diagnosticsNavigation]
+            : primaryNavigation
+
     return (
         <div className="app-shell">
             <aside className="sidebar">

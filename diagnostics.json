@@ -1,0 +1,113 @@
+{
+    "schema_version": 1,
+    "device_id": "takt-dev-001",
+    "firmware_version": "0.3.1",
+    "git_sha": "abcdef123",
+    "boot_id": "demo-boot-20261109-001",
+    "records": [
+        {
+            "record_id": "demo-boot-20261109-001-000001",
+            "sequence": 1,
+            "type": "event",
+            "level": "INFO",
+            "source": "diagnostics",
+            "module": "system",
+            "message": "Device boot completed",
+            "uptime_ms": 820,
+            "timestamp_unix_ms": null,
+            "fields": {
+                "event_type": "boot",
+                "reset_reason": "power_on",
+                "chip_model": "ESP32-S3",
+                "flash_size_bytes": 16777216,
+                "psram_size_bytes": 8388608
+            }
+        },
+        {
+            "record_id": "demo-boot-20261109-001-000002",
+            "sequence": 2,
+            "type": "log",
+            "level": "INFO",
+            "source": "esp_log",
+            "module": "wifi",
+            "message": "WiFi connected",
+            "uptime_ms": 1540,
+            "timestamp_unix_ms": 1794211200000,
+            "fields": {
+                "ssid": "home-network",
+                "rssi": -54,
+                "channel": 6,
+                "ip": "192.168.1.42"
+            }
+        },
+        {
+            "record_id": "demo-boot-20261109-001-000003",
+            "sequence": 3,
+            "type": "metric",
+            "level": "INFO",
+            "source": "diagnostics",
+            "module": "system",
+            "message": "System memory snapshot",
+            "uptime_ms": 60000,
+            "timestamp_unix_ms": 1794211258460,
+            "fields": {
+                "free_heap": 180240,
+                "minimum_free_heap": 165120,
+                "largest_free_block": 120832,
+                "free_psram": 7234560,
+                "cpu_temperature_c": 43.2
+            }
+        },
+        {
+            "record_id": "demo-boot-20261109-001-000004",
+            "sequence": 4,
+            "type": "log",
+            "level": "WARN",
+            "source": "display_task",
+            "module": "display",
+            "message": "Partial refresh took longer than expected",
+            "uptime_ms": 65420,
+            "timestamp_unix_ms": 1794211263880,
+            "fields": {
+                "duration_ms": 3240,
+                "expected_max_ms": 2500,
+                "refresh_mode": "partial"
+            }
+        },
+        {
+            "record_id": "demo-boot-20261109-001-000005",
+            "sequence": 5,
+            "type": "event",
+            "level": "ERROR",
+            "source": "http_client",
+            "module": "screen_sync",
+            "message": "Screen image download failed",
+            "uptime_ms": 90120,
+            "timestamp_unix_ms": 1794211288580,
+            "fields": {
+                "event_type": "request_failed",
+                "status_code": 503,
+                "attempt": 2,
+                "retry_in_ms": 15000
+            }
+        },
+        {
+            "record_id": "demo-boot-20261109-001-000006",
+            "sequence": 6,
+            "type": "event",
+            "level": "CRITICAL",
+            "source": "panic_handler",
+            "module": "system",
+            "message": "Task watchdog triggered in display_task",
+            "uptime_ms": 124500,
+            "timestamp_unix_ms": 1794211322960,
+            "fields": {
+                "event_type": "crash",
+                "cause": "task_watchdog",
+                "task": "display_task",
+                "core_dump_id": "demo-dump-001",
+                "reboot_scheduled": true
+            }
+        }
+    ]
+}

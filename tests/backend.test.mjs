@@ -454,6 +454,40 @@ test('diagnostics combines analysis filters, sorting, boot history, and export',
     }
 })
 
+test('diagnostics deletes all records only after an authorized request', async () => {
+    const app = buildBackendApp({
+        logger: false,
+        authToken: 'admin-token',
+        diagnosticsRateLimitPerMinute: false,
+    })
+    const authorization = { authorization: 'Bearer admin-token' }
+    try {
+        const unauthorized = await app.inject({
+            method: 'DELETE',
+            url: '/api/diagnostics/records',
+        })
+        assert.equal(unauthorized.statusCode, 401)
+
+        const deleted = await app.inject({
+            method: 'DELETE',
+            url: '/api/diagnostics/records',
+            headers: authorization,
+        })
+        assert.equal(deleted.statusCode, 200, deleted.body)
+        assert.equal(deleted.json().ok, true)
+        assert.ok(deleted.json().deleted > 0)
+
+        const listed = await app.inject({
+            method: 'GET',
+            url: '/api/diagnostics/records',
+            headers: authorization,
+        })
+        assert.equal(listed.headers['x-total-count'], '0')
+    } finally {
+        await app.close()
+    }
+})
+
 test('diagnostics rejects unauthorized, invalid, and oversized batches', async () => {
     const protectedApp = buildBackendApp({
         logger: false,

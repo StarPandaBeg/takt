@@ -151,6 +151,12 @@ curl -H 'Authorization: Bearer device-token' \
 `GET /api/diagnostics/records/export` применяет те же фильтры и принимает
 `format=json|csv` и `max_records` (`1..10000`, default `5000`).
 
+`DELETE /api/diagnostics/records` безвозвратно удаляет все диагностические
+логи, события и метрики и возвращает `{ "ok": true, "deleted": number }`.
+Core Dump и их метаданные этот endpoint не удаляет. Маршрут использует общую
+Bearer-авторизацию diagnostics API; пользовательский интерфейс требует явного
+подтверждения перед вызовом.
+
 `GET /api/diagnostics/boots` возвращает агрегированную историю загрузок:
 устройство, boot ID, firmware, время первого/последнего пакета и число записей.
 

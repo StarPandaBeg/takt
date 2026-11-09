@@ -398,6 +398,11 @@ export const diagnosticsRoutes: FastifyPluginAsync<
         }
     })
 
+    fastify.delete('/records', async () => {
+        const deleted = await diagnostics.deleteAllRecords()
+        return { ok: true, deleted }
+    })
+
     fastify.get('/boots', async (request) => {
         const query = bootsQuerySchema.parse(request.query)
         const boots = await diagnostics.listBoots({

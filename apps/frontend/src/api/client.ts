@@ -398,6 +398,10 @@ export const api = {
                         : Number.parseInt(countHeader, 10),
             }
         },
+        clearRecords: () =>
+            request<{ ok: true; deleted: number }>('/api/diagnostics/records', {
+                method: 'DELETE',
+            }),
         boots: (deviceId?: string) =>
             request<{ boots: DiagnosticBoot[] }>(
                 `/api/diagnostics/boots${buildQuery({

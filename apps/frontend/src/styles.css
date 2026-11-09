@@ -3110,6 +3110,29 @@ h2 {
 .diagnostics-statusbar strong {
     color: var(--ink);
 }
+.diagnostics-success {
+    display: flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 9px 12px;
+    border: 1px solid #cbdac8;
+    border-radius: 8px;
+    background: #edf5eb;
+    color: #4b6849;
+    font-size: 12px;
+}
+.diagnostics-success button {
+    display: grid;
+    padding: 3px;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
 .diagnostics-tabs {
     gap: 4px;
     margin-bottom: 16px;
