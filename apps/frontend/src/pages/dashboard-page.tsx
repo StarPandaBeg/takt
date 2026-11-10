@@ -8,6 +8,7 @@ import {
     Loader2,
     Plus,
     Repeat,
+    Send,
     StickyNote,
     Undo2,
 } from 'lucide-react'
@@ -35,6 +36,7 @@ import {
     parseIsoDate,
     toIsoDate,
 } from '../lib/date'
+import { TELEGRAM_BOT_URL } from '../lib/telegram'
 import type { CreateKind, ResolvedDeadline, ResolvedEvent } from '../types'
 import { useTakt } from '../use-app'
 
@@ -206,54 +208,70 @@ export function DashboardPage() {
                 eyebrow=""
                 title="Главная"
                 action={
-                    <div
-                        className="quick-create"
-                        onBlur={(event) => {
-                            if (
-                                !event.currentTarget.contains(
-                                    event.relatedTarget,
-                                )
-                            )
-                                setQuickMenuOpen(false)
-                        }}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Escape') setQuickMenuOpen(false)
-                        }}
-                    >
-                        <button
-                            className="button button--primary"
-                            type="button"
-                            aria-expanded={quickMenuOpen}
-                            aria-haspopup="menu"
-                            onClick={() => setQuickMenuOpen((open) => !open)}
+                    <div className="dashboard-header-actions">
+                        <a
+                            className="button button--quiet telegram-bot-link"
+                            href={TELEGRAM_BOT_URL}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Открыть Telegram-бота Takt"
+                            title="Открыть Telegram-бота"
                         >
-                            <Plus size={16} /> Создать
-                        </button>
-                        {quickMenuOpen && (
-                            <div className="quick-create__menu" role="menu">
-                                <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={() => openCreate('event')}
-                                >
-                                    <CalendarPlus size={16} /> Событие
-                                </button>
-                                <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={() => openCreate('deadline')}
-                                >
-                                    <Flag size={16} /> Дедлайн
-                                </button>
-                                <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={() => openCreate('note')}
-                                >
-                                    <StickyNote size={16} /> Заметку
-                                </button>
-                            </div>
-                        )}
+                            <Send size={16} aria-hidden="true" />
+                            <span>Telegram-бот</span>
+                        </a>
+                        <div
+                            className="quick-create"
+                            onBlur={(event) => {
+                                if (
+                                    !event.currentTarget.contains(
+                                        event.relatedTarget,
+                                    )
+                                )
+                                    setQuickMenuOpen(false)
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Escape')
+                                    setQuickMenuOpen(false)
+                            }}
+                        >
+                            <button
+                                className="button button--primary"
+                                type="button"
+                                aria-expanded={quickMenuOpen}
+                                aria-haspopup="menu"
+                                onClick={() =>
+                                    setQuickMenuOpen((open) => !open)
+                                }
+                            >
+                                <Plus size={16} /> Создать
+                            </button>
+                            {quickMenuOpen && (
+                                <div className="quick-create__menu" role="menu">
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => openCreate('event')}
+                                    >
+                                        <CalendarPlus size={16} /> Событие
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => openCreate('deadline')}
+                                    >
+                                        <Flag size={16} /> Дедлайн
+                                    </button>
+                                    <button
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() => openCreate('note')}
+                                    >
+                                        <StickyNote size={16} /> Заметку
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 }
             />

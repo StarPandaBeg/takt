@@ -302,6 +302,15 @@ h2 {
     min-width: 360px;
 }
 
+.dashboard-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.telegram-bot-link svg {
+    transform: translate(-1px, 1px);
+}
+
 /* Карточка независимого виджета */
 .dashboard-card {
     background: #ffffff;
@@ -2214,6 +2223,11 @@ h2 {
     .dashboard-col--device {
         grid-column: auto;
     }
+    .dashboard-col--calendar,
+    .dashboard-col--agenda,
+    .dashboard-col--device {
+        min-width: 0;
+    }
     .device-preview {
         max-width: 100%;
     }
@@ -2316,7 +2330,7 @@ h2 {
     }
     .app-content {
         margin-left: 0;
-        padding-bottom: 64px;
+        padding-bottom: calc(64px + env(safe-area-inset-bottom));
     }
     .page {
         padding: 20px 14px 28px;
@@ -2340,12 +2354,23 @@ h2 {
         padding: 0;
         font-size: 0;
     }
+    .page-header__action .button span {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
     .dashboard-workspace {
         margin-top: 16px;
         gap: 14px;
     }
     .dashboard-card {
         padding: 16px 14px;
+    }
+    .mini-calendar__day {
+        min-width: 0;
+        min-height: 36px;
     }
     .schedule-widget {
         height: auto;
@@ -2367,8 +2392,9 @@ h2 {
         z-index: 60;
         inset: auto 0 0;
         display: grid;
-        height: 60px;
+        min-height: 60px;
         grid-template-columns: repeat(3, 1fr);
+        padding-bottom: env(safe-area-inset-bottom);
         border-top: 1px solid var(--line);
         background: rgb(250 250 247 / 96%);
         backdrop-filter: blur(8px);
@@ -2385,7 +2411,7 @@ h2 {
         color: var(--accent);
     }
     .build-commit {
-        bottom: 64px;
+        bottom: calc(64px + env(safe-area-inset-bottom));
     }
     .full-calendar-section {
         margin-right: -14px;
@@ -2582,6 +2608,29 @@ h2 {
     .deadline-row time {
         grid-column: 2;
         text-align: left;
+    }
+}
+
+@media (max-width: 430px) {
+    .schedule-widget .dashboard-card__header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .schedule-widget .dashboard-card__actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .timeline-event {
+        grid-template-columns: 92px minmax(0, 1fr) auto;
+        gap: 8px;
+    }
+    .deadline {
+        grid-template-columns: 20px minmax(0, 1fr);
+        gap: 8px;
+    }
+    .deadline__meta {
+        grid-column: 2;
+        justify-self: start;
     }
 }
 

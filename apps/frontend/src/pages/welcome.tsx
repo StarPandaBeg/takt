@@ -17,9 +17,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useToast } from '../context/use-toast'
+import { TELEGRAM_BOT_URL } from '../lib/telegram'
 import { useTakt } from '../use-app'
-
-const TELEGRAM_BOT_URL = 'https://t.me/takt_control_bot'
 
 function DeviceDemo() {
     return (
