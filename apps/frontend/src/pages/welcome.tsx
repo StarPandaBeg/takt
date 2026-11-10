@@ -345,8 +345,12 @@ export function WelcomePage() {
         if (isCompleting) return
         setIsCompleting(true)
         try {
+            await navigate('/welcome', {
+                replace: true,
+                state: { tutorialDestination: destination },
+                flushSync: true,
+            })
             await updateSettings({ tutorial: 1 })
-            await navigate(destination, { replace: true })
         } catch (err: unknown) {
             toast.error(
                 err instanceof Error
