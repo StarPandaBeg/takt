@@ -2,6 +2,7 @@ import { type DeepPartial, type DefaultsConfig } from '@takt/ui'
 import { defineProject } from './project.js'
 import { calendarMainScreen } from './screens/main.js'
 import { calendarSplashScreen } from './screens/splash.js'
+import { calendarWelcomeScreen } from './screens/welcome.js'
 
 export {
     defineProject,
@@ -73,5 +74,6 @@ export const project = defineProject(config)({
     scenes: {
         main: calendarMainScreen,
         splash: calendarSplashScreen,
+        welcome: calendarWelcomeScreen,
     },
 })

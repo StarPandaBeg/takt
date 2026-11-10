@@ -833,6 +833,11 @@ test('backend serves the rendered frame as PNG', async () => {
     const app = buildApp({ logger: false })
 
     try {
+        await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { tutorial: 1 },
+        })
         const response = await app.inject({
             method: 'GET',
             url: '/screens/splash/png',
@@ -885,10 +890,76 @@ test('backend serves the rendered frame as PNG', async () => {
     }
 })
 
+test('unfinished tutorial overrides every requested screen', async () => {
+    const app = buildApp({ logger: false })
+
+    try {
+        await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { tutorial: 0 },
+        })
+
+        const lockedMainInfo = await app.inject({
+            method: 'GET',
+            url: '/screens/main',
+        })
+        const lockedSplashInfo = await app.inject({
+            method: 'GET',
+            url: '/screens/splash',
+        })
+        assert.equal(lockedMainInfo.statusCode, 200)
+        assert.equal(lockedSplashInfo.statusCode, 200)
+        assert.equal(lockedMainInfo.json().hash, lockedSplashInfo.json().hash)
+
+        const lockedMainPng = await app.inject({
+            method: 'GET',
+            url: '/screens/main/png',
+        })
+        const lockedSplashPng = await app.inject({
+            method: 'GET',
+            url: '/screens/splash/png',
+        })
+        assert.deepEqual(lockedMainPng.rawPayload, lockedSplashPng.rawPayload)
+
+        const completed = await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { tutorial: 1 },
+        })
+        assert.equal(completed.statusCode, 200)
+
+        const mainInfo = await app.inject({
+            method: 'GET',
+            url: '/screens/main',
+        })
+        const splashInfo = await app.inject({
+            method: 'GET',
+            url: '/screens/splash',
+        })
+        assert.notEqual(mainInfo.json().hash, lockedMainInfo.json().hash)
+        assert.notEqual(splashInfo.json().hash, lockedSplashInfo.json().hash)
+        assert.notEqual(mainInfo.json().hash, splashInfo.json().hash)
+
+        const reservedWelcome = await app.inject({
+            method: 'GET',
+            url: '/screens/welcome',
+        })
+        assert.equal(reservedWelcome.statusCode, 404)
+    } finally {
+        await app.close()
+    }
+})
+
 test('screen hash is stable and changes with visible source data', async () => {
     const app = buildApp({ logger: false })
 
     try {
+        await app.inject({
+            method: 'PATCH',
+            url: '/api/settings',
+            payload: { tutorial: 1 },
+        })
         const first = await app.inject({ method: 'GET', url: '/screens/main' })
         const second = await app.inject({ method: 'GET', url: '/screens/main' })
         assert.equal(first.statusCode, 200)
