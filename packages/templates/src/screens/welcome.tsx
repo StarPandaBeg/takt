@@ -17,7 +17,7 @@ export const calendarWelcomeScreen = defineScene<void>(() => (
             threshold={128}
             smoothing
         />
-        <Row width={800} justify="center" y={200}>
+        <Row width={800} justify="center" y={220}>
             <Image
                 src={new URL('../../assets/welcome.png', import.meta.url).href}
                 width={180}
@@ -46,6 +46,10 @@ export const calendarWelcomeScreen = defineScene<void>(() => (
                     <Text fontSize={20}>для</Text>
                 </Row>
                 <Text fontSize={20}>создания своего первого события!</Text>
+            </Column>
+            <Column>
+                <Text fontSize={20}>Логин: debug</Text>
+                <Text fontSize={20}>Пароль: test123</Text>
             </Column>
         </Column>
     </>
