@@ -4500,7 +4500,7 @@ h2 {
     min-height: 0;
     align-self: center;
     padding: 64px 0;
-    animation: welcome-v3-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: welcome-v3-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes welcome-v3-enter {
     from {
@@ -4637,7 +4637,7 @@ h2 {
     overflow: hidden;
     border-left: 1px solid rgb(31 27 22 / 8%);
     background: #e7e3da;
-    animation: welcome-v3-enter 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: welcome-v3-enter 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
     container-type: size;
 }
 .welcome-visual-content-v3 {
@@ -4691,6 +4691,7 @@ h2 {
     container-type: size;
 }
 .welcome-device__screen {
+    position: relative;
     width: 100%;
     height: 100%;
     display: grid;
@@ -4700,6 +4701,18 @@ h2 {
     border-radius: 4px;
     color: #171713;
     background: #f3f2eb;
+    overflow: hidden;
+    isolation: isolate;
+}
+.welcome-device__screen::after {
+    position: absolute;
+    z-index: 10;
+    inset: 0;
+    background: #171713;
+    content: '';
+    pointer-events: none;
+    animation: welcome-epaper-refresh 880ms 90ms cubic-bezier(0.22, 1, 0.36, 1)
+        both;
 }
 .welcome-screen-header {
     display: grid;
@@ -4708,6 +4721,8 @@ h2 {
     gap: 32px;
     padding-bottom: 16px;
     border-bottom: 2px solid #171713;
+    animation: welcome-content-print 380ms 600ms cubic-bezier(0.22, 1, 0.36, 1)
+        both;
 }
 .welcome-screen-header > div:first-child {
     display: grid;
@@ -4762,11 +4777,25 @@ h2 {
     padding-right: 24px;
     border-right: 1px solid #b8b6ad;
 }
+.welcome-screen-agenda > h3 {
+    animation: welcome-content-print 340ms 600ms cubic-bezier(0.22, 1, 0.36, 1)
+        both;
+}
 .welcome-screen-event {
     display: grid;
     grid-template-columns: 48px 1fr;
     gap: 12px;
     align-items: start;
+    animation: welcome-event-print 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.welcome-screen-event:nth-of-type(1) {
+    animation-delay: 780ms;
+}
+.welcome-screen-event:nth-of-type(2) {
+    animation-delay: 920ms;
+}
+.welcome-screen-event:nth-of-type(3) {
+    animation-delay: 1.06s;
 }
 .welcome-screen-event time {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -4796,6 +4825,13 @@ h2 {
     gap: 4px;
     padding-bottom: 12px;
     border-bottom: 1px solid #b8b6ad;
+    animation: welcome-content-print 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.welcome-screen-aside > div:first-child {
+    animation-delay: 1.02s;
+}
+.welcome-screen-aside > div:last-child {
+    animation-delay: 1.16s;
 }
 .welcome-screen-aside strong,
 .welcome-screen-aside p {
@@ -4815,6 +4851,8 @@ h2 {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 10px;
     font-variant-numeric: tabular-nums;
+    animation: welcome-content-print 340ms 1.24s cubic-bezier(0.22, 1, 0.36, 1)
+        both;
 }
 
 /* Browser previews */
@@ -4908,6 +4946,8 @@ h2 {
 }
 .welcome-calendar-grid > div.is-current {
     background: #f4f0e8;
+    animation: welcome-calendar-focus 500ms 180ms cubic-bezier(0.22, 1, 0.36, 1)
+        both;
 }
 .welcome-calendar-grid > div > span {
     color: #7b7266;
@@ -4925,6 +4965,17 @@ h2 {
     background: #efe9df;
     font-size: 10px;
     line-height: 1.3;
+    transform-origin: left center;
+    animation: welcome-calendar-event 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.welcome-calendar-grid > div:nth-child(2) > small {
+    animation-delay: 600ms;
+}
+.welcome-calendar-grid > div:nth-child(3) > small {
+    animation-delay: 880ms;
+}
+.welcome-calendar-grid > div:nth-child(5) > small {
+    animation-delay: 1.16s;
 }
 .welcome-calendar-deadline {
     display: grid;
@@ -4934,6 +4985,8 @@ h2 {
     padding: 12px 16px;
     border: 1px solid rgb(31 27 22 / 10%);
     border-radius: 8px;
+    animation: welcome-deadline-arrive 460ms 1.42s
+        cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .welcome-calendar-deadline > div {
     display: grid;
@@ -4949,10 +5002,17 @@ h2 {
 }
 
 /* Telegram preview */
-.welcome-chat {
-    width: min(400px, 100%);
-    height: min(100%, 520px);
+.welcome-telegram-scene {
+    position: relative;
+    width: min(720px, 100cqw);
+    height: min(520px, 100cqh);
     min-height: 0;
+}
+.welcome-chat {
+    width: min(400px, calc(100% - 240px));
+    height: 100%;
+    min-height: 0;
+    margin-inline: auto;
     display: grid;
     grid-template-rows: auto 1fr auto;
     padding: 8px;
@@ -4961,6 +5021,8 @@ h2 {
     border-radius: 20px;
     background: #292a27;
     box-shadow: 0 8px 24px rgb(31 27 22 / 10%);
+    animation: welcome-chat-make-room 520ms 980ms cubic-bezier(0.22, 1, 0.36, 1)
+        both;
 }
 .welcome-chat__header {
     display: grid;
@@ -5020,6 +5082,19 @@ h2 {
     box-shadow: 0 1px 2px rgb(31 27 22 / 6%);
     font-size: 12px;
     line-height: 1.4;
+    animation: welcome-message-send 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.welcome-chat-message:nth-of-type(1) {
+    animation-delay: 180ms;
+}
+.welcome-chat-message:nth-of-type(2) {
+    animation-delay: 700ms;
+}
+.welcome-chat-message:nth-of-type(3) {
+    animation-delay: 1.2s;
+}
+.welcome-chat-message:nth-of-type(4) {
+    animation-delay: 2.16s;
 }
 .welcome-chat-message > span:last-child {
     display: inline-flex;
@@ -5037,8 +5112,8 @@ h2 {
     color: #607c87;
 }
 .welcome-chat-message.is-voice {
-    width: 220px;
-    grid-template-columns: 28px 1fr auto;
+    width: 260px;
+    grid-template-columns: 28px minmax(0, 1fr) auto 24px;
     align-items: center;
 }
 .welcome-chat-message.is-voice > i {
@@ -5051,12 +5126,23 @@ h2 {
     background: #687c67;
 }
 .welcome-chat-wave {
+    position: relative;
     height: 24px;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
     justify-self: stretch !important;
     gap: 2px !important;
+    overflow: hidden;
+}
+.welcome-chat-wave::after {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 36%;
+    background: rgb(217 230 213 / 72%);
+    content: '';
+    transform: translateX(-110%);
+    animation: welcome-voice-play 840ms 1.56s ease-out both;
 }
 .welcome-chat-wave b {
     flex: 0 0 2px;
@@ -5081,6 +5167,51 @@ h2 {
 .welcome-chat-message.is-voice > .welcome-chat-meta {
     grid-column: 2 / -1;
 }
+.welcome-chat-transcript-toggle {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 1px;
+    padding: 0;
+    border: 1px solid rgb(31 27 22 / 14%);
+    border-radius: 6px;
+    color: #607c87;
+    background: rgb(253 251 247 / 54%);
+    cursor: pointer;
+    transition:
+        color 160ms ease,
+        background 160ms ease,
+        border-color 160ms ease;
+}
+.welcome-chat-transcript-toggle:hover,
+.welcome-chat-transcript-toggle[aria-expanded='true'] {
+    color: #385b67;
+    border-color: rgb(56 91 103 / 28%);
+    background: rgb(253 251 247 / 86%);
+}
+.welcome-chat-transcript-toggle:focus-visible {
+    outline: 2px solid #607c87;
+    outline-offset: 2px;
+}
+.welcome-chat-transcript-toggle span:first-child {
+    font-size: 11px;
+    font-weight: 500;
+}
+.welcome-chat-transcript-toggle span:last-child {
+    font-size: 8px;
+    font-weight: 500;
+}
+.welcome-chat-transcript {
+    grid-column: 1 / -1;
+    padding: 8px 0 4px;
+    border-top: 1px solid rgb(31 27 22 / 10%);
+    color: #4f594f;
+    font-size: 11px;
+    line-height: 1.35;
+    animation: welcome-transcript-open 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
 .welcome-chat__input {
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -5091,6 +5222,52 @@ h2 {
     color: #7b7266;
     background: #fdfbf7;
     font-size: 12px;
+}
+.welcome-telegram-results {
+    position: absolute;
+    z-index: 1;
+    inset: 0 0 0 auto;
+    width: 272px;
+    pointer-events: none;
+}
+.welcome-telegram-result {
+    position: absolute;
+    right: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid rgb(31 27 22 / 12%);
+    border-radius: 12px;
+    color: #1f1b16;
+    background: #fdfbf7;
+    box-shadow: 0 8px 20px rgb(31 27 22 / 8%);
+    animation: welcome-telegram-result 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.welcome-telegram-result.is-meeting {
+    top: 39%;
+    animation-delay: 1.28s;
+}
+.welcome-telegram-result.is-deadline {
+    top: 67%;
+    animation-delay: 2.78s;
+}
+.welcome-telegram-result > svg {
+    color: #687c67;
+}
+.welcome-telegram-result > div {
+    display: grid;
+    gap: 4px;
+}
+.welcome-telegram-result span {
+    color: #7b7266;
+    font-size: 11px;
+}
+.welcome-telegram-result strong {
+    font-size: 12px;
+    font-weight: 500;
 }
 
 /* First event preview */
@@ -5125,6 +5302,8 @@ h2 {
     color: #687c67;
     font-size: 12px;
     font-weight: 500;
+    animation: welcome-status-confirm 420ms 1.28s cubic-bezier(0.22, 1, 0.36, 1)
+        both;
 }
 .welcome-first-event__timeline {
     display: grid;
@@ -5148,6 +5327,17 @@ h2 {
 .welcome-first-event__row > span {
     height: 1px;
     background: rgb(31 27 22 / 10%);
+    transform-origin: left center;
+    animation: welcome-timeline-draw 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.welcome-first-event__row:nth-child(1) > span {
+    animation-delay: 140ms;
+}
+.welcome-first-event__row:nth-child(3) > span {
+    animation-delay: 840ms;
+}
+.welcome-first-event__row:nth-child(4) > span {
+    animation-delay: 1.02s;
 }
 .welcome-first-event__row article {
     min-height: 64px;
@@ -5157,6 +5347,9 @@ h2 {
     padding: 12px 16px;
     border-left: 3px solid #9d5647;
     background: #efe9df;
+    transform-origin: left center;
+    animation: welcome-first-event-add 560ms 500ms
+        cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .welcome-first-event__row article strong {
     font-size: 14px;
@@ -5165,6 +5358,154 @@ h2 {
 .welcome-first-event__row article span {
     color: #5e554a;
     font-size: 12px;
+}
+
+@keyframes welcome-epaper-refresh {
+    0% {
+        opacity: 0;
+    }
+    16% {
+        opacity: 0.78;
+    }
+    34% {
+        opacity: 0.08;
+    }
+    52% {
+        opacity: 0.38;
+    }
+    72%,
+    100% {
+        opacity: 0;
+    }
+}
+@keyframes welcome-content-print {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@keyframes welcome-event-print {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+@keyframes welcome-calendar-focus {
+    from {
+        background: #fdfbf7;
+    }
+    to {
+        background: #f4f0e8;
+    }
+}
+@keyframes welcome-calendar-event {
+    from {
+        opacity: 0;
+        transform: scaleX(0.18);
+    }
+    to {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+@keyframes welcome-deadline-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@keyframes welcome-message-send {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+@keyframes welcome-transcript-open {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@keyframes welcome-voice-play {
+    0% {
+        opacity: 0;
+        transform: translateX(-110%);
+    }
+    18% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(320%);
+    }
+}
+@keyframes welcome-chat-make-room {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-120px);
+    }
+}
+@keyframes welcome-telegram-result {
+    from {
+        opacity: 0;
+        transform: translateX(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+@keyframes welcome-status-confirm {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@keyframes welcome-timeline-draw {
+    from {
+        opacity: 0;
+        transform: scaleX(0);
+    }
+    to {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+@keyframes welcome-first-event-add {
+    from {
+        opacity: 0;
+        transform: translateX(-12px) scaleX(0.82);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scaleX(1);
+    }
 }
 
 @media (max-width: 960px) {
@@ -5417,13 +5758,51 @@ h2 {
 
 @media (prefers-reduced-motion: reduce) {
     .welcome-copy-v3,
-    .welcome-visual-v3 {
+    .welcome-visual-v3,
+    .welcome-screen-header,
+    .welcome-screen-agenda > h3,
+    .welcome-screen-event,
+    .welcome-screen-aside > div,
+    .welcome-screen-footer,
+    .welcome-calendar-grid > div.is-current,
+    .welcome-calendar-grid > div > small,
+    .welcome-calendar-deadline,
+    .welcome-chat,
+    .welcome-chat-message,
+    .welcome-chat-transcript,
+    .welcome-telegram-result,
+    .welcome-first-event__status,
+    .welcome-first-event__row > span,
+    .welcome-first-event__row article {
         animation: none;
     }
+    .welcome-chat {
+        transform: translateX(-120px);
+    }
+    .welcome-device__screen::after,
+    .welcome-chat-wave::after {
+        display: none;
+    }
     .welcome-telegram-action-v3,
+    .welcome-chat-transcript-toggle,
     .welcome-continue-v3,
     .welcome-final-v3 > button:first-child {
         transition: none;
+    }
+}
+
+@container (max-width: 680px) {
+    .welcome-telegram-scene {
+        display: grid;
+        place-items: center;
+    }
+    .welcome-chat {
+        width: min(400px, 100%);
+        transform: none;
+        animation: none;
+    }
+    .welcome-telegram-results {
+        display: none;
     }
 }
 

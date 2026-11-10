@@ -155,53 +155,107 @@ function CalendarDemo() {
 }
 
 function TelegramDemo() {
+    const [showTranscript, setShowTranscript] = useState(false)
+
     return (
-        <div className="welcome-chat" aria-label="Диалог с Telegram-ботом Takt">
-            <header className="welcome-chat__header">
-                <ChevronLeft size={20} strokeWidth={1.5} />
-                <span className="welcome-chat__avatar">T</span>
-                <div>
-                    <strong>Takt bot</strong>
-                    <small>онлайн</small>
+        <div className="welcome-telegram-scene">
+            <div
+                className="welcome-chat"
+                aria-label="Диалог с Telegram-ботом Takt"
+            >
+                <header className="welcome-chat__header">
+                    <ChevronLeft size={20} strokeWidth={1.5} />
+                    <span className="welcome-chat__avatar">T</span>
+                    <div>
+                        <strong>Takt bot</strong>
+                        <small>онлайн</small>
+                    </div>
+                    <MoreHorizontal size={20} strokeWidth={1.5} />
+                </header>
+                <div className="welcome-chat__messages">
+                    <span className="welcome-chat__date">Сегодня</span>
+                    <div className="welcome-chat-message is-user">
+                        Встреча с Анной завтра в 11
+                        <span>
+                            09:40 <CheckCheck size={12} strokeWidth={1.5} />
+                        </span>
+                    </div>
+                    <div className="welcome-chat-message is-bot">
+                        Добавил встречу с Анной — завтра, 11:00
+                        <span>09:40</span>
+                    </div>
+                    <div className="welcome-chat-message is-user is-voice">
+                        <i>
+                            <Mic size={14} strokeWidth={1.5} />
+                        </i>
+                        <span className="welcome-chat-wave" aria-hidden="true">
+                            {Array.from({ length: 28 }, (_, index) => (
+                                <b key={index} />
+                            ))}
+                        </span>
+                        <small>0:08</small>
+                        <button
+                            className="welcome-chat-transcript-toggle"
+                            type="button"
+                            aria-expanded={showTranscript}
+                            aria-controls="welcome-voice-transcript"
+                            aria-label={
+                                showTranscript
+                                    ? 'Скрыть расшифровку голосового сообщения'
+                                    : 'Расшифровать голосовое сообщение'
+                            }
+                            onClick={() =>
+                                setShowTranscript((current) => !current)
+                            }
+                        >
+                            <span>A</span>
+                            <span>A</span>
+                        </button>
+                        {showTranscript && (
+                            <div
+                                className="welcome-chat-transcript"
+                                id="welcome-voice-transcript"
+                            >
+                                Поставь дедлайн «Купить билеты» на пятницу
+                            </div>
+                        )}
+                        <span className="welcome-chat-meta">
+                            09:41 <CheckCheck size={12} strokeWidth={1.5} />
+                        </span>
+                    </div>
+                    <div className="welcome-chat-message is-bot">
+                        Дедлайн «Купить билеты» — в пятницу
+                        <span>09:41</span>
+                    </div>
                 </div>
-                <MoreHorizontal size={20} strokeWidth={1.5} />
-            </header>
-            <div className="welcome-chat__messages">
-                <span className="welcome-chat__date">Сегодня</span>
-                <div className="welcome-chat-message is-user">
-                    Встреча с Анной завтра в 11
-                    <span>
-                        09:40 <CheckCheck size={12} strokeWidth={1.5} />
-                    </span>
-                </div>
-                <div className="welcome-chat-message is-bot">
-                    Добавил встречу с Анной — завтра, 11:00
-                    <span>09:40</span>
-                </div>
-                <div className="welcome-chat-message is-user is-voice">
-                    <i>
-                        <Mic size={14} strokeWidth={1.5} />
-                    </i>
-                    <span className="welcome-chat-wave" aria-hidden="true">
-                        {Array.from({ length: 28 }, (_, index) => (
-                            <b key={index} />
-                        ))}
-                    </span>
-                    <small>0:08</small>
-                    <span className="welcome-chat-meta">
-                        09:41 <CheckCheck size={12} strokeWidth={1.5} />
-                    </span>
-                </div>
-                <div className="welcome-chat-message is-bot">
-                    Дедлайн «Купить билеты» — в пятницу
-                    <span>09:41</span>
-                </div>
+                <footer className="welcome-chat__input">
+                    <Paperclip size={18} strokeWidth={1.5} />
+                    <span>Сообщение</span>
+                    <Mic size={18} strokeWidth={1.5} />
+                </footer>
             </div>
-            <footer className="welcome-chat__input">
-                <Paperclip size={18} strokeWidth={1.5} />
-                <span>Сообщение</span>
-                <Mic size={18} strokeWidth={1.5} />
-            </footer>
+            <div className="welcome-telegram-results">
+                <aside
+                    className="welcome-telegram-result is-meeting"
+                    aria-label="Встреча создана из текстового сообщения"
+                >
+                    <Check size={16} strokeWidth={1.5} />
+                    <div>
+                        <span>Событие создано</span>
+                        <strong>Встреча с Анной · завтра, 11:00</strong>
+                    </div>
+                </aside>
+                <aside
+                    className="welcome-telegram-result is-deadline"
+                    aria-label="Дедлайн создан из голосового сообщения"
+                >
+                    <Check size={16} strokeWidth={1.5} />
+                    <div>
+                        <span>Дедлайн создан</span>
+                        <strong>Купить билеты · пятница</strong>
+                    </div>
+                </aside>
+            </div>
         </div>
     )
 }
